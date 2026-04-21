@@ -1,0 +1,1 @@
+"""Sihirbaz ekranları (QWizardPage türevleri)."""

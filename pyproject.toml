@@ -1,0 +1,194 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pentra"
+version = "0.1.0"
+description = "Yeni başlayanlar için Windows masaüstü sızma testi aracı — sihirbaz arayüzlü, yerel rapor"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [
+    { name = "Pentra Geliştirme Ekibi", email = "ozzdemirbrk@gmail.com" },
+]
+keywords = ["pentest", "security", "vulnerability-scanner", "network-scanner", "windows", "turkish"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: End Users/Desktop",
+    "Natural Language :: Turkish",
+    "Operating System :: Microsoft :: Windows :: Windows 10",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
+
+dependencies = [
+    # GUI
+    "PySide6>=6.6",
+
+    # Ağ tarama
+    "python-nmap>=0.7.1",
+    "scapy>=2.5",
+    "requests>=2.31",
+    "paramiko>=3.4",
+    "impacket>=0.12",
+    "sslyze>=5.2",
+    "dnspython>=2.4",
+    "netaddr>=1.0",
+
+    # Rapor
+    "Jinja2>=3.1",
+    # WeasyPrint Windows'ta GTK3 gerektirir; alternatif değerlendirilecek.
+    # "weasyprint>=60",
+    "xhtml2pdf>=0.2.15",
+    "markdown-it-py>=3",
+
+    # Veri & güvenlik
+    "cryptography>=42",
+    "pydantic>=2.5",
+
+    # Yardımcı
+    "structlog>=24",
+    "rich>=13",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-qt>=4.3",
+    "pytest-cov>=4",
+    "pytest-mock>=3",
+    "ruff>=0.2",
+    "black>=24",
+    "mypy>=1.8",
+    "pre-commit>=3",
+    "pip-audit>=2.7",
+    "pyinstaller>=6",
+]
+
+[project.scripts]
+pentra = "pentra.__main__:main"
+
+[project.urls]
+"Kaynak" = "https://github.com/ozzdemirbrk/pentra"
+"Hata Bildirimi" = "https://github.com/ozzdemirbrk/pentra/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pentra"]
+
+# ------------------------------------------------------------------
+# Black — kod formatlayıcı
+# ------------------------------------------------------------------
+[tool.black]
+line-length = 100
+target-version = ["py311", "py312"]
+include = '\.pyi?$'
+
+# ------------------------------------------------------------------
+# Ruff — lint
+# ------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle error
+    "W",    # pycodestyle warning
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "RET",  # flake8-return
+    "PTH",  # use pathlib
+    "S",    # flake8-bandit (güvenlik)
+    "N",    # pep8-naming
+]
+ignore = [
+    "E501",  # satır uzunluğu — black halleder
+    "S101",  # assert kullanımı — testlerde normal
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S", "ANN"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pentra"]
+
+# ------------------------------------------------------------------
+# MyPy — statik tip denetimi
+# ------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "nmap.*",
+    "scapy.*",
+    "impacket.*",
+    "xhtml2pdf.*",
+    "pytest_qt.*",
+]
+ignore_missing_imports = true
+
+# ------------------------------------------------------------------
+# Pytest
+# ------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=src/pentra",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+]
+markers = [
+    "unit: hızlı, ağsız unit testleri",
+    "integration: ağ/dosya sistemi gerektiren entegrasyon testleri",
+    "slow: çalışması saniyelerce süren testler",
+]
+
+# ------------------------------------------------------------------
+# Coverage
+# ------------------------------------------------------------------
+[tool.coverage.run]
+source = ["src/pentra"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+show_missing = true
+skip_covered = false
+fail_under = 80

@@ -1,0 +1,33 @@
+# Pentra — Üretim Bağımlılıkları
+# Kurulum: pip install -r requirements.txt
+#
+# Sistem bağımlılıkları (Python dışı):
+#   - Nmap: https://nmap.org/download.html
+#   - Npcap: https://npcap.com/ (scapy için gerekli)
+
+# -------- GUI --------
+PySide6>=6.6,<7
+
+# -------- Ağ Taraması --------
+python-nmap>=0.7.1
+scapy>=2.5
+requests>=2.31
+paramiko>=3.4
+impacket>=0.12
+sslyze>=5.2
+dnspython>=2.4
+netaddr>=1.0
+
+# -------- Rapor Üretimi --------
+Jinja2>=3.1
+xhtml2pdf>=0.2.15
+markdown-it-py>=3
+
+# -------- Veri & Güvenlik --------
+cryptography>=42
+pydantic>=2.5
+
+# -------- Yardımcılar --------
+structlog>=24
+rich>=13
+click>=8.1

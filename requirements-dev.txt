@@ -1,0 +1,25 @@
+# Pentra — Geliştirme Bağımlılıkları
+# Kurulum: pip install -r requirements-dev.txt
+# (requirements.txt'i de kurmayı unutmayın)
+
+-r requirements.txt
+
+# -------- Test --------
+pytest>=8
+pytest-qt>=4.3
+pytest-cov>=4
+pytest-mock>=3
+
+# -------- Lint & Format --------
+ruff>=0.2
+black>=24
+mypy>=1.8
+
+# -------- Commit Öncesi --------
+pre-commit>=3
+
+# -------- Güvenlik Denetimi --------
+pip-audit>=2.7
+
+# -------- Paketleme --------
+pyinstaller>=6

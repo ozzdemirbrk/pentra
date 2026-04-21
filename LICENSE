@@ -1,0 +1,23 @@
+PENTRA — LİSANS (TASLAK)
+========================
+
+Bu yazılımın lisansı v1.0 sürümünden önce netleşecektir.
+
+Geliştirme süreci boyunca, bu depoya katkı verenler aşağıdakileri kabul eder:
+
+1. Bu yazılım **etik ve yasal sınırlar içinde** kullanılmak üzere tasarlanmıştır.
+   Yetkisiz sistemlere yönelik tarama, Türkiye Cumhuriyeti Türk Ceza Kanunu
+   Madde 243, 244, 245 kapsamında suç teşkil eder.
+
+2. Bu yazılım "olduğu gibi" (AS IS) sağlanır; herhangi bir garanti verilmez.
+   Yanlış veya yetkisiz kullanımdan doğan tüm sorumluluk kullanıcıya aittir.
+
+3. Yazılımın kaynak kodu kamuya açık dağıtılmadan önce sahipleri (bkz.
+   pyproject.toml > authors) tarafından yazılı onay verilmelidir.
+
+v1.0 ile birlikte muhtemelen MIT veya AGPL-3.0 benzeri bir açık kaynak
+lisansı seçilecektir. Takip için depodaki LICENSE dosyası güncellenir.
+
+---
+
+Son güncelleme: 2026-04-21

@@ -1,0 +1,96 @@
+# ----------------------------------------------------
+# Python
+# ----------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+wheels/
+*.whl
+pip-wheel-metadata/
+MANIFEST
+
+# ----------------------------------------------------
+# Sanal ortam
+# ----------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+
+# ----------------------------------------------------
+# Test & Kapsam
+# ----------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.tox/
+.nox/
+.hypothesis/
+
+# ----------------------------------------------------
+# Lint / Tip / Format önbellekleri
+# ----------------------------------------------------
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# ----------------------------------------------------
+# IDE
+# ----------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ----------------------------------------------------
+# İşletim sistemi
+# ----------------------------------------------------
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# ----------------------------------------------------
+# PyInstaller çıktıları
+# ----------------------------------------------------
+*.spec
+build/
+dist/
+
+# ----------------------------------------------------
+# Pentra'ya özel — hassas çıktılar kesinlikle commit EDİLMEZ
+# ----------------------------------------------------
+*.log
+audit.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Kullanıcı raporları (masaüstüne yazılır ama ihtiyaten)
+Pentra_Rapor_*.pdf
+Pentra_Rapor_*.html
+Pentra_Rapor_*.md
+
+# Yerel yapılandırma ve sırlar
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+*.crt
+
+# Kullanıcı AppData simulasyonu (test fixture'ları için)
+appdata_local/

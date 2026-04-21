@@ -1,0 +1,63 @@
+# Pre-commit yapılandırması — commit öncesi otomatik kontroller.
+# Kurulum:
+#   pip install pre-commit
+#   pre-commit install
+#
+# Manuel çalıştırma:
+#   pre-commit run --all-files
+
+repos:
+  # Genel kontroller
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: detect-private-key
+
+  # Ruff — lint + import sıralama
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.4
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  # Black — kod formatlayıcı (ruff-format yerine tercih edenler için)
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+        language_version: python3
+
+  # MyPy — statik tip denetimi
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.9.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - pydantic>=2.5
+          - types-requests
+          - types-paramiko
+        args: ["--config-file=pyproject.toml"]
+        files: ^src/
+
+  # Güvenlik — hassas string/anahtar taraması
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: ^(tests/fixtures/|memory-bank/)
+
+# Tüm hook'lar en son aşamada; hata varsa commit iptal olur.
+default_stages: [pre-commit]
+fail_fast: false
