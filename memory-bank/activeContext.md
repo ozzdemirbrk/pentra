@@ -11,11 +11,16 @@
 
 ## 1. Şu Anki Odak
 
-**Aşama**: 🌐 **Faz 3 — E2E test bekleniyor, sonra Faz 4**
+**Aşama**: 🔬 **Faz 4 — Servis Versiyonu + CVE Eşleştirme (başlayacak)**
 
-Web Scanner + 6 probe tamamlandı (security headers, SSL/TLS, exposed paths, path traversal, SQL injection, XSS). 201 test yeşil. Kullanıcı gerçek bir URL ile uygulamayı çalıştırıp raporu doğruladıktan sonra Faz 4'e geçeceğiz.
+Faz 3 tamamlandı. E2E test zonguldak.bel.tr üzerinde yapıldı: ilk raporda 3 CRITICAL false positive vardı (`.env`, `database.sql`, `.DS_Store` — soft-404 kaynaklı), düzeltildi. Şimdi 0 FP, 7 gerçek bulgu. Tüm header eksiklikleri + IIS 10.0 versiyon sızıntısı + security.txt yok.
 
-**Faz 4 planı**: Servis versiyon tespiti (-sV) + NVD CVE eşleştirme + default credentials check.
+**Faz 4 planı**:
+1. NetworkScanner'da `-sV` aktifleştir (servis versiyonu tespiti)
+2. `knowledge/cve_mapper.py` — servis+versiyon → bilinen CVE eşleştirme
+3. NVD (National Vulnerability Database) JSON feed yerel kopyası
+4. Default credentials check modülü (SSH/MySQL/Redis/RDP için tek-seferlik dene)
+5. Web probe'lara da versiyon+CVE entegrasyonu (Server: Microsoft-IIS/10.0 → IIS 10.0 CVE'leri)
 
 ## 2. Son Değişiklikler (Kronolojik)
 
@@ -42,6 +47,10 @@ Web Scanner + 6 probe tamamlandı (security headers, SSL/TLS, exposed paths, pat
 | 2026-04-21 | PySide6 + python-nmap + sslyze + requests vb. kurulumu (impacket hariç — Windows Defender sorunu) |
 | 2026-04-21 | Faz 2 commit (79a4c99) + push |
 | 2026-04-21 | Yol haritası revize: Seviye 1/2/3 çerçevesi; Faz 3 = Web Scanner (probe'lı) |
+| 2026-04-21 | Faz 3 tüm probe'ları (security headers, SSL/TLS, exposed paths, path traversal, SQLi, XSS) |
+| 2026-04-21 | E2E (zonguldak.bel.tr): 3 CRITICAL FP tespit edildi (soft-404 kaynaklı) |
+| 2026-04-21 | Fix: soft-404 baseline + content validator + Content-Type filtresi (commit 27850c7) |
+| 2026-04-21 | Fix sonrası E2E: 0 FP, 7 gerçek bulgu (CSP, HSTS, Referrer-Policy, X-Content-Type, X-Frame, Server leak, security.txt yok) |
 
 ## 3. Bir Sonraki Adımlar (Faz 3 — Web Scanner)
 

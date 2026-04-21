@@ -15,7 +15,7 @@
 Faz 0: Planlama & Kurulum             ██████████  %100
 Faz 1: Güvenlik Katmanı               ██████████  %100 (124 test)
 Faz 2: MVP (localhost tarama)         ██████████  %100 (154 test, E2E çalıştı)
-Faz 3: Web Scanner (Seviye 2 probing) █████████░  %95  ← E2E test bekleniyor
+Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
 Faz 4: Servis versiyon + CVE          ░░░░░░░░░░  %0
 Faz 5: DB probe + yerel ağ + Wi-Fi    ░░░░░░░░░░  %0
 Faz 6: Akıllı rapor + PDF + geçmiş    ░░░░░░░░░░  %0
@@ -105,7 +105,10 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 - [x] GUI: URL seçeneği aktif, QLineEdit input, yetki onay checkbox'ı
 - [x] `app.py` scanner factory — URL → WebScanner, diğerleri → NetworkScanner
 - [x] Unit testler — 47 yeni probe testi, 201 toplam test yeşil
-- [ ] E2E manuel test (kullanıcı) — bekleniyor
+- [x] E2E manuel test (zonguldak.bel.tr) — başarılı
+- [x] **False positive fix** (soft-404 baseline + content validator + Content-Type filtresi)
+  — zonguldak.bel.tr'de 3 CRITICAL FP → 0 FP, 7 gerçek bulgu
+- [x] 208 test yeşil (15 yeni exposed_paths testi dahil)
 
 ### Faz 4 — Servis Versiyonu + CVE Eşleştirme
 - [ ] `-sV` aktifleştir (nmap argümanları güncelleme)
