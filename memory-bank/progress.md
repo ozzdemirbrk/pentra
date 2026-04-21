@@ -137,7 +137,21 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 - [ ] Executive summary (teknik olmayan)
 - [ ] PDF exporter (xhtml2pdf)
 - [ ] Markdown exporter
-- [ ] `knowledge/remediations_tr.py` — bulgu tipi → Türkçe onarım adımları
+
+- [ ] **Detaylı onarım rehberleri** (`knowledge/remediations_tr.py`)
+  Her bulgu için mevcut 1-2 cümlelik öneri yerine adım adım rehber:
+    1. **Sorun özeti** (1 cümle — bulgu başlığını tekrarla)
+    2. **Niye önemli** (risk context + gerçek saldırı senaryosu örneği)
+    3. **Nasıl düzeltirim** (sunucu tipine göre varyant):
+       - Nginx config snippet (copy-paste ready)
+       - Apache httpd.conf / .htaccess snippet
+       - IIS web.config XML snippet veya PowerShell cmdlet
+       - Cloudflare/CDN dashboard adımları (eğer uygunsa)
+    4. **Doğrulama** (fix sonrası test etmek için komut — ör. `curl -I URL`)
+    5. **Referanslar** (MDN, OWASP, sunucu resmi doc link'i)
+  Rapor şablonu bu bölümleri açılır/kapanır ("Detaylı rehberi göster") kart olarak
+  göstersin — temel özet hemen, detay isteyenler için genişletilebilir.
+
 - [ ] SQLite'ta geçmiş taramalar + karşılaştırma ("geçen tarama göre şu değişmiş")
 
 ### Faz 7 — Paketleme
