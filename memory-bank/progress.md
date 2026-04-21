@@ -16,7 +16,7 @@ Faz 0: Planlama & Kurulum             ██████████  %100
 Faz 1: Güvenlik Katmanı               ██████████  %100 (124 test)
 Faz 2: MVP (localhost tarama)         ██████████  %100 (154 test, E2E çalıştı)
 Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
-Faz 4: Servis versiyon + CVE          █████████░  %90 (kod + testler, E2E bekleniyor)
+Faz 4: Servis versiyon + CVE          ██████████  %100 (252 test, E2E 0 FP)
 Faz 5: DB probe + yerel ağ + Wi-Fi    ░░░░░░░░░░  %0
 Faz 6: Akıllı rapor + PDF + geçmiş    ░░░░░░░░░░  %0
 Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
@@ -120,8 +120,10 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 - [x] Standart derinlik aktif (depth_select)
 - [x] `.env` desteği (python-dotenv) — NVD_API_KEY gizli kalır
 - [x] 252 test yeşil (42 yeni knowledge testi)
-- [x] CPE-based arama canlı doğrulandı (IIS 10.0 → 10 CVE)
-- [ ] E2E manuel test (kullanıcı) — bekleniyor
+- [x] CPE-based arama canlı doğrulandı (Apache 2.4.41 → 77 CVE)
+- [x] E2E test (zonguldak.bel.tr): ilk raporda 10 eski IIS 5.0 CVE'si gözüktü (FP)
+- [x] Fix: CPE 0 döndüğünde keyword fallback kaldırıldı (tanınmış servisler için)
+- [x] Fix sonrası E2E: 7 gerçek bulgu, 0 FP. IIS 10.0 için CVE yok (doğru — NVD'de kayıt yok)
 - [ ] Default credentials check modülü → Faz 5'e ertelendi
 
 ### Faz 5 — DB probe + Wi-Fi + Ağ Derinliği

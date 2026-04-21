@@ -11,7 +11,12 @@
 
 ## 1. Şu Anki Odak
 
-**Aşama**: 🔬 **Faz 4 — Kod tamam, E2E bekleniyor**
+**Aşama**: 🎯 **Faz 4 tamam — Faz 5 veya Faz 6 başlayacak**
+
+E2E doğrulaması:
+- Zonguldak'ta 7 gerçek bulgu, 0 false positive
+- CVE mantığı iki farklı bug ile geçti: (1) soft-404 fix (Faz 3) (2) CPE fallback fix (Faz 4)
+- Raporlar artık güvenilir
 
 Faz 3 tamamlandı. E2E test zonguldak.bel.tr üzerinde yapıldı: ilk raporda 3 CRITICAL false positive vardı (`.env`, `database.sql`, `.DS_Store` — soft-404 kaynaklı), düzeltildi. Şimdi 0 FP, 7 gerçek bulgu. Tüm header eksiklikleri + IIS 10.0 versiyon sızıntısı + security.txt yok.
 
