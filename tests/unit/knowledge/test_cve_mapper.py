@@ -95,17 +95,21 @@ class TestLookup:
         assert result == cpe_results
         client.search_cves.assert_not_called()
 
-    def test_keyword_fallback_when_cpe_empty(self) -> None:
-        """CPE 0 dönerse keyword araması yapılır."""
-        keyword_results = [Cve("CVE-KW-1", 5.0, "MEDIUM", "IIS thing")]
-        client = _fake_client_returning(cves=keyword_results, cpe_cves=[])
+    def test_no_keyword_fallback_when_cpe_empty(self) -> None:
+        """Tanınmış servis + CPE 0 → [] döner (keyword fallback YASAK).
+
+        Sebep: IIS 10.0 gibi kesin bir sorgu için CPE 0 dönüşü 'o versiyonda
+        kayıt yok' demektir. Keyword fallback eski sürüm CVE'lerini çeker
+        (false positive).
+        """
+        client = _fake_client_returning(cves=[Cve("CVE-X", 5.0, "MEDIUM", "x")], cpe_cves=[])
         mapper = CveMapper(client)
 
         result = mapper.lookup("microsoft-iis", "10.0")
 
-        assert result == keyword_results
+        assert result == []
         client.search_by_cpe.assert_called_once()
-        client.search_cves.assert_called_once()
+        client.search_cves.assert_not_called()
 
     def test_unknown_service_only_keyword_search(self) -> None:
         """CPE haritasında olmayan servis için doğrudan keyword kullanılır."""
@@ -132,16 +136,19 @@ class TestServerHeaderParsing:
 
 
 class TestLookupFromServerHeader:
-    def test_calls_lookup_with_parsed_parts(self) -> None:
-        client = _fake_client_returning([])
+    def test_calls_cpe_search_for_known_service(self) -> None:
+        """Microsoft IIS haritada var → CPE araması yapılır."""
+        client = _fake_client_returning()
         mapper = CveMapper(client)
 
         mapper.lookup_from_server_header("Microsoft-IIS/10.0")
 
-        client.search_cves.assert_called_once()
-        call_args = client.search_cves.call_args
-        # Microsoft-IIS → Microsoft IIS
-        assert "Microsoft IIS" in call_args.kwargs["keyword"]
+        client.search_by_cpe.assert_called_once()
+        cpe_arg = client.search_by_cpe.call_args.args[0]
+        assert "microsoft:internet_information_services" in cpe_arg
+        assert ":10.0:" in cpe_arg
+        # Tanınmış servis — keyword fallback YASAK
+        client.search_cves.assert_not_called()
 
     def test_unparseable_header_returns_empty_without_network(self) -> None:
         client = _fake_client_returning([])

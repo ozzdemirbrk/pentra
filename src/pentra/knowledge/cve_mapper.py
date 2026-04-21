@@ -133,23 +133,22 @@ class CveMapper:
         # Versiyonun başını al (bazıları "10.0.17763" gibi; "10.0" daha iyi eşleşir)
         short_version = self._shorten_version(version)
 
-        # ÖNCELİKLİ: CPE-based search (tam versiyon eşleşmesi).
-        # NVD keyword araması çoğu zaman açıklamada versiyon geçmediği için 0 döner;
-        # CPE ile NVD'nin indekslediği versiyon alanı üzerinden eşleşme yapılır.
+        # CPE-based search (tam versiyon eşleşmesi) — tanınmış servisler için
+        # kesin ve tek doğru yol. CPE 0 dönerse, NVD'de gerçekten o versiyon
+        # için kayıt yok demektir — keyword fallback YANLIŞ sonuç döndürür
+        # (örn. IIS 10.0 sorunca IIS 5.0 CVE'leri gelir).
         if canonical in _CPE_PREFIXES:
             cpe_prefix = _CPE_PREFIXES[canonical]
             cpe_name = f"{cpe_prefix}:{short_version}:*:*:*:*:*:*:*"
-            cves = self._nvd.search_by_cpe(cpe_name, max_results=self._max)
-            if cves:
-                return cves
-            # CPE sonuç vermediyse keyword fallback'e geç
+            return self._nvd.search_by_cpe(cpe_name, max_results=self._max)
 
-        # Fallback: keyword araması + post-filter
-        # (CPE haritasında olmayan servisler ya da o versiyon için CPE kaydı olmayanlar)
+        # Tanınmayan servis — CPE haritasında yok. En iyi çaba olarak keyword
+        # araması + servis adı filtresi. Sonuçlar "muhtemel ilgili" olarak
+        # yorumlanmalı — versiyon eşleşmesi garanti değil.
         return self._nvd.search_cves(
             keyword=canonical,
             max_results=self._max,
-            must_contain=(canonical,),  # gevşek filtre — sadece servis adı
+            must_contain=(canonical,),
         )
 
     def lookup_from_server_header(self, server_header: str) -> list[Cve]:
