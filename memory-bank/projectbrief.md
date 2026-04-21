@@ -10,6 +10,23 @@
 ## 2. Tek Cümle Özet
 Kullanıcıya adım adım "neyi/nereyi test etmek istersin?" diye soran, seçilen hedefi yetkili olduğu doğrulandıktan sonra tarayan ve sonuçları **yalnızca yerel masaüstüne** detaylı Türkçe rapor olarak yazan bir masaüstü uygulaması.
 
+## 🎯 Ürün Felsefesi — 3 Seviye Çerçevesi
+
+Pentra **zafiyet denetimi** (vulnerability assessment) aracıdır — **saldırı** aracı değil. Endüstride Nessus/OpenVAS/Qualys sınıfındadır.
+
+| Seviye | Ne yapılır | Pentra'da var mı? |
+|---|---|---|
+| 1. Pasif tespit | Port, servis adı, versiyon | ✅ (MVP'de var) |
+| 2. Non-destructive probe | Default cred check, SQLi/XSS probe, SSL/TLS zafiyet, exposed path, DB auth check, known CVE → hepsi **tek test paketiyle kanıt** | ✅ (Faz 3'ten itibaren) |
+| 3. Aktif sömürü | Exploit fırlatma, shell açma, DB dump, brute force | ❌ **asla** |
+
+Seviye 2'nin 3 değişmez kuralı:
+1. **Tek seferlik** — aynı probe'u binlerce kez denemez
+2. **Kanıt yeterli** — minimum paket ile zafiyet gösterilir
+3. **Oku, yazma** — sunucuda kalıcı değişiklik bırakmaz
+
+---
+
 ## 3. Çözdüğü Problem
 Bireysel kullanıcılar ve küçük işletmeler kendi bilgisayarlarının/ağlarının güvenlik durumunu **kontrol edemiyor** çünkü:
 - Mevcut pentest araçları (Kali, Metasploit, Burp vb.) **uzman kullanıcı için** tasarlanmış — yeni başlayan için dik öğrenme eğrisi

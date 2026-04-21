@@ -198,7 +198,38 @@ v2 için şimdiden düşünülmüş uzatma noktaları:
 - `resources/translations/` — Qt Linguist için .ts dosyaları
 - `knowledge/remediations_tr.py` — `remediations_en.py`, `remediations_de.py` eklenebilir
 
-## 9. Yapmayacağımız Şeyler (Anti-Desenler)
+## 9. Probe Pattern (Seviye 2 — Faz 3+ için)
+
+Her Seviye 2 probe için standart şablon — yeni probe eklerken aynısı kullanılır:
+
+```python
+class WebProbeBase(ABC):
+    """Tek bir zafiyet için non-destructive test."""
+    name: str  # "sql_injection", "exposed_env", vb.
+
+    @abstractmethod
+    def probe(self, url: str, session: requests.Session) -> list[Finding]:
+        """Tek probe çalıştır, bulguları döndür.
+
+        KURALLAR (ihlal edilirse kod review red):
+        1. Tek test paketi gönder (döngü yok, aynı endpoint'e tekrar yok)
+        2. Response'u yorumla — veri çekme yok
+        3. Timeout kısa (~5sn) — yanıt yoksa bırak
+        4. Bağlantı açıksa kapat
+        5. Her find'ta 'evidence' alanı: hangi request, hangi response
+        """
+```
+
+**Probe'ları dizme (ordering)**: WebScanner tüm probe'ları sıralı çalıştırır, **paralel değil**. Rate limiter'dan her probe için token alınır. Böylece rate limit global — 10 probe × 1 hedef = 10 paket, DoS değil.
+
+**Kanıt zorunlu**: Her Finding.evidence dict'i içine şunlar gider:
+- `request`: hangi HTTP method, hangi path, hangi payload
+- `response_snippet`: yanıtın ilk 200 karakteri (veri çekmek değil — minimum kanıt)
+- `why_vulnerable`: Türkçe açıklama, neden zafiyet olduğu
+
+---
+
+## 10. Yapmayacağımız Şeyler (Anti-Desenler)
 
 - ❌ Singleton (test edilmesi zor) — gerekli yerlerde Dependency Injection
 - ❌ God object (tek dev `ScanManager`) — sorumlulukları Scanner'lara böl

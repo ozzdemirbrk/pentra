@@ -5,15 +5,17 @@
 ---
 
 ## Son Güncelleme
-**2026-04-21** — Faz 2 MVP tamamlandı. Uygulama localhost'u tarayıp HTML rapor üretiyor. 154 test yeşil.
+**2026-04-21** — Faz 2 MVP tamamlandı + yol haritası revize edildi. Kullanıcının "sızabiliyor mu test etsin" açıklamasıyla **Seviye 2 (non-destructive probing)** çerçevesi netleşti. CLAUDE.md § 2'ye yazıldı.
 
 ---
 
 ## 1. Şu Anki Odak
 
-**Aşama**: 🌐 **Faz 3 — Tüm Hedef Tipleri (planlanacak)**
+**Aşama**: 🌐 **Faz 3 — Web Scanner (Seviye 2 probing)**
 
-MVP çalışıyor. Kullanıcı "sadece port tarama mı?" diye sordu — cevap: hayır, ama MVP öyle. Faz 3'te URL/web tarama, servis versiyonu, CVE eşleme gelecek.
+İlk iş: `core/web_scanner.py` — HTTP header analizi, SSL/TLS zafiyet tespiti, exposed path probe, basic SQL/XSS probe.
+
+**Kritik hatırlatma**: Her probe "oku-yazma" kuralına uyar. SQLi probe `' OR '1'='1` gönderir ama `DROP TABLE` göndermez. XSS probe `<script>/*test*/</script>` gönderir ama gerçek payload değil. DB probe parolasız bağlanmaya çalışır ama koleksiyon çekmez.
 
 ## 2. Son Değişiklikler (Kronolojik)
 
@@ -35,31 +37,36 @@ MVP çalışıyor. Kullanıcı "sadece port tarama mı?" diye sordu — cevap: h
 | 2026-04-21 | `safety/authorization.py` + 20 test — HMAC-SHA256 imzalı token sistemi |
 | 2026-04-21 | `storage/audit_log.py` + 22 test — hash-zincirli denetim izi |
 | 2026-04-21 | pytest: 124 test yeşil, coverage %89.98 (safety + models %100) |
+| 2026-04-21 | Faz 2 tüm modüller: scanner_base, scan_orchestrator, network_scanner, reporting, 5 wizard ekranı, app.py |
+| 2026-04-21 | E2E manuel test başarılı — localhost'ta 4 port, HTML rapor masaüstüne |
+| 2026-04-21 | PySide6 + python-nmap + sslyze + requests vb. kurulumu (impacket hariç — Windows Defender sorunu) |
+| 2026-04-21 | Faz 2 commit (79a4c99) + push |
+| 2026-04-21 | Yol haritası revize: Seviye 1/2/3 çerçevesi; Faz 3 = Web Scanner (probe'lı) |
 
-## 3. Bir Sonraki Adımlar (Öncelik Sırasıyla)
+## 3. Bir Sonraki Adımlar (Faz 3 — Web Scanner)
 
-### 🎯 Öncelik 1 — Proje İskeleti (hemen sonraki adım)
-- [ ] `pyproject.toml` ve `requirements.txt` oluştur
-- [ ] `src/pentra/` klasör yapısını boş `__init__.py`'lerle kur
-- [ ] `.gitignore`, `README.md`, `LICENSE` (placeholder)
-- [ ] `scripts/setup_dev.py` — venv kurulum otomasyonu
+### 🎯 Öncelik 1 — Web Scanner iskeleti
+- [ ] `core/web_scanner.py` — `ScannerBase` türevi, modüler probe sınıfları
+- [ ] Probe modülleri şu interface'i uygular: `run(url) → list[Finding]`
 
-### 🎯 Öncelik 2 — Güvenlik Katmanı ÖNCE (diğer her şeyden önce)
-- [ ] `src/pentra/safety/authorization.py` — yetki doğrulama sınıfı
-- [ ] `src/pentra/safety/scope_validator.py` — RFC1918 + allowlist kontrol
-- [ ] `src/pentra/core/rate_limiter.py` — paket/saniye kısıtlayıcı
-- [ ] `src/pentra/storage/audit_log.py` — imzalı denetim izi
-- [ ] Bu 4 modülün %100 unit test kapsamı
+### 🎯 Öncelik 2 — Temel probe'lar (basit, hızlı kazanç)
+- [ ] **Security headers** probe — CSP, HSTS, X-Frame, X-Content-Type-Options eksikleri
+- [ ] **SSL/TLS** probe — sslyze kullanarak Heartbleed/POODLE/zayıf cipher
+- [ ] **Exposed paths** probe — `/.env`, `/.git/config`, `/wp-config.bak`, `/admin` vb. listesi
 
-### 🎯 Öncelik 3 — MVP: Sihirbaz İskeleti + localhost Tarama
-- [ ] `app.py` ve `gui/wizard.py` — QApplication + sihirbaz çatısı
-- [ ] 5 ekranın boş QWizardPage sınıfları
-- [ ] `core/scanner_base.py` — soyut Scanner sınıfı
-- [ ] `core/network_scanner.py` — localhost + temel port taraması (nmap)
-- [ ] `reporting/report_builder.py` — basit HTML rapor
+### 🎯 Öncelik 3 — İleri probe'lar (kanıt gerektiren)
+- [ ] **SQL injection** probe — davranış değişikliği tespiti
+- [ ] **XSS** probe — yansıtılmış girdi + kaçış kontrolü
+- [ ] **Directory traversal** probe — `../../etc/passwd` davranışı
 
-### 🎯 Öncelik 4 — İlk "tam uçtan uca" akış
-Kullanıcı uygulamayı açar → yetki onayı → "Bu bilgisayarı tara" seçer → hızlı tarama → rapor masaüstüne yazılır.
+### 🎯 Öncelik 4 — GUI entegrasyonu
+- [ ] `target_select.py` — URL seçeneği aktif, input alanı + anında DNS resolve göster
+- [ ] Scanner factory: URL TargetType → WebScanner
+
+### 🎯 Öncelik 5 — Test + E2E
+- [ ] Her probe için mocked HTTP unit test
+- [ ] Entegrasyon testi: test için basit vulnerable HTTP server
+- [ ] Manuel E2E: örnek site (kendi Docker sandbox'ımız veya `scanme.nmap.org`)
 
 ## 4. Aktif Kararlar ve Değerlendirmeler
 

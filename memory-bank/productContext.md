@@ -117,10 +117,33 @@ Her adımın yanında **"Bu ne demek?"** butonu; tıklayınca Türkçe açıklam
 
 Pentra **doğrudan Ahmet için** tasarlanır.
 
-## 6. Ne YAPMAZ? (Tasarımsal Kararlar)
+## 6. Ne YAPAR — "Sızabiliyor mu?" Sorusunun Cevabı
 
-- 🚫 **Saldırı/exploit değildir** — sadece tarar
+Pentra **Seviye 2 (non-destructive probing)** aracıdır. "Sızabiliyor mu?" sorusunu şöyle cevaplar:
+
+**Faz 3+'ta yapılacak probe çeşitleri (hepsi Seviye 2):**
+- ✅ **Default credentials**: SSH/MySQL/Redis/RDP vb. `admin:admin` dener, kabul edildiyse rapor, anında kopar
+- ✅ **SQL injection probe**: Login formuna `' OR '1'='1` gönderir, davranış değişikliği varsa rapor
+- ✅ **XSS probe**: Benign payload gönderir, kaçış yapılmadıysa rapor
+- ✅ **Directory traversal**: `../../etc/passwd` ister, sızıntı varsa rapor
+- ✅ **SSL/TLS zafiyet**: Heartbleed/POODLE/zayıf cipher/eksik HSTS tespiti
+- ✅ **Auth bypass**: `/admin` path'i auth'suz erişilebilir mi, JWT `alg:none` kabul ediyor mu
+- ✅ **Exposed config**: `/.env`, `/.git/config`, `/wp-config.bak` public mi
+- ✅ **DB open check**: MongoDB/Redis/Elasticsearch parolasız bağlanıyor mu
+- ✅ **Known CVE**: Versiyon + NVD → "Apache 2.2.3 için 23 CVE var" gibi rapor
+
+Her probe **kanıt üretir**, **saldırı yapmaz**. Test paketi → tepki → sonuç → koparır → raporlar.
+
+---
+
+## 7. Ne YAPMAZ? (Tasarımsal + Etik Sınırlar)
+
+- 🚫 **Exploit fırlatmaz** (Metasploit tarzı) — kanıt için probe yeter, shell açmaya gerek yok
+- 🚫 **Veri çekmez** — DB'ye bağlanırsa sadece "bağlandım" der, içeriği okumaz
+- 🚫 **Parola kırmaz / brute force yapmaz** — 1-2 default dener, sonra bırakır
 - 🚫 **Otomatik onarım yapmaz** — kullanıcıya ne yapacağını söyler, ama müdahale etmez
 - 🚫 **Başkalarını test etmek için değildir** — yetki bariyerleri bunu engeller
 - 🚫 **Sürekli izleme (SIEM) değildir** — tek seferlik tarama yapar
 - 🚫 **Antivirüs değildir** — malware aramaz, zafiyet arar
+- 🚫 **Stealth/evasion yapmaz** — IDS/IPS'e yakalanmamak için obfuscation yok
+- 🚫 **İz silmez** — log'lara yazar, silmez

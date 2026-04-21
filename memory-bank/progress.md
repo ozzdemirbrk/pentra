@@ -12,16 +12,19 @@
 ## 1. Genel Durum
 
 ```
-Faz 0: Planlama & Kurulum       ██████████  %100
-Faz 1: Güvenlik Katmanı         ██████████  %100 (124 test, coverage %89.98)
-Faz 2: MVP (localhost tarama)   ██████████  %100 (154 test yeşil, E2E çalıştı)
-Faz 3: Tüm hedef tipleri        ░░░░░░░░░░  %0
-Faz 4: Web + Wi-Fi (pasif)      ░░░░░░░░░░  %0
-Faz 5: Rapor + CVE + Türkçe öneri ░░░░░░░░░░ %0
-Faz 6: Paketleme & dağıtım      ░░░░░░░░░░  %0
+Faz 0: Planlama & Kurulum             ██████████  %100
+Faz 1: Güvenlik Katmanı               ██████████  %100 (124 test)
+Faz 2: MVP (localhost tarama)         ██████████  %100 (154 test, E2E çalıştı)
+Faz 3: Web Scanner (Seviye 2 probing) ░░░░░░░░░░  %0  ← sıradaki
+Faz 4: Servis versiyon + CVE          ░░░░░░░░░░  %0
+Faz 5: DB probe + yerel ağ + Wi-Fi    ░░░░░░░░░░  %0
+Faz 6: Akıllı rapor + PDF + geçmiş    ░░░░░░░░░░  %0
+Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 ```
 
-**Toplam tamamlanma**: ~%30 (planlama, iskelet, güvenlik katmanı)
+**Toplam tamamlanma**: ~%45 (planlama, iskelet, güvenlik, MVP)
+
+**Yol haritası revize edildi (2026-04-21)**: Kullanıcı "sadece port mu tarayacağız?" diye sordu. Cevap: hayır. Seviye 1 (pasif) → Seviye 2 (non-destructive probing) geçişi yapılacak. Detay için CLAUDE.md § 2.
 
 ## 2. Çalışan Kısımlar ✅
 
@@ -87,30 +90,50 @@ Faz 6: Paketleme & dağıtım      ░░░░░░░░░░  %0
 - [ ] Basit HTML rapor şablonu
 - [ ] Uçtan uca akış: aç → onay → bu bilgisayarı tara → rapor
 
-### Faz 3 — Tüm Hedef Tipleri
+### Faz 3 — Web Scanner (Seviye 2 probing) ← SIRADAKİ
+Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
+- [ ] `core/web_scanner.py` — HTTP header analizi, SSL/TLS, exposed paths, SQLi/XSS probe
+- [ ] GUI'de URL seçeneğini aktifleştir + URL input
+- [ ] `gui/screens/target_select.py` — URL alanı + DNS resolve önizlemesi
+- [ ] Orchestrator + scope_validator → URL için DNS çözümleme
+- [ ] Security headers check (CSP, HSTS, X-Frame, X-Content-Type)
+- [ ] SSL/TLS zafiyet tespiti (sslyze ile: Heartbleed, POODLE, zayıf cipher, eksik HSTS)
+- [ ] Exposed path probe (`/.env`, `/.git/config`, `/admin`, `/.DS_Store`, `/wp-config.php.bak` vb.)
+- [ ] Basic SQL injection probe (login/search formlarında `' OR '1'='1` davranış testi)
+- [ ] Basic reflected XSS probe (benign payload + kaçış kontrolü)
+- [ ] Directory traversal probe (`../../etc/passwd` davranış testi)
+- [ ] Her probe için **evidence** (request/response) raporda
+- [ ] Unit test + mocked HTTP
+
+### Faz 4 — Servis Versiyonu + CVE Eşleştirme
+- [ ] `-sV` aktifleştir (nmap argümanları güncelleme)
+- [ ] `knowledge/cve_mapper.py` — NVD JSON feed okuyucu, service+version → CVE listesi
+- [ ] NVD veritabanı yerel kopya yönetimi (ilk çalıştırmada indir, güncelleme)
+- [ ] Default credentials check modülü (SSH/MySQL/Redis/RDP için tek-seferlik dene)
 - [ ] Yerel ağ keşfi (ARP scan, ICMP sweep)
-- [ ] IP aralığı desteği (CIDR notasyonu)
-- [ ] Host scanner (servis/versiyon tespiti)
-- [ ] `knowledge/cve_mapper.py` — versiyon → CVE (NVD JSON feed)
 
-### Faz 4 — Web + Wi-Fi Pasif
-- [ ] `core/web_scanner.py` — HTTP başlıkları, SSL/TLS (sslyze), güvenlik header eksikleri
-- [ ] `core/wifi_scanner.py` — çevre ağları listele (Windows `netsh wlan`)
+### Faz 5 — DB probe + Wi-Fi + Ağ Derinliği
+- [ ] MongoDB/Redis/Elasticsearch auth check (parolasız bağlanıyor mu)
+- [ ] MySQL/PostgreSQL default/anonymous user check
+- [ ] `core/wifi_scanner.py` — çevre Wi-Fi ağları listesi (Windows `netsh wlan`)
+- [ ] Zayıf şifrelemeli ağ (WEP, WPS açık) tespiti
 
-### Faz 5 — Tam Rapor
-- [ ] Jinja2 HTML şablonu (Türkçe, profesyonel görünüm)
-- [ ] PDF exporter (WeasyPrint veya xhtml2pdf)
+### Faz 6 — Akıllı Rapor + PDF + Geçmiş
+- [ ] CVSS skoru (her bulgu için)
+- [ ] Executive summary (teknik olmayan)
+- [ ] PDF exporter (xhtml2pdf)
 - [ ] Markdown exporter
 - [ ] `knowledge/remediations_tr.py` — bulgu tipi → Türkçe onarım adımları
-- [ ] Yönetici özeti + detay bölümleri
+- [ ] SQLite'ta geçmiş taramalar + karşılaştırma ("geçen tarama göre şu değişmiş")
 
-### Faz 6 — Paketleme
+### Faz 7 — Paketleme
 - [ ] `scripts/build_exe.py` — PyInstaller script
 - [ ] İkon ve logo (tasarım gerekli)
-- [ ] Inno Setup script
+- [ ] Inno Setup script — Windows installer
 - [ ] Nmap + Npcap bundle
 - [ ] GitHub Releases workflow
 - [ ] Kullanım kılavuzu (PDF, Türkçe)
+- [ ] Kod imzalama sertifikası değerlendirmesi
 
 ## 4. Bilinen Sorunlar / Araştırma Gerekenler ⚠️
 

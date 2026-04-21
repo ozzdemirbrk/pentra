@@ -14,14 +14,47 @@
 
 ---
 
-## 2. 🚨 Kritik Güvenlik Kuralları (Her Zaman Geçerli)
+## 2. 🚨 Pentra'nın 3-Seviye Çerçevesi (Kimlik Tanımı)
+
+Pentra **vulnerability assessment (zafiyet denetimi)** aracıdır — **attack tool değil**. Bu ayrım 3 seviyede netleşir:
+
+### Seviye 1 — Pasif Tespit
+- Port taraması, servis adı çözümleme, versiyon tespiti
+- "Port X açık" kadar bilgi verir — zafiyetin gerçekten var olduğunu kanıtlamaz
+
+### Seviye 2 — **Non-Destructive Probing** ✅ (Pentra'nın yapacağı)
+Tek bir test paketi gönderilip tepkisi gözlemlenir. Zafiyet **var mı** öğrenilir:
+- **Default credentials check**: `admin:admin`, boş parola tek seferlik dener → kabul edildiyse rapor → anında koparır
+- **SQL injection probe**: `' OR '1'='1` tarzı payload + davranış değişikliği tespiti (veri çekmez)
+- **XSS probe**: Benign payload + yansıma/kaçış kontrolü (gerçek saldırı yok)
+- **Directory traversal**: `../../etc/passwd` → sızıyor mu bak (içeriği indirmez)
+- **Known CVE check**: Servis+versiyon → NVD eşleştirme (exploit fırlatmaz)
+- **SSL/TLS zafiyet**: Heartbleed/POODLE/zayıf cipher/eksik HSTS (bellek okumaz)
+- **Auth bypass**: `/admin` auth'suz erişilebilir mi, JWT `alg:none` kabul ediyor mu (işlem yapmaz)
+- **Exposed config**: `/.env`, `/.git/config`, `/wp-config.php.bak` public mi (indirmez)
+- **Open DB check**: MongoDB/Redis parolasız mı (koleksiyon çekmez)
+
+**3 kural Seviye 2 için her zaman geçerli:**
+1. **Tek seferlik** — aynı zafiyeti 1000 kez denemeyiz
+2. **Kanıt yeterli** — zafiyetin var olduğunu göstermek için minimum paket
+3. **Oku, yazma** — hiçbir test sunucuda kalıcı değişiklik bırakmaz
+
+### Seviye 3 — Aktif Sömürü ❌ (Pentra yapmaz)
+- Exploit fırlatma (Metasploit tarzı), shell açma
+- Veri çekme (DB dump), parola kırma, brute force
+- Persistence, lateral movement, iz silme
+- Her sürümde yasaktır. Kod review'da bu kategoriye giren değişiklikler reddedilir.
+
+**Referans araçlar:** Nessus, OpenVAS, Qualys — bunlar Seviye 2'de çalışır, Pentra da aynı sınıftadır.
+
+## 3. Kritik Güvenlik Kuralları (Her Zaman Geçerli)
 
 1. **Yetkisiz hedefe paket gönderilmez.** Her tarama öncesi kullanıcıdan yazılı yetki onayı alınır (AuthorizationScreen).
-2. **Exploit ÇALIŞTIRILMAZ** — yalnızca **tespit ve raporlama** yapılır. CVE eşleştirme, versiyon tespiti evet; payload fırlatma, shell açma hayır.
+2. **Seviye 3 (aktif sömürü) KOD'da BULUNMAZ.** CVE eşleştirme, versiyon tespiti, probe evet; payload fırlatma, shell açma, veri çekme hayır.
 3. **Kapsam doğrulama zorunlu.** Hedef IP yalnızca RFC1918 özel ağ aralığında (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) veya `127.0.0.0/8` olabilir. Dış IP için ayrı ek onay ekranı ve "sahiplik beyanı" şart.
-4. **Rate limiting zorunlu.** Her tarama motorunda paket/saniye sınırı; kullanıcı yanlışlıkla DoS yaratmasın.
+4. **Rate limiting zorunlu.** Her tarama motorunda paket/saniye sınırı; kullanıcı yanlışlıkla DoS yaratmasın. Probe'lar özellikle rate-limited.
 5. **Rapor yerelde kalır.** Masaüstüne `Pentra_Rapor_YYYY-MM-DD_HH-MM.{pdf,html,md}` olarak kaydedilir. Hiçbir zaman dışarı gönderilmez.
-6. **Denetim izi şart.** Her tarama `audit.log` dosyasına imzalı olarak yazılır (kim, ne zaman, hangi hedef, hangi derinlik).
+6. **Denetim izi şart.** Her tarama + her probe `audit.log` dosyasına imzalı olarak yazılır.
 7. **Saldırgan kodun bu projede yeri yoktur.** Stealth/evasion, persistence, C2, credential harvesting, lateral movement modülleri eklenmez.
 
 ---
@@ -171,11 +204,14 @@ python scripts/build_exe.py  # dist/Pentra.exe çıktısı verir
 
 ---
 
-## 8. Sürüm Planı
+## 8. Sürüm Planı (Revize — 2026-04-21)
 
-- **v0.1 (MVP)**: Yetki onayı + localhost tarama + basit HTML rapor
-- **v0.5**: Tüm hedef tipleri + 3 derinlik + PDF rapor + SQLite geçmiş
-- **v1.0**: Web + pasif Wi-Fi + CVE eşleştirme + Türkçe onarım önerileri + PyInstaller paketi
+- **v0.1 (MVP)** ✅: Yetki onayı + localhost port taraması + basit HTML rapor
+- **v0.2 — Faz 3**: Web Scanner (Seviye 2 probing): HTTP header, SSL/TLS, exposed paths, SQLi/XSS probe
+- **v0.3 — Faz 4**: Servis versiyonu (-sV) + NVD CVE eşleştirme + default credentials check
+- **v0.4 — Faz 5**: DB servis probe'ları (MongoDB/Redis/MySQL auth check) + yerel ağ keşfi + Wi-Fi pasif
+- **v0.5 — Faz 6**: Akıllı rapor (CVSS, exec summary) + PDF export + SQLite geçmiş
+- **v1.0**: Paketleme (PyInstaller .exe), kullanım kılavuzu, kod imzalama
 - **v2.0**: Linux/macOS desteği, İngilizce arayüz, derin Wi-Fi (monitor mode + harici adaptör)
 
 ---
