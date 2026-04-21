@@ -15,7 +15,7 @@
 Faz 0: Planlama & Kurulum             ██████████  %100
 Faz 1: Güvenlik Katmanı               ██████████  %100 (124 test)
 Faz 2: MVP (localhost tarama)         ██████████  %100 (154 test, E2E çalıştı)
-Faz 3: Web Scanner (Seviye 2 probing) ░░░░░░░░░░  %0  ← sıradaki
+Faz 3: Web Scanner (Seviye 2 probing) █████████░  %95  ← E2E test bekleniyor
 Faz 4: Servis versiyon + CVE          ░░░░░░░░░░  %0
 Faz 5: DB probe + yerel ağ + Wi-Fi    ░░░░░░░░░░  %0
 Faz 6: Akıllı rapor + PDF + geçmiş    ░░░░░░░░░░  %0
@@ -92,20 +92,20 @@ Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 - [x] Uçtan uca akış: aç → onay → bu bilgisayarı tara → HTML rapor masaüstüne
 - [x] Unit + integration testleri (154 test yeşil)
 
-### Faz 3 — Web Scanner (Seviye 2 probing) ← SIRADAKİ
+### Faz 3 — Web Scanner (Seviye 2 probing) ✅
 Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
-- [ ] `core/web_scanner.py` — HTTP header analizi, SSL/TLS, exposed paths, SQLi/XSS probe
-- [ ] GUI'de URL seçeneğini aktifleştir + URL input
-- [ ] `gui/screens/target_select.py` — URL alanı + DNS resolve önizlemesi
-- [ ] Orchestrator + scope_validator → URL için DNS çözümleme
-- [ ] Security headers check (CSP, HSTS, X-Frame, X-Content-Type)
-- [ ] SSL/TLS zafiyet tespiti (sslyze ile: Heartbleed, POODLE, zayıf cipher, eksik HSTS)
-- [ ] Exposed path probe (`/.env`, `/.git/config`, `/admin`, `/.DS_Store`, `/wp-config.php.bak` vb.)
-- [ ] Basic SQL injection probe (login/search formlarında `' OR '1'='1` davranış testi)
-- [ ] Basic reflected XSS probe (benign payload + kaçış kontrolü)
-- [ ] Directory traversal probe (`../../etc/passwd` davranış testi)
-- [ ] Her probe için **evidence** (request/response) raporda
-- [ ] Unit test + mocked HTTP
+- [x] `core/web_scanner.py` — WebScanner iskeleti + probe registry
+- [x] `core/web_probes/base.py` — WebProbeBase soyut sınıfı + evidence helper
+- [x] `core/web_probes/security_headers.py` — CSP/HSTS/X-Frame/X-Content-Type + versiyon sızıntısı
+- [x] `core/web_probes/ssl_tls.py` — SSLv3/TLSv1/TLSv1.1 handshake + sertifika doğrulama
+- [x] `core/web_probes/exposed_paths.py` — 17+ hassas yol + content signature + security.txt
+- [x] `core/web_probes/path_traversal.py` — 10 param × 4 payload + Linux/Windows kanıt
+- [x] `core/web_probes/sql_injection.py` — Error-based, 20+ DBMS pattern
+- [x] `core/web_probes/xss.py` — Reflected XSS + 4 context + canary token
+- [x] GUI: URL seçeneği aktif, QLineEdit input, yetki onay checkbox'ı
+- [x] `app.py` scanner factory — URL → WebScanner, diğerleri → NetworkScanner
+- [x] Unit testler — 47 yeni probe testi, 201 toplam test yeşil
+- [ ] E2E manuel test (kullanıcı) — bekleniyor
 
 ### Faz 4 — Servis Versiyonu + CVE Eşleştirme
 - [ ] `-sV` aktifleştir (nmap argümanları güncelleme)

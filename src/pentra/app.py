@@ -19,6 +19,7 @@ from pentra.core.network_scanner import NetworkScanner
 from pentra.core.rate_limiter import TokenBucket
 from pentra.core.scan_orchestrator import ScanOrchestrator
 from pentra.core.scanner_base import ScannerBase
+from pentra.core.web_scanner import WebScanner
 from pentra.gui.screens.authorization import AuthorizationPage
 from pentra.gui.screens.depth_select import DepthSelectPage
 from pentra.gui.screens.progress import ProgressPage
@@ -39,9 +40,14 @@ def _build_scanner_factory(
     """TargetType'a göre uygun Scanner örneği üretir."""
 
     def factory(target_type: TargetType) -> ScannerBase:
-        # MVP (Faz 2): Tüm hedef tipleri şu an NetworkScanner'a yönlenir.
-        # Faz 3+'ta TargetType'a göre farklı Scanner'lar döner.
-        del target_type  # şimdilik tek scanner
+        # Faz 3: URL → WebScanner, diğerleri → NetworkScanner.
+        # Faz 4+'ta Wi-Fi ve ağ keşfi için ek scanner'lar eklenecek.
+        if target_type == TargetType.URL:
+            return WebScanner(
+                rate_limiter=rate_limiter,
+                audit_log=audit_log,
+                auth_manager=auth_manager,
+            )
         return NetworkScanner(
             rate_limiter=rate_limiter,
             audit_log=audit_log,

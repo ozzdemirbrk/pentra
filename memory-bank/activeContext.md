@@ -11,11 +11,11 @@
 
 ## 1. Şu Anki Odak
 
-**Aşama**: 🌐 **Faz 3 — Web Scanner (Seviye 2 probing)**
+**Aşama**: 🌐 **Faz 3 — E2E test bekleniyor, sonra Faz 4**
 
-İlk iş: `core/web_scanner.py` — HTTP header analizi, SSL/TLS zafiyet tespiti, exposed path probe, basic SQL/XSS probe.
+Web Scanner + 6 probe tamamlandı (security headers, SSL/TLS, exposed paths, path traversal, SQL injection, XSS). 201 test yeşil. Kullanıcı gerçek bir URL ile uygulamayı çalıştırıp raporu doğruladıktan sonra Faz 4'e geçeceğiz.
 
-**Kritik hatırlatma**: Her probe "oku-yazma" kuralına uyar. SQLi probe `' OR '1'='1` gönderir ama `DROP TABLE` göndermez. XSS probe `<script>/*test*/</script>` gönderir ama gerçek payload değil. DB probe parolasız bağlanmaya çalışır ama koleksiyon çekmez.
+**Faz 4 planı**: Servis versiyon tespiti (-sV) + NVD CVE eşleştirme + default credentials check.
 
 ## 2. Son Değişiklikler (Kronolojik)
 
