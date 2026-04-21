@@ -5,15 +5,15 @@
 ---
 
 ## Son Güncelleme
-**2026-04-21** — Faz 0 tamamlandı. Proje iskeleti, bağımlılık dosyaları, test çatısı, lint/format yapılandırması hazır. Git init ve ilk commit kullanıcı onayını bekliyor.
+**2026-04-21** — Faz 1 tamamlandı. Güvenlik katmanı (models, scope_validator, rate_limiter, authorization, audit_log) yazıldı ve test edildi. 124 test yeşil, coverage %89.98.
 
 ---
 
 ## 1. Genel Durum
 
 ```
-Faz 0: Planlama & Kurulum       ██████████  %100 (iskelet, config, test çatısı hazır)
-Faz 1: Güvenlik Katmanı         ░░░░░░░░░░  %0
+Faz 0: Planlama & Kurulum       ██████████  %100
+Faz 1: Güvenlik Katmanı         ██████████  %100 (124 test, coverage %89.98)
 Faz 2: MVP (localhost tarama)   ░░░░░░░░░░  %0
 Faz 3: Tüm hedef tipleri        ░░░░░░░░░░  %0
 Faz 4: Web + Wi-Fi (pasif)      ░░░░░░░░░░  %0
@@ -21,7 +21,7 @@ Faz 5: Rapor + CVE + Türkçe öneri ░░░░░░░░░░ %0
 Faz 6: Paketleme & dağıtım      ░░░░░░░░░░  %0
 ```
 
-**Toplam tamamlanma**: ~%15 (planlama, dokümantasyon, iskelet)
+**Toplam tamamlanma**: ~%30 (planlama, iskelet, güvenlik katmanı)
 
 ## 2. Çalışan Kısımlar ✅
 
@@ -44,6 +44,12 @@ Faz 6: Paketleme & dağıtım      ░░░░░░░░░░  %0
 - ✅ **.gitignore** — Python + proje özel (raporlar, audit.log, *.db gitignore'lu)
 - ✅ **README.md, LICENSE** (placeholder)
 - ✅ **.pre-commit-config.yaml, .editorconfig** — commit öncesi lint/format otomasyonu
+- ✅ **src/pentra/models.py** — Target, ScanDepth, ScopeDecision, AuthorizationRequest/Token, Finding, AuditEvent, Severity (100% coverage)
+- ✅ **src/pentra/safety/scope_validator.py** — RFC1918 + loopback + DENIED aralıklar, URL DNS çözümü, CIDR sınırları (92% coverage)
+- ✅ **src/pentra/core/rate_limiter.py** — Thread-safe TokenBucket (acquire + wait_for + timeout) (98% coverage)
+- ✅ **src/pentra/safety/authorization.py** — HMAC-SHA256 imzalı, hedef-bağlı, TTL'li, iptal edilebilir token'lar (100% coverage)
+- ✅ **src/pentra/storage/audit_log.py** — Hash-zincirli append-only log + verify_integrity (88% coverage)
+- ✅ **124 unit test yeşil** — genel coverage %89.98
 
 ## 3. Yapılması Gerekenler 📋
 
@@ -53,15 +59,17 @@ Faz 6: Paketleme & dağıtım      ░░░░░░░░░░  %0
 - [x] `.gitignore`, `README.md` (placeholder), `LICENSE` (placeholder)
 - [x] pre-commit config + ruff/black/mypy ayarları
 - [x] tests/ çatısı + conftest.py + smoke test
-- [ ] `scripts/setup_dev.py` — venv kurulum otomasyonu (opsiyonel, ertelenebilir)
-- [ ] Git repo init + ilk commit (kullanıcı onayı bekleniyor)
+- [x] `scripts/setup_dev.py` — venv kurulum otomasyonu
+- [x] Git repo init + ilk commit (yerel — 8e22ff2)
+- [x] GitHub'a push (github.com/ozzdemirbrk/pentra — GCM cached cred ile)
 
-### Faz 1 — Güvenlik Katmanı (ÖNCELİK — kod başlar başlamaz)
-- [ ] `safety/authorization.py` — AuthorizationManager sınıfı
-- [ ] `safety/scope_validator.py` — RFC1918 + allowlist + kullanıcı onayı zinciri
-- [ ] `core/rate_limiter.py` — token bucket algoritması
-- [ ] `storage/audit_log.py` — imzalı append-only log
-- [ ] Birim testler (%100 kapsam hedefi)
+### Faz 1 — Güvenlik Katmanı ✅
+- [x] `models.py` — ortak tip tanımları
+- [x] `safety/authorization.py` — AuthorizationManager sınıfı (HMAC-SHA256, TTL, revoke)
+- [x] `safety/scope_validator.py` — RFC1918 + loopback + DENIED aralıklar + DNS
+- [x] `core/rate_limiter.py` — thread-safe token bucket
+- [x] `storage/audit_log.py` — hash-zincirli denetim izi
+- [x] Birim testler — 124 test yeşil, genel coverage %89.98
 
 ### Faz 2 — MVP
 - [ ] `app.py` + `gui/wizard.py` — QApplication iskeleti

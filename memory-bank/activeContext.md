@@ -5,15 +5,15 @@
 ---
 
 ## Son Güncelleme
-**2026-04-21** — Faz 0 tamamlandı. Proje iskeleti, bağımlılık dosyaları, test çatısı, lint/format yapılandırması hazır.
+**2026-04-21** — Faz 1 tamamlandı. Güvenlik katmanı test edildi (124 test yeşil, coverage %89.98).
 
 ---
 
 ## 1. Şu Anki Odak
 
-**Aşama**: 🔒 **Faz 1 — Güvenlik Katmanı (başlayacak)**
+**Aşama**: 🖥️ **Faz 2 — MVP (başlayacak)**
 
-Faz 0 tamamlandı. Sonraki adım: kod yazmaya başlamadan ÖNCE güvenlik bariyerlerini (authorization, scope_validator, rate_limiter, audit_log) kurmak.
+Faz 1 tamamlandı. Sonraki adım: PySide6 sihirbaz iskeleti + localhost tarama uçtan uca akışı.
 
 ## 2. Son Değişiklikler (Kronolojik)
 
@@ -26,6 +26,15 @@ Faz 0 tamamlandı. Sonraki adım: kod yazmaya başlamadan ÖNCE güvenlik bariye
 | 2026-04-21 | `src/pentra/` paket iskeleti (tüm alt paketler + `app.py`, `config.py`) |
 | 2026-04-21 | `tests/` çatısı + conftest.py + smoke test |
 | 2026-04-21 | `.gitignore`, README, LICENSE placeholder, .pre-commit-config.yaml, .editorconfig |
+| 2026-04-21 | `scripts/setup_dev.py` — dev ortamı bootstrap script |
+| 2026-04-21 | Git repo init + ilk commit (hash 8e22ff2, 37 dosya, main branch) |
+| 2026-04-21 | GitHub push tamamlandı — kullanıcı GCM cached cred ile push'ladı (repo: github.com/ozzdemirbrk/pentra) |
+| 2026-04-21 | `models.py` — ortak dataclass/enum tanımları (Target, ScanDepth, Severity, ...) |
+| 2026-04-21 | `safety/scope_validator.py` + 45 test — RFC1918 + URL DNS + CIDR kontrolü |
+| 2026-04-21 | `core/rate_limiter.py` + 15 test — thread-safe TokenBucket |
+| 2026-04-21 | `safety/authorization.py` + 20 test — HMAC-SHA256 imzalı token sistemi |
+| 2026-04-21 | `storage/audit_log.py` + 22 test — hash-zincirli denetim izi |
+| 2026-04-21 | pytest: 124 test yeşil, coverage %89.98 (safety + models %100) |
 
 ## 3. Bir Sonraki Adımlar (Öncelik Sırasıyla)
 
