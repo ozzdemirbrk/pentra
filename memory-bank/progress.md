@@ -82,13 +82,15 @@ Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 - [x] `storage/audit_log.py` — hash-zincirli denetim izi
 - [x] Birim testler — 124 test yeşil, genel coverage %89.98
 
-### Faz 2 — MVP
-- [ ] `app.py` + `gui/wizard.py` — QApplication iskeleti
-- [ ] 5 ekran: authorization, target_select, depth_select, progress, report (sadece localhost için)
-- [ ] `core/scanner_base.py` — soyut Scanner
-- [ ] `core/network_scanner.py` — localhost port taraması
-- [ ] Basit HTML rapor şablonu
-- [ ] Uçtan uca akış: aç → onay → bu bilgisayarı tara → rapor
+### Faz 2 — MVP ✅
+- [x] `app.py` + `gui/wizard.py` — QApplication iskeleti + WizardContext
+- [x] 5 ekran: authorization, target_select, depth_select, progress, report (localhost için)
+- [x] `core/scanner_base.py` — soyut Scanner (QObject + sinyaller + token doğrulama + audit log)
+- [x] `core/scan_orchestrator.py` — Chain of Responsibility: scope → auth → scanner factory
+- [x] `core/network_scanner.py` — localhost port taraması (python-nmap, -sT -F --open)
+- [x] `reporting/` — ReportBuilder + HtmlExporter + Jinja2 şablonu (Türkçe, modern)
+- [x] Uçtan uca akış: aç → onay → bu bilgisayarı tara → HTML rapor masaüstüne
+- [x] Unit + integration testleri (154 test yeşil)
 
 ### Faz 3 — Web Scanner (Seviye 2 probing) ← SIRADAKİ
 Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
