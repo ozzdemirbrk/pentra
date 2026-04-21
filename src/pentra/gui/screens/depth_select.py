@@ -54,18 +54,18 @@ class DepthSelectPage(QWizardPage):
         line1.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(line1)
 
-        # --- Standart (yakında) ---
-        self._rb_standard = QRadioButton("🟡  Standart  —  yaklaşık 15-30 dk   (yakında)")
-        self._rb_standard.setEnabled(False)
-        self._rb_standard.setStyleSheet("QRadioButton { font-size: 14px; padding: 6px; color: #888; }")
+        # --- Standart (aktif — Faz 4) ---
+        self._rb_standard = QRadioButton("🟡  Standart  —  yaklaşık 5-15 dk")
+        self._rb_standard.setStyleSheet("QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }")
         self._group.addButton(self._rb_standard)
         layout.addWidget(self._rb_standard)
 
         desc_std = QLabel(
-            "<div style='margin-left: 24px; margin-bottom: 8px; color: #888;'>"
-            "<b>Yapılanlar:</b> Top 1000 port + servis versiyonu tespiti, temel zafiyet taraması.<br>"
-            "<b>Yapılmayanlar:</b> Derinlemesine exploit script'leri.<br>"
-            "<i>Sonraki sürümde aktif olacak.</i>"
+            "<div style='margin-left: 24px; margin-bottom: 8px;'>"
+            "<b>Yapılanlar:</b> Top 1000 port + tam servis versiyonu tespiti + "
+            "bilinen CVE eşleştirme (NVD veritabanından).<br>"
+            "<b>Yapılmayanlar:</b> Derinlemesine exploit script'leri, OS tespiti.<br>"
+            "<span style='color: #555;'><i>Önerilen: gerçek sistem denetimi için ideal.</i></span>"
             "</div>",
         )
         desc_std.setWordWrap(True)

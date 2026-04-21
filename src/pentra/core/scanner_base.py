@@ -26,6 +26,12 @@ from pentra.safety.authorization import (
 )
 from pentra.storage.audit_log import AuditLog, make_event
 
+try:
+    # CveMapper opsiyonel bağımlılık — dışarıdan enjekte edilir.
+    from pentra.knowledge.cve_mapper import CveMapper
+except ImportError:  # pragma: no cover
+    CveMapper = None  # type: ignore[assignment,misc]
+
 
 class ScannerBase(QObject):
     """Tarayıcı soyut temeli — Qt sinyalleriyle ilerleme yayar.
@@ -50,12 +56,14 @@ class ScannerBase(QObject):
         rate_limiter: TokenBucket,
         audit_log: AuditLog,
         auth_manager: AuthorizationManager,
+        cve_mapper: "CveMapper | None" = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._rate_limiter = rate_limiter
         self._audit_log = audit_log
         self._auth_manager = auth_manager
+        self._cve_mapper = cve_mapper  # None ise CVE zenginleştirme yapılmaz
         self._cancelled: bool = False
 
     # -----------------------------------------------------------------

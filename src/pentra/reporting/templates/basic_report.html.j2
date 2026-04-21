@@ -175,7 +175,27 @@
                     </div>
                     <div class="finding-description">{{ finding.description }}</div>
 
-                    {% if finding.cve_ids %}
+                    {% if finding.evidence and finding.evidence.get('cves') %}
+                    <div style="margin-top: 12px;">
+                        <strong style="font-size: 13px; color: #444;">🛡️ Bilinen Güvenlik Açıkları ({{ finding.evidence['cves']|length }}):</strong>
+                        <div style="margin-top: 8px;">
+                        {% for cve in finding.evidence['cves'] %}
+                            <div style="background: #fff3e0; border-left: 3px solid #ef6c00; padding: 8px 12px; margin: 4px 0; border-radius: 4px; font-size: 13px;">
+                                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                    <a href="{{ cve.url }}" target="_blank" style="font-family: monospace; font-weight: bold; color: #01579b; text-decoration: none;">{{ cve.id }}</a>
+                                    {% if cve.cvss %}
+                                    <span style="background: {% if cve.cvss >= 9.0 %}#8b0000{% elif cve.cvss >= 7.0 %}#d32f2f{% elif cve.cvss >= 4.0 %}#ef6c00{% else %}#fbc02d{% endif %}; color: white; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;">
+                                        CVSS {{ cve.cvss }}
+                                    </span>
+                                    {% endif %}
+                                    <span style="color: #666; font-size: 11px;">{{ cve.severity }}</span>
+                                </div>
+                                <div style="color: #444; margin-top: 4px; font-size: 12px;">{{ cve.description }}</div>
+                            </div>
+                        {% endfor %}
+                        </div>
+                    </div>
+                    {% elif finding.cve_ids %}
                     <div style="font-size: 13px; color: #666; margin-top: 8px;">
                         <strong>İlgili CVE:</strong>
                         {% for cve in finding.cve_ids %}

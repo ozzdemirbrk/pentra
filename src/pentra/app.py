@@ -5,8 +5,11 @@ Tüm bağımlılıkları oluşturur ve PentraWizard'ı başlatır.
 
 from __future__ import annotations
 
+import os
 import sys
+from pathlib import Path
 
+from dotenv import load_dotenv
 from PySide6.QtWidgets import QApplication
 
 from pentra import __app_name__, __version__
@@ -20,6 +23,8 @@ from pentra.core.rate_limiter import TokenBucket
 from pentra.core.scan_orchestrator import ScanOrchestrator
 from pentra.core.scanner_base import ScannerBase
 from pentra.core.web_scanner import WebScanner
+from pentra.knowledge.cve_mapper import CveMapper
+from pentra.knowledge.nvd_client import NvdClient
 from pentra.gui.screens.authorization import AuthorizationPage
 from pentra.gui.screens.depth_select import DepthSelectPage
 from pentra.gui.screens.progress import ProgressPage
@@ -36,6 +41,7 @@ def _build_scanner_factory(
     rate_limiter: TokenBucket,
     audit_log: AuditLog,
     auth_manager: AuthorizationManager,
+    cve_mapper: CveMapper | None,
 ):
     """TargetType'a göre uygun Scanner örneği üretir."""
 
@@ -47,11 +53,13 @@ def _build_scanner_factory(
                 rate_limiter=rate_limiter,
                 audit_log=audit_log,
                 auth_manager=auth_manager,
+                cve_mapper=cve_mapper,
             )
         return NetworkScanner(
             rate_limiter=rate_limiter,
             audit_log=audit_log,
             auth_manager=auth_manager,
+            cve_mapper=cve_mapper,
         )
 
     return factory
@@ -59,6 +67,11 @@ def _build_scanner_factory(
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv if argv is None else argv
+
+    # ---- .env dosyasını yükle (varsa) ----
+    # Proje kökünde .env varsa NVD_API_KEY gibi anahtarları yükler.
+    # Dosya yoksa sessizce geçer (os.environ'da tanımlı olanlar kullanılır).
+    _load_env_file()
 
     # ---- Qt uygulaması ----
     app = QApplication(args)
@@ -78,10 +91,16 @@ def main(argv: list[str] | None = None) -> int:
         refill_rate_per_sec=float(DEFAULT_RATE_LIMIT_PPS),
     )
 
+    # ---- NVD / CVE Mapper (opsiyonel — .env'de key varsa hızlı, yoksa anonim) ----
+    nvd_api_key = os.environ.get("NVD_API_KEY") or None
+    nvd_client = NvdClient(api_key=nvd_api_key)
+    cve_mapper = CveMapper(nvd_client=nvd_client)
+
     scanner_factory = _build_scanner_factory(
         rate_limiter=rate_limiter,
         audit_log=audit_log,
         auth_manager=auth_manager,
+        cve_mapper=cve_mapper,
     )
 
     orchestrator = ScanOrchestrator(
@@ -103,3 +122,23 @@ def main(argv: list[str] | None = None) -> int:
     wizard.show()
 
     return app.exec()
+
+
+def _load_env_file() -> None:
+    """Proje kökündeki .env dosyasını os.environ'a yükler (varsa).
+
+    Arama sırası: çalışma dizini → bu modülün üst klasörleri.
+    """
+    # Önce çalışma dizini
+    cwd_env = Path.cwd() / ".env"
+    if cwd_env.exists():
+        load_dotenv(cwd_env)
+        return
+
+    # Sonra paket içinden yukarı doğru (ör. kaynaktan çalıştırmada)
+    here = Path(__file__).resolve()
+    for parent in [here.parent, *here.parents]:
+        candidate = parent / ".env"
+        if candidate.exists():
+            load_dotenv(candidate)
+            return

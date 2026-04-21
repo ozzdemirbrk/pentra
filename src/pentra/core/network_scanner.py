@@ -118,10 +118,10 @@ class NetworkScanner(ScannerBase):
         """Derinliğe göre nmap argümanlarını oluşturur."""
         match depth:
             case ScanDepth.QUICK:
-                # TCP connect, top 100 port, açık portlar
-                return "-sT -F --open -T4 -Pn"
+                # TCP connect, top 100 port + servis/versiyon (hafif)
+                return "-sT -F --open -T4 -Pn -sV --version-intensity 2"
             case ScanDepth.STANDARD:
-                # Top 1000 port + servis/versiyon
+                # Top 1000 port + tam servis/versiyon
                 return "-sT -sV --open -T4 -Pn"
             case ScanDepth.DEEP:
                 # Tam port, versiyon, OS, varsayılan scriptler
@@ -172,6 +172,33 @@ class NetworkScanner(ScannerBase):
 
                     remediation = _build_remediation(port, service)
 
+                    # CVE eşleştirme — mapper varsa ve versiyon biliniyorsa
+                    cve_ids: tuple[str, ...] = ()
+                    cve_details: list[dict[str, object]] = []
+                    if self._cve_mapper is not None and (product or service) and version:
+                        try:
+                            cves = self._cve_mapper.lookup(
+                                service=product or service, version=version,
+                            )
+                            cve_ids = tuple(c.cve_id for c in cves[:5])
+                            cve_details = [
+                                {
+                                    "id": c.cve_id,
+                                    "cvss": c.cvss_score,
+                                    "severity": c.severity,
+                                    "description": c.description,
+                                    "url": c.nvd_url,
+                                }
+                                for c in cves[:5]
+                            ]
+                            # CVE varsa severity'yi yükselt
+                            severity = self._escalate_severity_by_cves(
+                                severity, cves,
+                            )
+                        except Exception:  # noqa: BLE001
+                            # CVE lookup başarısız olsa bile tarama devam
+                            pass
+
                     findings.append(
                         Finding(
                             scanner_name=self.scanner_name,
@@ -179,6 +206,7 @@ class NetworkScanner(ScannerBase):
                             title=title,
                             description=" ".join(description_parts),
                             target=f"{host}:{port}",
+                            cve_ids=cve_ids,
                             remediation=remediation,
                             evidence={
                                 "port": port,
@@ -186,6 +214,7 @@ class NetworkScanner(ScannerBase):
                                 "service": service,
                                 "product": product,
                                 "version": version,
+                                "cves": cve_details,
                             },
                         ),
                     )
@@ -195,6 +224,35 @@ class NetworkScanner(ScannerBase):
                     self._emit_progress(percent, f"{host}:{port} işlendi")
 
         return findings
+
+    @staticmethod
+    def _escalate_severity_by_cves(
+        base: Severity,
+        cves: "list",
+    ) -> Severity:
+        """CVE'lerin en kritik CVSS'i port base severity'sinden yüksekse yükselt."""
+        if not cves:
+            return base
+        # Maksimum CVSS skoru
+        max_cvss = max((c.cvss_score or 0.0) for c in cves)
+        cvss_tier: Severity
+        if max_cvss >= 9.0:
+            cvss_tier = Severity.CRITICAL
+        elif max_cvss >= 7.0:
+            cvss_tier = Severity.HIGH
+        elif max_cvss >= 4.0:
+            cvss_tier = Severity.MEDIUM
+        elif max_cvss > 0:
+            cvss_tier = Severity.LOW
+        else:
+            return base
+
+        # Base ile CVSS tier'ın maksimumunu al
+        order = {
+            Severity.INFO: 0, Severity.LOW: 1, Severity.MEDIUM: 2,
+            Severity.HIGH: 3, Severity.CRITICAL: 4,
+        }
+        return base if order[base] >= order[cvss_tier] else cvss_tier
 
 
 def _build_remediation(port: int, service: str) -> str:

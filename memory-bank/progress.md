@@ -16,7 +16,7 @@ Faz 0: Planlama & Kurulum             ██████████  %100
 Faz 1: Güvenlik Katmanı               ██████████  %100 (124 test)
 Faz 2: MVP (localhost tarama)         ██████████  %100 (154 test, E2E çalıştı)
 Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
-Faz 4: Servis versiyon + CVE          ░░░░░░░░░░  %0
+Faz 4: Servis versiyon + CVE          █████████░  %90 (kod + testler, E2E bekleniyor)
 Faz 5: DB probe + yerel ağ + Wi-Fi    ░░░░░░░░░░  %0
 Faz 6: Akıllı rapor + PDF + geçmiş    ░░░░░░░░░░  %0
 Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
@@ -111,11 +111,18 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 - [x] 208 test yeşil (15 yeni exposed_paths testi dahil)
 
 ### Faz 4 — Servis Versiyonu + CVE Eşleştirme
-- [ ] `-sV` aktifleştir (nmap argümanları güncelleme)
-- [ ] `knowledge/cve_mapper.py` — NVD JSON feed okuyucu, service+version → CVE listesi
-- [ ] NVD veritabanı yerel kopya yönetimi (ilk çalıştırmada indir, güncelleme)
-- [ ] Default credentials check modülü (SSH/MySQL/Redis/RDP için tek-seferlik dene)
-- [ ] Yerel ağ keşfi (ARP scan, ICMP sweep)
+- [x] `knowledge/nvd_client.py` — NVD REST 2.0 API client (keyword + CPE search, rate limit, cache)
+- [x] `knowledge/cve_mapper.py` — servis adı normalleştirme + CPE prefix haritası + fallback
+- [x] `-sV` nmap argümanı Quick/Standard/Deep'te aktif
+- [x] NetworkScanner: her port için CVE lookup, severity CVSS'e göre yükseltme
+- [x] WebScanner: Server header versiyon → CVE zenginleştirme
+- [x] Rapor şablonu CVE kartları (CVSS renk kodu, NVD link)
+- [x] Standart derinlik aktif (depth_select)
+- [x] `.env` desteği (python-dotenv) — NVD_API_KEY gizli kalır
+- [x] 252 test yeşil (42 yeni knowledge testi)
+- [x] CPE-based arama canlı doğrulandı (IIS 10.0 → 10 CVE)
+- [ ] E2E manuel test (kullanıcı) — bekleniyor
+- [ ] Default credentials check modülü → Faz 5'e ertelendi
 
 ### Faz 5 — DB probe + Wi-Fi + Ağ Derinliği
 - [ ] MongoDB/Redis/Elasticsearch auth check (parolasız bağlanıyor mu)

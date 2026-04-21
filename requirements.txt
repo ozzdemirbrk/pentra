@@ -31,3 +31,4 @@ pydantic>=2.5
 structlog>=24
 rich>=13
 click>=8.1
+python-dotenv>=1.0   # .env dosyasından NVD_API_KEY vb. okumak için

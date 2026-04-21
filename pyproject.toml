@@ -55,6 +55,7 @@ dependencies = [
     "structlog>=24",
     "rich>=13",
     "click>=8.1",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
