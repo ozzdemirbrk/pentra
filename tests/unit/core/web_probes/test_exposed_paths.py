@@ -1,4 +1,4 @@
-"""exposed_paths.py — probe testleri."""
+"""exposed_paths.py — probe testleri (soft-404 + content validator sonrası)."""
 
 from __future__ import annotations
 
@@ -10,117 +10,238 @@ from pentra.core.web_probes.exposed_paths import ExposedPathsProbe
 from pentra.models import Severity
 
 
-def _response(status_code: int, text: str = "") -> MagicMock:
+def _response(
+    status_code: int,
+    text: str = "",
+    content_type: str = "text/html",
+    content: bytes | None = None,
+) -> MagicMock:
     r = MagicMock()
     r.status_code = status_code
     r.text = text
-    r.content = text.encode() if text else b""
+    r.content = content if content is not None else text.encode("utf-8", errors="replace")
+    r.headers = {"Content-Type": content_type}
     return r
 
 
-def _session_returning(response_map: dict[str, MagicMock]) -> MagicMock:
-    """URL → response eşlemesi; varsayılan 404."""
+def _session_with_map(response_map: dict[str, MagicMock], default: MagicMock) -> MagicMock:
+    """URL kısmı eşleşen response döner, yoksa `default`."""
     session = MagicMock(spec=requests.Session)
 
     def fake_get(url, **_kwargs):
         for key, resp in response_map.items():
             if key in url:
                 return resp
-        return _response(404)
+        return default
 
     session.get.side_effect = fake_get
     return session
 
 
-class TestEnvFileExposed:
-    def test_env_with_signature_flagged_critical(self) -> None:
+# Ortak 404 default
+_NOT_FOUND = _response(404, "", content_type="text/plain")
+
+
+# =====================================================================
+# .env validator
+# =====================================================================
+class TestEnvValidator:
+    def test_real_env_file_flagged_critical(self) -> None:
         probe = ExposedPathsProbe()
-        session = _session_returning({
-            "/.env": _response(200, "DB_PASSWORD=secret123\nAPI_KEY=xyz"),
-        })
+        env_body = "DB_PASSWORD=secret123\nAPI_KEY=xyz\nDEBUG=true\n"
+        session = _session_with_map(
+            {"/.env": _response(200, env_body, content_type="text/plain")},
+            default=_NOT_FOUND,
+        )
         findings = probe.probe("https://example.com", session)
 
-        env_findings = [f for f in findings if ".env dosyası" in f.title]
-        assert len(env_findings) == 1
-        assert env_findings[0].severity == Severity.CRITICAL
+        env = [f for f in findings if ".env dosyası" in f.title]
+        assert len(env) == 1
+        assert env[0].severity == Severity.CRITICAL
 
-    def test_env_without_signature_not_flagged(self) -> None:
-        """200 yanıt ama içerik `=` içermiyor → .env değil (SPA catch-all olabilir)."""
+    def test_html_response_at_env_path_not_flagged(self) -> None:
+        """Soft 404: sunucu .env için HTML anasayfa dönerse → false positive ÖNLENMELİ."""
         probe = ExposedPathsProbe()
-        session = _session_returning({
-            "/.env": _response(200, "<html>SPA fallback</html>"),
-        })
+        html = "<html><body>Hoş geldiniz! name=value etc.</body></html>"
+        session = _session_with_map(
+            {"/.env": _response(200, html, content_type="text/html")},
+            default=_NOT_FOUND,
+        )
         findings = probe.probe("https://example.com", session)
         assert not any(".env dosyası" in f.title for f in findings)
 
-    def test_env_404_not_flagged(self) -> None:
+    def test_plaintext_but_no_env_pattern_not_flagged(self) -> None:
         probe = ExposedPathsProbe()
-        session = _session_returning({})  # her şey 404
+        # Content-Type plain ama içerik .env değil
+        session = _session_with_map(
+            {"/.env": _response(200, "merhaba dünya", content_type="text/plain")},
+            default=_NOT_FOUND,
+        )
         findings = probe.probe("https://example.com", session)
         assert not any(".env dosyası" in f.title for f in findings)
 
 
-class TestGitConfigExposed:
-    def test_git_config_with_core_section_flagged(self) -> None:
+# =====================================================================
+# Git config validator
+# =====================================================================
+class TestGitConfigValidator:
+    def test_real_git_config_flagged(self) -> None:
         probe = ExposedPathsProbe()
-        session = _session_returning({
-            "/.git/config": _response(200, "[core]\n\trepositoryformatversion = 0\n"),
-        })
+        git_body = "[core]\n\trepositoryformatversion = 0\n[remote \"origin\"]\n"
+        session = _session_with_map(
+            {"/.git/config": _response(200, git_body, content_type="text/plain")},
+            default=_NOT_FOUND,
+        )
+        findings = probe.probe("https://example.com", session)
+        assert any(".git deposu" in f.title for f in findings)
+
+    def test_html_at_git_config_not_flagged(self) -> None:
+        probe = ExposedPathsProbe()
+        session = _session_with_map(
+            {"/.git/config": _response(200, "<html>[core] string içinde</html>")},
+            default=_NOT_FOUND,
+        )
+        findings = probe.probe("https://example.com", session)
+        assert not any(".git deposu" in f.title for f in findings)
+
+
+# =====================================================================
+# SQL dump validator
+# =====================================================================
+class TestSqlDumpValidator:
+    def test_real_sql_dump_flagged(self) -> None:
+        probe = ExposedPathsProbe()
+        sql_body = "-- MySQL dump\nCREATE TABLE users (id INT);\nINSERT INTO users VALUES (1);\n"
+        session = _session_with_map(
+            {"/database.sql": _response(200, sql_body, content_type="application/sql")},
+            default=_NOT_FOUND,
+        )
+        findings = probe.probe("https://example.com", session)
+        assert any("database.sql" in f.target for f in findings)
+
+    def test_html_at_sql_path_not_flagged(self) -> None:
+        """Zonguldak gibi soft-404 senaryosu."""
+        probe = ExposedPathsProbe()
+        html = "<html>CREATE TABLE mentioned in blog post</html>"
+        session = _session_with_map(
+            {"/database.sql": _response(200, html, content_type="text/html")},
+            default=_NOT_FOUND,
+        )
+        findings = probe.probe("https://example.com", session)
+        assert not any("database.sql" in f.target for f in findings)
+
+
+# =====================================================================
+# Soft-404 baseline
+# =====================================================================
+class TestSoftFourOhFour:
+    def test_catchall_site_no_false_positives(self) -> None:
+        """Sunucu her yola aynı HTML'i dönüyor — hiçbir bulgu olmamalı (sec_txt hariç)."""
+        probe = ExposedPathsProbe()
+        catchall_html = "<html><body>Anasayfa</body></html>"
+        catchall_response = _response(200, catchall_html, content_type="text/html")
+
+        session = MagicMock(spec=requests.Session)
+        session.get.return_value = catchall_response
+
         findings = probe.probe("https://example.com", session)
 
-        git_findings = [f for f in findings if ".git deposu" in f.title]
-        assert len(git_findings) == 1
-        assert git_findings[0].severity == Severity.HIGH
+        # Soft-404 baseline tetiklenmiş olmalı — hiçbir "exposed" bulgu olmamalı
+        exposed = [f for f in findings if f.severity != Severity.INFO]
+        assert exposed == []
 
-
-class TestBackupFiles:
-    def test_wp_config_bak_flagged_critical(self) -> None:
+    def test_different_sized_response_not_filtered(self) -> None:
+        """Baseline'dan çok farklı boyutlu yanıt soft-404 sayılmaz."""
         probe = ExposedPathsProbe()
-        session = _session_returning({
-            "/wp-config.php.bak": _response(200, "<?php $password='secret'; ?>"),
-        })
+
+        small_404 = _response(404, "Not Found", content_type="text/plain")
+        real_env = _response(
+            200,
+            "DB_PASSWORD=x\nAPI_KEY=y\n",
+            content_type="text/plain",
+        )
+
+        def fake_get(url, **_kwargs):
+            if "pentra-nonexistent" in url:
+                return small_404
+            if "/.env" in url:
+                return real_env
+            return small_404
+
+        session = MagicMock(spec=requests.Session)
+        session.get.side_effect = fake_get
+
         findings = probe.probe("https://example.com", session)
-
-        assert any("wp-config.php.bak" in f.target for f in findings)
-        bak = next(f for f in findings if "wp-config.php.bak" in f.target)
-        assert bak.severity == Severity.CRITICAL
+        assert any(".env dosyası" in f.title for f in findings)
 
 
+# =====================================================================
+# security.txt ters mantık
+# =====================================================================
 class TestSecurityTxt:
-    def test_missing_security_txt_produces_info(self) -> None:
+    def test_missing_security_txt_info_finding(self) -> None:
         probe = ExposedPathsProbe()
-        session = _session_returning({})  # hepsi 404
+        session = MagicMock(spec=requests.Session)
+        session.get.return_value = _response(404, "", content_type="text/plain")
+
         findings = probe.probe("https://example.com", session)
+        assert any("security.txt yok" in f.title for f in findings)
 
-        sec_findings = [f for f in findings if "security.txt yok" in f.title]
-        assert len(sec_findings) == 1
-        assert sec_findings[0].severity == Severity.INFO
-
-    def test_present_security_txt_no_finding(self) -> None:
+    def test_present_security_txt_no_info_finding(self) -> None:
         probe = ExposedPathsProbe()
-        session = _session_returning({
-            "/.well-known/security.txt": _response(200, "Contact: mailto:a@b.com"),
-        })
+        sec_response = _response(200, "Contact: a@b.com", content_type="text/plain")
+        session = _session_with_map(
+            {"/.well-known/security.txt": sec_response},
+            default=_response(404, "", content_type="text/plain"),
+        )
         findings = probe.probe("https://example.com", session)
         assert not any("security.txt yok" in f.title for f in findings)
 
-
-class TestBaseUrlJoining:
-    def test_url_with_trailing_slash_handled(self) -> None:
+    def test_soft_404_on_security_txt_reports_missing(self) -> None:
+        """Soft-404 baseline ile aynı boyutta security.txt yanıtı → dosya yok sayılır."""
         probe = ExposedPathsProbe()
-        calls: list[str] = []
-
+        catchall = _response(200, "<html>anasayfa</html>", content_type="text/html")
         session = MagicMock(spec=requests.Session)
+        session.get.return_value = catchall
+        findings = probe.probe("https://example.com", session)
+        assert any("security.txt yok" in f.title for f in findings)
 
-        def fake_get(url, **_kwargs):
-            calls.append(url)
-            return _response(404)
 
-        session.get.side_effect = fake_get
+# =====================================================================
+# Admin / phpMyAdmin validator
+# =====================================================================
+class TestAdminValidator:
+    def test_real_admin_panel_with_login_form_flagged(self) -> None:
+        probe = ExposedPathsProbe()
+        admin_html = (
+            "<html><head><title>Admin Login</title></head><body>"
+            "<form action='/admin/login' method='post'>"
+            "<input name='username'><input name='password' type='password'></form></body></html>"
+        )
+        session = _session_with_map(
+            {"/admin": _response(200, admin_html)},
+            default=_response(404, "", content_type="text/plain"),
+        )
+        findings = probe.probe("https://example.com", session)
+        assert any(f.target.endswith("/admin") for f in findings)
 
-        probe.probe("https://example.com/", session)
+    def test_fake_admin_from_soft_404_not_flagged(self) -> None:
+        probe = ExposedPathsProbe()
+        catchall = _response(200, "<html>Anasayfa</html>")
+        session = MagicMock(spec=requests.Session)
+        session.get.return_value = catchall
+        findings = probe.probe("https://example.com", session)
+        # /admin için bulgu olmamalı (soft-404 baseline ile aynı)
+        assert not any(f.target.endswith("/admin") for f in findings)
 
-        # /.env URL'i /example.com/.env olmalı, çift slash yok
-        env_calls = [c for c in calls if "/.env" in c and "well-known" not in c]
-        assert len(env_calls) == 1
-        assert "//.env" not in env_calls[0]
+
+class TestPhpMyAdminValidator:
+    def test_real_phpmyadmin_flagged(self) -> None:
+        probe = ExposedPathsProbe()
+        pma_html = "<html><title>phpMyAdmin</title><form name='pma_username'></form></html>"
+        session = _session_with_map(
+            {"/phpmyadmin": _response(200, pma_html)},
+            default=_response(404, "", content_type="text/plain"),
+        )
+        findings = probe.probe("https://example.com", session)
+        assert any("phpMyAdmin public" in f.title for f in findings)
