@@ -5,15 +5,15 @@
 ---
 
 ## Son Güncelleme
-**2026-04-21** — Faz 1 tamamlandı. Güvenlik katmanı test edildi (124 test yeşil, coverage %89.98).
+**2026-04-21** — Faz 2 MVP tamamlandı. Uygulama localhost'u tarayıp HTML rapor üretiyor. 154 test yeşil.
 
 ---
 
 ## 1. Şu Anki Odak
 
-**Aşama**: 🖥️ **Faz 2 — MVP (başlayacak)**
+**Aşama**: 🌐 **Faz 3 — Tüm Hedef Tipleri (planlanacak)**
 
-Faz 1 tamamlandı. Sonraki adım: PySide6 sihirbaz iskeleti + localhost tarama uçtan uca akışı.
+MVP çalışıyor. Kullanıcı "sadece port tarama mı?" diye sordu — cevap: hayır, ama MVP öyle. Faz 3'te URL/web tarama, servis versiyonu, CVE eşleme gelecek.
 
 ## 2. Son Değişiklikler (Kronolojik)
 

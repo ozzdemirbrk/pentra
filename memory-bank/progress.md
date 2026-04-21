@@ -14,7 +14,7 @@
 ```
 Faz 0: Planlama & Kurulum       ██████████  %100
 Faz 1: Güvenlik Katmanı         ██████████  %100 (124 test, coverage %89.98)
-Faz 2: MVP (localhost tarama)   ░░░░░░░░░░  %0
+Faz 2: MVP (localhost tarama)   ██████████  %100 (154 test yeşil, E2E çalıştı)
 Faz 3: Tüm hedef tipleri        ░░░░░░░░░░  %0
 Faz 4: Web + Wi-Fi (pasif)      ░░░░░░░░░░  %0
 Faz 5: Rapor + CVE + Türkçe öneri ░░░░░░░░░░ %0
@@ -50,6 +50,14 @@ Faz 6: Paketleme & dağıtım      ░░░░░░░░░░  %0
 - ✅ **src/pentra/safety/authorization.py** — HMAC-SHA256 imzalı, hedef-bağlı, TTL'li, iptal edilebilir token'lar (100% coverage)
 - ✅ **src/pentra/storage/audit_log.py** — Hash-zincirli append-only log + verify_integrity (88% coverage)
 - ✅ **124 unit test yeşil** — genel coverage %89.98
+- ✅ **core/scanner_base.py** — QObject soyut Scanner + Qt sinyalleri
+- ✅ **core/scan_orchestrator.py** — Chain of Responsibility: scope → auth → scanner seçimi
+- ✅ **core/network_scanner.py** — python-nmap wrapper, TCP connect scan, riskli port haritası
+- ✅ **reporting/** — ReportBuilder + HtmlExporter + Jinja2 şablonu (Türkçe, modern görünüm)
+- ✅ **gui/wizard.py + 5 ekran** — Yetki onayı, hedef, derinlik, canlı ilerleme, rapor
+- ✅ **app.py** — Tüm bağımlılıkları enjekte edip wizard'ı başlatan ana giriş
+- ✅ **E2E test başarılı** — localhost tarama → 4 bulgu → HTML rapor masaüstüne
+- ✅ **154 test yeşil** (yeni: orchestrator 10, network_scanner 8, report 12)
 
 ## 3. Yapılması Gerekenler 📋
 

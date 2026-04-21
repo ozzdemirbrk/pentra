@@ -1,0 +1,212 @@
+"""Ağ tarayıcısı — python-nmap ile port ve servis tespiti.
+
+Faz 2 MVP: localhost'ta top 100 portu TCP connect tarama.
+
+Derinlikler:
+    QUICK    → top 100 port, servis adları (TCP connect, hızlı)
+    STANDARD → top 1000 port + servis versiyonu
+    DEEP     → tüm portlar + versiyon + OS + script varsayılanları
+
+Windows'ta `-sT` (TCP connect) kullanılır — admin/Npcap gerekmez; localhost için
+yeterince hızlıdır. Diğer modlar Npcap + UAC gerektirebilir (Faz 3+ için).
+"""
+
+from __future__ import annotations
+
+from pentra.core.scanner_base import ScannerBase
+from pentra.models import Finding, ScanDepth, Severity, Target
+
+# python-nmap'in nmap.exe'yi arayacağı yollar — Windows + Unix.
+# Installer PATH'e eklemeyi unutmuş/kullanıcı yeni terminal açmamış olsa da çalışır.
+_NMAP_SEARCH_PATHS: tuple[str, ...] = (
+    "nmap",
+    r"C:\Program Files (x86)\Nmap\nmap.exe",
+    r"C:\Program Files\Nmap\nmap.exe",
+    "/usr/bin/nmap",
+    "/usr/local/bin/nmap",
+    "/opt/local/bin/nmap",
+)
+
+# Bilgi amaçlı riskli port haritası (çok temel, CVE eşleşmesi Faz 5'te zenginleşir)
+_RISKY_PORTS: dict[int, tuple[Severity, str]] = {
+    21: (Severity.LOW, "FTP — şifrelenmemiş dosya transferi, anonim erişim olabilir"),
+    23: (Severity.MEDIUM, "Telnet — parola düz metin gönderilir, SSH kullanın"),
+    25: (Severity.LOW, "SMTP — yanlış yapılandırılırsa open relay olabilir"),
+    135: (Severity.LOW, "Windows RPC — dışarıya kapalı olmalı"),
+    139: (Severity.LOW, "NetBIOS — paylaşım bilgisi sızdırabilir"),
+    445: (Severity.MEDIUM, "SMB — EternalBlue gibi ciddi zaafiyet geçmişi var"),
+    1433: (Severity.MEDIUM, "MSSQL — dışarıya açıksa saldırı yüzeyini artırır"),
+    3306: (Severity.MEDIUM, "MySQL — dışarıya açıksa risk"),
+    3389: (Severity.HIGH, "RDP — yaygın brute-force hedefi, güçlü parola + MFA şart"),
+    5432: (Severity.MEDIUM, "PostgreSQL — dışarıya açıksa risk"),
+    5900: (Severity.HIGH, "VNC — zayıf parola şifreleme, dışarıya açılmamalı"),
+    6379: (Severity.HIGH, "Redis — varsayılan auth yok, erişim kısıtlanmalı"),
+    27017: (Severity.HIGH, "MongoDB — geçmişte auth'suz yayınlarla büyük sızıntılar"),
+}
+
+
+class NetworkScanner(ScannerBase):
+    """python-nmap tabanlı port/servis tarayıcı."""
+
+    @property
+    def scanner_name(self) -> str:
+        return "network_scanner"
+
+    # -----------------------------------------------------------------
+    # ScannerBase._do_scan implementasyonu
+    # -----------------------------------------------------------------
+    def _do_scan(self, target: Target, depth: ScanDepth) -> None:
+        # Lazy import — test ortamı mock'layabilsin diye
+        try:
+            import nmap  # type: ignore[import-not-found]
+        except ImportError as e:
+            self._emit_error(
+                f"python-nmap kütüphanesi yüklü değil: {e}. "
+                f"pip install python-nmap ile kurun.",
+            )
+            return
+
+        arguments = self._build_nmap_args(depth)
+        self._emit_progress(5, f"Nmap argümanları: {arguments}")
+
+        try:
+            scanner = nmap.PortScanner(nmap_search_path=_NMAP_SEARCH_PATHS)
+        except nmap.PortScannerError as e:
+            self._emit_error(
+                f"Nmap kurulu değil veya bulunamadı: {e}. "
+                f"https://nmap.org/download.html adresinden kurun.",
+            )
+            return
+
+        if not self._throttle(packets=1):
+            return  # iptal edildi
+
+        self._emit_progress(10, f"{target.value} taranıyor...")
+
+        try:
+            scanner.scan(hosts=target.value, arguments=arguments)
+        except nmap.PortScannerError as e:
+            self._emit_error(f"Tarama başarısız: {e}")
+            return
+
+        self._emit_progress(60, "Sonuçlar işleniyor...")
+
+        hosts = scanner.all_hosts()
+        if not hosts:
+            self._emit_progress(
+                100,
+                "Hedef yanıt vermedi — firewall kapalı olabilir veya cihaz erişilemez",
+            )
+            return
+
+        findings = self._extract_findings(scanner, target, hosts)
+        for f in findings:
+            self._emit_finding(f)
+            if self._cancelled:
+                return
+
+        self._emit_progress(
+            100,
+            f"Tarama tamamlandı — {len(findings)} bulgu",
+        )
+
+    # -----------------------------------------------------------------
+    # Yardımcılar
+    # -----------------------------------------------------------------
+    @staticmethod
+    def _build_nmap_args(depth: ScanDepth) -> str:
+        """Derinliğe göre nmap argümanlarını oluşturur."""
+        match depth:
+            case ScanDepth.QUICK:
+                # TCP connect, top 100 port, açık portlar
+                return "-sT -F --open -T4 -Pn"
+            case ScanDepth.STANDARD:
+                # Top 1000 port + servis/versiyon
+                return "-sT -sV --open -T4 -Pn"
+            case ScanDepth.DEEP:
+                # Tam port, versiyon, OS, varsayılan scriptler
+                return "-sT -sV -O --script=default --open -T4 -Pn"
+
+    def _extract_findings(
+        self,
+        scanner: object,  # nmap.PortScanner; tip checker için object
+        target: Target,
+        hosts: list[str],
+    ) -> list[Finding]:
+        """nmap sonuçlarını Finding nesnelerine çevirir."""
+        findings: list[Finding] = []
+
+        for host in hosts:
+            host_result = scanner[host]  # type: ignore[index]
+
+            for proto in host_result.all_protocols():
+                ports_dict = host_result[proto]
+                port_count = len(ports_dict)
+
+                for idx, port in enumerate(sorted(ports_dict.keys())):
+                    port_info = ports_dict[port]
+
+                    state: str = port_info.get("state", "unknown")
+                    if state != "open":
+                        continue
+
+                    service: str = port_info.get("name", "unknown")
+                    version: str = port_info.get("version", "")
+                    product: str = port_info.get("product", "")
+
+                    severity, extra_note = _RISKY_PORTS.get(
+                        port, (Severity.INFO, ""),
+                    )
+
+                    title = f"Açık port: {port}/{proto} ({service})"
+                    description_parts = [
+                        f"{host} üzerinde {port} numaralı TCP portu açık.",
+                        f"Servis adı: {service}.",
+                    ]
+                    if product or version:
+                        description_parts.append(
+                            f"Yazılım: {product} {version}".strip(),
+                        )
+                    if extra_note:
+                        description_parts.append(extra_note)
+
+                    remediation = _build_remediation(port, service)
+
+                    findings.append(
+                        Finding(
+                            scanner_name=self.scanner_name,
+                            severity=severity,
+                            title=title,
+                            description=" ".join(description_parts),
+                            target=f"{host}:{port}",
+                            remediation=remediation,
+                            evidence={
+                                "port": port,
+                                "proto": proto,
+                                "service": service,
+                                "product": product,
+                                "version": version,
+                            },
+                        ),
+                    )
+
+                    # İlerleme yayını: portlar arasında yüzdeyi güncelle
+                    percent = 60 + int(40 * (idx + 1) / max(port_count, 1))
+                    self._emit_progress(percent, f"{host}:{port} işlendi")
+
+        return findings
+
+
+def _build_remediation(port: int, service: str) -> str:
+    """Her port için basit Türkçe onarım önerisi. Faz 5'te genişleyecek."""
+    del service  # şimdilik sadece port bazlı, ileride servise göre zenginleşir
+    if port in _RISKY_PORTS:
+        return (
+            f"Bu port gerçekten gerekli değilse kapatın. Gerekliyse güvenlik "
+            f"duvarıyla yalnızca güvendiğiniz IP aralıklarına izin verin ve "
+            f"servis yazılımının güncel sürümde olduğundan emin olun."
+        )
+    return (
+        "Gerekli değilse portu kapatın. Güvenlik duvarında yalnızca "
+        "belirli IP'lere izin verecek şekilde kısıtlayın."
+    )
