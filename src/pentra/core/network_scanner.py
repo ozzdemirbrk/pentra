@@ -14,7 +14,21 @@ yeterince hızlıdır. Diğer modlar Npcap + UAC gerektirebilir (Faz 3+ için).
 from __future__ import annotations
 
 from pentra.core.scanner_base import ScannerBase
+from pentra.core.service_probes.base import ServiceProbeBase
+from pentra.core.service_probes.elasticsearch_probe import ElasticsearchAuthProbe
+from pentra.core.service_probes.mongodb_probe import MongoDbAuthProbe
+from pentra.core.service_probes.redis_probe import RedisAuthProbe
 from pentra.models import Finding, ScanDepth, Severity, Target
+
+# Port → Service probe eşlemesi. Açık port bulunduğunda ilgili probe çalışır.
+def _default_service_probes() -> dict[int, ServiceProbeBase]:
+    """Her port için kayıtlı probe (port numarası → probe örneği)."""
+    registry: dict[int, ServiceProbeBase] = {}
+    for probe_cls in (RedisAuthProbe, ElasticsearchAuthProbe, MongoDbAuthProbe):
+        probe_instance = probe_cls()
+        for port in probe_instance.default_ports:
+            registry[port] = probe_instance
+    return registry
 
 # python-nmap'in nmap.exe'yi arayacağı yollar — Windows + Unix.
 # Installer PATH'e eklemeyi unutmuş/kullanıcı yeni terminal açmamış olsa da çalışır.
@@ -47,6 +61,13 @@ _RISKY_PORTS: dict[int, tuple[Severity, str]] = {
 
 class NetworkScanner(ScannerBase):
     """python-nmap tabanlı port/servis tarayıcı."""
+
+    def __init__(self, *args, service_probes=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        # Port → ServiceProbeBase eşlemesi; None ise varsayılan (Redis/ES/Mongo)
+        self._service_probes: dict[int, ServiceProbeBase] = (
+            service_probes if service_probes is not None else _default_service_probes()
+        )
 
     @property
     def scanner_name(self) -> str:
@@ -105,10 +126,46 @@ class NetworkScanner(ScannerBase):
             if self._cancelled:
                 return
 
+        # Service probe aşaması — açık DB portlarında auth kontrolü
+        self._run_service_probes(hosts, scanner)
+
         self._emit_progress(
             100,
             f"Tarama tamamlandı — {len(findings)} bulgu",
         )
+
+    # -----------------------------------------------------------------
+    def _run_service_probes(self, hosts: list[str], scanner: object) -> None:
+        """Açık portlardan kayıtlı probe'u olanlara auth kontrolü yap."""
+        if not self._service_probes:
+            return
+
+        for host in hosts:
+            if self._cancelled:
+                return
+            host_result = scanner[host]  # type: ignore[index]
+            for proto in host_result.all_protocols():
+                ports_dict = host_result[proto]
+                for port in sorted(ports_dict.keys()):
+                    state = ports_dict[port].get("state", "")
+                    if state != "open":
+                        continue
+                    probe = self._service_probes.get(port)
+                    if probe is None:
+                        continue
+
+                    self._emit_progress(95, f"Servis probe: {probe.name} → {host}:{port}")
+                    if not self._throttle(1):
+                        return
+                    try:
+                        probe_findings = probe.probe(host, port)
+                    except Exception as e:  # noqa: BLE001
+                        self._emit_error(f"{probe.name} hatası: {e}")
+                        continue
+                    for pf in probe_findings:
+                        self._emit_finding(pf)
+                        if self._cancelled:
+                            return
 
     # -----------------------------------------------------------------
     # Yardımcılar
