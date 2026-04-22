@@ -5,7 +5,7 @@
 ---
 
 ## Son Güncelleme
-**2026-04-21** — Faz 1 tamamlandı. Güvenlik katmanı (models, scope_validator, rate_limiter, authorization, audit_log) yazıldı ve test edildi. 124 test yeşil, coverage %89.98.
+**2026-04-22** — Faz 5 Batch 1 tamamlandı. DB auth probe'ları (Redis, Elasticsearch, MongoDB) ve NetworkScanner entegrasyonu eklendi. 267 test yeşil (+15 yeni). Commit bcd3391.
 
 ---
 
@@ -17,12 +17,12 @@ Faz 1: Güvenlik Katmanı               ██████████  %100 (12
 Faz 2: MVP (localhost tarama)         ██████████  %100 (154 test, E2E çalıştı)
 Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
 Faz 4: Servis versiyon + CVE          ██████████  %100 (252 test, E2E 0 FP)
-Faz 5: DB probe + yerel ağ + Wi-Fi    ░░░░░░░░░░  %0
+Faz 5: DB probe + yerel ağ + Wi-Fi    ██░░░░░░░░  %25 (DB auth probe'ları hazır)
 Faz 6: Akıllı rapor + PDF + geçmiş    ░░░░░░░░░░  %0
 Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 ```
 
-**Toplam tamamlanma**: ~%45 (planlama, iskelet, güvenlik, MVP)
+**Toplam tamamlanma**: ~%68 (planlama, iskelet, güvenlik, MVP, web probe, CVE, DB probe başladı)
 
 **Yol haritası revize edildi (2026-04-21)**: Kullanıcı "sadece port mu tarayacağız?" diye sordu. Cevap: hayır. Seviye 1 (pasif) → Seviye 2 (non-destructive probing) geçişi yapılacak. Detay için CLAUDE.md § 2.
 
@@ -126,11 +126,33 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 - [x] Fix sonrası E2E: 7 gerçek bulgu, 0 FP. IIS 10.0 için CVE yok (doğru — NVD'de kayıt yok)
 - [ ] Default credentials check modülü → Faz 5'e ertelendi
 
-### Faz 5 — DB probe + Wi-Fi + Ağ Derinliği
-- [ ] MongoDB/Redis/Elasticsearch auth check (parolasız bağlanıyor mu)
-- [ ] MySQL/PostgreSQL default/anonymous user check
-- [ ] `core/wifi_scanner.py` — çevre Wi-Fi ağları listesi (Windows `netsh wlan`)
-- [ ] Zayıf şifrelemeli ağ (WEP, WPS açık) tespiti
+### Faz 5 — DB probe + Default Creds + Wi-Fi + Ağ Derinliği
+
+**Batch 1 ✅ (commit bcd3391)**
+- [x] `core/service_probes/base.py` — ServiceProbeBase soyut sınıf
+- [x] Redis auth probe (port 6379, RESP PING)
+- [x] Elasticsearch auth probe (port 9200, HTTP cluster_name imza)
+- [x] MongoDB auth probe (port 27017, pymongo list_database_names)
+- [x] NetworkScanner entegrasyonu — açık DB portlarında probe çalışır
+- [x] 15 yeni test (267 toplam)
+
+**Batch 2 (sıradaki)**
+- [ ] MySQL default creds probe (root:'', root:root, admin:admin — tek-seferlik)
+- [ ] PostgreSQL default creds probe (postgres:postgres, postgres:'')
+- [ ] SSH default creds probe (paramiko ile — root:root, admin:admin tek-seferlik)
+  **Önemli**: fail2ban gibi sistemlerde hesap kilitleyebilir → finding'de uyarı ver
+
+**Batch 3 (Wi-Fi)**
+- [ ] `core/wifi_scanner.py` — Windows `netsh wlan show networks mode=bssid` parser
+- [ ] Zayıf şifrelemeli ağ (WEP, Open) tespiti
+- [ ] WPS açık tespiti (netsh çıktısından)
+- [ ] target_select GUI: Wi-Fi seçeneği aktif
+
+**Batch 4 (Yerel ağ keşfi)**
+- [ ] IP_RANGE ve LOCAL_NETWORK target tipleri GUI'de aktif
+- [ ] NetworkScanner: CIDR girdisi için ping sweep + paralel port scan
+- [ ] Cihaz başına özet (host → açık portlar → servis/versiyon)
+- [ ] Otomatik yerel ağ tespiti (ipconfig/route parse ile CIDR önerme)
 
 ### Faz 6 — Akıllı Rapor + PDF + Geçmiş
 - [ ] CVSS skoru (her bulgu için)
