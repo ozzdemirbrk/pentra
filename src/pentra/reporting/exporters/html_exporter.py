@@ -8,6 +8,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from pentra.knowledge.remediations_tr import get_guide
+from pentra.reporting.logo import get_logo_data_uri
 
 from pentra.reporting.report_builder import Report
 
@@ -72,6 +73,8 @@ class HtmlExporter:
         self._env.filters["severity_color"] = _severity_color
         # Detaylı onarım rehberi arama — her finding için template'den çağrılır
         self._env.globals["get_remediation_guide"] = get_guide
+        # Logo data URI bir kez yüklenir, template'te `{{ logo_data_uri }}` kullanır
+        self._env.globals["logo_data_uri"] = get_logo_data_uri()
 
     def render(self, report: Report) -> str:
         template = self._env.get_template(_TEMPLATE_NAME)

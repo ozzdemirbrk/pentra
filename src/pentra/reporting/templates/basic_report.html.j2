@@ -111,7 +111,13 @@
 <body>
     <div class="container">
         <header>
-            <h1>🛡️ Pentra Güvenlik Raporu</h1>
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 4px;">
+                {% if logo_data_uri %}
+                <img src="{{ logo_data_uri }}" alt="Pentra"
+                     style="height: 56px; width: auto; flex-shrink: 0;">
+                {% endif %}
+                <h1 style="margin: 0;">Pentra Güvenlik Raporu</h1>
+            </div>
             <div class="subtitle">Bireysel güvenlik denetim raporu — {{ report.ended_at | tr_datetime }}</div>
 
             <div class="metadata">

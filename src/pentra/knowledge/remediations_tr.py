@@ -776,6 +776,931 @@ _EXPOSED_ENV_GUIDE = RemediationGuide(
     ),
 )
 
+_SQL_INJECTION_GUIDE = RemediationGuide(
+    problem_summary="SQL Injection zafiyeti — parametre SQL sorgusuna düz string olarak yapıştırılıyor.",
+    why_important=(
+        "SQL injection web uygulamalarının en kritik zafiyetlerinden biri (OWASP "
+        "Top 10 #3). Saldırgan özel hazırlanmış input ile login atlayabilir, tüm "
+        "DB içeriğini çekebilir (`UNION SELECT`), yetkili kullanıcı oluşturabilir, "
+        "hatta yetki varsa sunucuya komut çalıştırabilir. 2011'den beri en yaygın "
+        "veri sızıntı vektörü."
+    ),
+    fix_steps=(
+        FixStep(
+            "PRİMER — Parametreli sorgular (prepared statements)",
+            "String birleştirme YERINE mutlaka parameter binding kullan:",
+            code="# YANLIŞ (SQLi'ye açık)\n"
+                 "cursor.execute(f\"SELECT * FROM users WHERE id = {user_id}\")\n\n"
+                 "# DOĞRU (parametreli)\n"
+                 'cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))',
+        ),
+        FixStep(
+            "ORM kullan",
+            "SQLAlchemy, Django ORM, Prisma vb. — raw SQL yerine tercih edin. "
+            "ORM default olarak parametrelendirir.",
+            code="# Django\n"
+                 "User.objects.filter(id=user_id)  # otomatik güvenli",
+        ),
+        FixStep(
+            "Input validation (katmanlı savunma)",
+            "Beklenen tipe dönüştür, uzunluk kontrol et. Ör. sayı bekliyorsa "
+            "int()'e çevir; başarısızsa reddet.",
+        ),
+        FixStep(
+            "Veritabanı kullanıcısı least-privilege",
+            "Uygulama kullanıcısı sadece gerekli tablolara READ/WRITE yetkili. "
+            "DROP, CREATE, GRANT gibi yetkiler OLMAMALI — SQLi'de sınır çizer.",
+        ),
+        FixStep(
+            "WAF (geçici savunma)",
+            "Cloudflare, ModSecurity gibi WAF'lar SQLi pattern'lerini engeller "
+            "ama SAHIPLEYICIYI YAZILIMDAN KAÇIRMAZ — mutlaka parametreli sorguya geç.",
+        ),
+    ),
+    verification=(
+        "Düzeltme sonrası probe'u tekrar çalıştır — SQL hata mesajı dönmemeli. "
+        "Manuel test: `?id=1'` → normal sayfa veya controlled error, asla "
+        "'You have an error in your SQL syntax' dönmemeli."
+    ),
+    references=(
+        ("OWASP SQL Injection", "https://owasp.org/www-community/attacks/SQL_Injection"),
+        ("Bobby Tables", "https://bobby-tables.com/"),
+    ),
+)
+
+_XSS_GUIDE = RemediationGuide(
+    problem_summary="Reflected XSS — kullanıcı girdisi yanıtta kaçışsız yansıtılıyor.",
+    why_important=(
+        "Saldırgan özel URL hazırlar, kullanıcı tıklar, tarayıcısında saldırganın "
+        "JS kodu çalışır: session cookie çalma, fake login formu göster, kullanıcı "
+        "adına istek gönder. Phishing + account takeover'ın en yaygın yolu."
+    ),
+    fix_steps=(
+        FixStep(
+            "PRİMER — Context-aware escaping",
+            "Kullanıcı girdisini HTML'e yazmadan önce escape et. Her context "
+            "farklı escape gerektirir:",
+            code="# HTML body → html.escape\n"
+                 "import html\n"
+                 "safe = html.escape(user_input)  # < → &lt;\n\n"
+                 "# JS string içinde → json.dumps\n"
+                 "import json\n"
+                 'safe_js = json.dumps(user_input)  # " → \\"',
+        ),
+        FixStep(
+            "Framework autoescape kullan",
+            "Modern framework'lerde varsayılan otomatik escape:",
+            code="{# Jinja2 — default autoescape açık #}\n"
+                 "<p>{{ user_input }}</p>         {# güvenli #}\n"
+                 "<p>{{ user_input | safe }}</p>  {# TEHLİKELİ — escape'i kapatır #}\n\n"
+                 "// React — JSX default escape\n"
+                 "<p>{userInput}</p>           // güvenli\n"
+                 "<p dangerouslySetInnerHTML=...>  // TEHLİKELİ",
+        ),
+        FixStep(
+            "Content Security Policy (CSP)",
+            "CSP header'ı XSS'in etkisini azaltır (inline script'i engeller). "
+            "CSP eksik rehberine bakın.",
+        ),
+        FixStep(
+            "HttpOnly + SameSite cookies",
+            "Session cookie'yi HttpOnly + Secure + SameSite yap — XSS JS ile "
+            "cookie okuyamaz.",
+            code="Set-Cookie: session=xxx; HttpOnly; Secure; SameSite=Strict",
+        ),
+    ),
+    verification="Probe'u tekrar çalıştır — payload artık escape edilmiş (&lt; &gt;) dönmeli.",
+    references=(
+        ("OWASP XSS", "https://owasp.org/www-community/attacks/xss/"),
+        ("OWASP XSS Prevention Cheat Sheet", "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"),
+    ),
+)
+
+_PATH_TRAVERSAL_GUIDE = RemediationGuide(
+    problem_summary="Path traversal / directory traversal — yol parametresi dizin dışına çıkabiliyor.",
+    why_important=(
+        "Saldırgan `../../etc/passwd`, `../../../windows/win.ini` tipi payload "
+        "göndererek web uygulamasının erişebildiği herhangi bir dosyayı okuyabilir "
+        "— kaynak kod, yapılandırma, session dosyaları, hatta bazı durumlarda "
+        "SSH private key. Sistemin tam keşfine yol açar."
+    ),
+    fix_steps=(
+        FixStep(
+            "Allowlist ile dosya adı doğrulama",
+            "İzin verilen dosyaları belirtin, diğerleri reddedin:",
+            code="ALLOWED = {'product-1.pdf', 'product-2.pdf', ...}\n"
+                 "if filename not in ALLOWED:\n"
+                 "    return 403",
+        ),
+        FixStep(
+            "realpath ile yolu normalize et, kök içinde olduğunu doğrula",
+            "En güvenilir kontrol:",
+            code="from pathlib import Path\n"
+                 "allowed_root = Path('/var/www/uploads').resolve()\n"
+                 "user_file = (allowed_root / filename).resolve()\n"
+                 "if not user_file.is_relative_to(allowed_root):\n"
+                 "    return 403   # path traversal denemesi",
+        ),
+        FixStep(
+            "../ ve /../ karakterleri filtrele (ama yetersiz!)",
+            "Tek başına yeterli değil ama ek savunma:",
+            code="if '..' in filename or '/' in filename or '\\\\' in filename:\n"
+                 "    return 400",
+        ),
+        FixStep(
+            "Web sunucusu seviyesinde",
+            "Nginx — hassas dizinleri engelle:",
+            code="location ~ \\.\\.\\/ { return 400; }\n"
+                 "location /etc { deny all; }",
+        ),
+    ),
+    verification="Probe tekrar: `?file=../../../etc/passwd` → `/etc/passwd` içeriği DÖNMEMELI; 400/403 olmalı.",
+    references=(
+        ("OWASP Path Traversal", "https://owasp.org/www-community/attacks/Path_Traversal"),
+    ),
+)
+
+_SSL_OLD_PROTOCOL_GUIDE = RemediationGuide(
+    problem_summary="Eski TLS/SSL sürümü (SSLv3/TLSv1.0/TLSv1.1) destekleniyor.",
+    why_important=(
+        "Bu sürümler bilinen saldırılara açık: POODLE (SSLv3), BEAST (TLS 1.0), "
+        "Lucky 13. Modern tarayıcılar 2020'den beri TLS 1.0/1.1'i desteklemiyor. "
+        "Eski sürümleri açık bırakmak hem güvenlik hem uyumluluk (PCI-DSS, HIPAA) "
+        "için sorun."
+    ),
+    fix_steps=(
+        FixStep(
+            "Nginx — sadece TLS 1.2 ve 1.3",
+            "",
+            code="ssl_protocols TLSv1.2 TLSv1.3;\n"
+                 "ssl_prefer_server_ciphers off;  # TLS 1.3 için\n"
+                 "ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:\n"
+                 "           ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;",
+        ),
+        FixStep(
+            "Apache",
+            "",
+            code="SSLProtocol -all +TLSv1.2 +TLSv1.3\n"
+                 "SSLHonorCipherOrder on\n"
+                 "SSLCipherSuite HIGH:!aNULL:!MD5:!3DES",
+        ),
+        FixStep(
+            "IIS (PowerShell)",
+            "",
+            code="# SSLv3 ve eski TLS'leri kapat\n"
+                 'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\SSL 3.0\\Server" -Name Enabled -Value 0\n'
+                 'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server" -Name Enabled -Value 0',
+        ),
+        FixStep(
+            "Cloudflare",
+            "SSL/TLS → Edge Certificates → Minimum TLS Version: 1.2.",
+        ),
+    ),
+    verification=(
+        "Online test: https://www.ssllabs.com/ssltest/ → Protocol Support'ta "
+        "TLS 1.0, 1.1 'No' olmalı. Komut satırı: "
+        "`openssl s_client -connect siteniz.com:443 -tls1 2>&1 | grep -i error`"
+    ),
+    references=(
+        ("Mozilla SSL Config", "https://ssl-config.mozilla.org/"),
+        ("SSL Labs Test", "https://www.ssllabs.com/ssltest/"),
+    ),
+)
+
+_SSL_CERT_PROBLEM_GUIDE = RemediationGuide(
+    problem_summary="SSL sertifika doğrulama sorunu (süresi dolmuş, self-signed, hostname uyuşmazlığı vb.).",
+    why_important=(
+        "Tarayıcı 'Bu bağlantı güvenli değil' uyarısı gösterir — kullanıcılar siteyi "
+        "terk eder veya (daha kötüsü) uyarıyı geçmeyi alışkanlık haline getirir. "
+        "İkinci senaryo gerçek MITM saldırılarında kullanıcının dikkatini azaltır."
+    ),
+    fix_steps=(
+        FixStep(
+            "Let's Encrypt (ücretsiz, otomatik yenileme)",
+            "",
+            code="sudo apt install certbot python3-certbot-nginx\n"
+                 "sudo certbot --nginx -d siteniz.com -d www.siteniz.com\n"
+                 "# Cron ile otomatik yenileme (certbot default kurar)",
+        ),
+        FixStep(
+            "Sertifika zinciri eksik ise",
+            "Genelde 'intermediate certificate' eksikliğinden kaynaklanır. "
+            "CA'nizden fullchain.pem alın, Nginx için ssl_certificate'a o'nu gösterin:",
+            code="ssl_certificate     /etc/letsencrypt/live/siteniz.com/fullchain.pem;\n"
+                 "ssl_certificate_key /etc/letsencrypt/live/siteniz.com/privkey.pem;",
+        ),
+        FixStep(
+            "Hostname uyuşmazlığı",
+            "Sertifikanın SAN (Subject Alternative Name) alanında tüm kullanılan "
+            "domain'ler olmalı. Certbot'a tüm domain'leri -d ile ver: "
+            "`-d siteniz.com -d www.siteniz.com -d api.siteniz.com`.",
+        ),
+        FixStep(
+            "Süresi dolmuş ise",
+            "Let's Encrypt certbot otomatik yeniler. Manuel yenileme:",
+            code="sudo certbot renew --force-renewal",
+        ),
+    ),
+    verification=(
+        "Tarayıcıda site → adres çubuğunda kilit ikonu. Komut: "
+        "`openssl s_client -connect siteniz.com:443 -servername siteniz.com "
+        "</dev/null 2>/dev/null | openssl x509 -noout -dates`"
+    ),
+    references=(
+        ("Let's Encrypt", "https://letsencrypt.org/"),
+        ("SSL Checker", "https://www.ssllabs.com/ssltest/"),
+    ),
+)
+
+_POSTGRES_DEFAULT_GUIDE = RemediationGuide(
+    problem_summary="PostgreSQL varsayılan parola (postgres:postgres / postgres:'') kabul ediliyor.",
+    why_important=(
+        "PostgreSQL default user `postgres` superuser'dır — saldırgan tüm DB'leri "
+        "okuyabilir, siler, `COPY TO PROGRAM` ile sunucuda komut çalıştırabilir. "
+        "Üretimde varsayılan parolayla PostgreSQL çalıştırmak kritik bir hatadır."
+    ),
+    fix_steps=(
+        FixStep(
+            "1. Parola değiştir",
+            "",
+            code="sudo -u postgres psql\n"
+                 "postgres=# ALTER USER postgres WITH PASSWORD '<uzun-rastgele-parola>';\n"
+                 "postgres=# \\q",
+        ),
+        FixStep(
+            "2. Uzak bağlantıları kısıtla — pg_hba.conf",
+            "`/etc/postgresql/<ver>/main/pg_hba.conf`:",
+            code="# Local: peer (unix socket auth)\n"
+                 "local   all   postgres   peer\n"
+                 "# Remote: scram-sha-256 parola zorunlu (md5 eski, güvensiz)\n"
+                 "host    all   all        127.0.0.1/32   scram-sha-256",
+        ),
+        FixStep(
+            "3. listen_addresses ayarla",
+            "`postgresql.conf`:",
+            code="listen_addresses = 'localhost'\n"
+                 "password_encryption = scram-sha-256",
+        ),
+        FixStep(
+            "4. Güvenlik duvarı",
+            "",
+            code="sudo ufw deny 5432\n"
+                 "sudo ufw allow from <app_ip> to any port 5432",
+        ),
+        FixStep(
+            "5. Uygulama başına ayrı kullanıcı",
+            "postgres superuser sadece admin için. Uygulamaya minimum yetkili kullanıcı:",
+            code="CREATE USER myapp WITH PASSWORD '<parola>';\n"
+                 "GRANT CONNECT ON DATABASE mydb TO myapp;\n"
+                 "GRANT USAGE ON SCHEMA public TO myapp;\n"
+                 "GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO myapp;",
+        ),
+    ),
+    verification=(
+        "`psql -U postgres -h <ip> -W` parolasız çalışmamalı. "
+        "`psql -U postgres -h <ip>` parola sormalı."
+    ),
+    references=(
+        ("PostgreSQL Authentication", "https://www.postgresql.org/docs/current/auth-methods.html"),
+    ),
+)
+
+_EXPOSED_GIT_GUIDE = RemediationGuide(
+    problem_summary=".git deposu web kökünden erişilebilir — tüm kaynak kod sızıyor.",
+    why_important=(
+        "Saldırgan `.git/config` ve `.git/HEAD`'e ulaşabiliyorsa, `git-dumper` "
+        "gibi araçlarla tüm git depoyu yeniden kurabilir ve commit geçmişini "
+        "çıkarabilir. Bu: tüm kaynak kod + geçmişte yanlışlıkla commit edilmiş "
+        "parolalar + API anahtarları + iç iş mantığı = tam ifşa demektir."
+    ),
+    fix_steps=(
+        FixStep(
+            "ACİL — .git dizinini web kökünden kaldır",
+            "Deploy sürecini düzelt. Production'a kaynak kodu ile birlikte `.git` "
+            "kopyalamayın. Doğru deploy: `git archive`, `rsync --exclude='.git'`, "
+            "CI/CD pipeline (GitHub Actions vb.).",
+            code="# Acil çözüm — server'da .git'i sil\n"
+                 "sudo rm -rf /var/www/html/.git",
+        ),
+        FixStep(
+            "Web sunucusu — `.git/` erişimini engelle (yedek savunma)",
+            "Nginx:",
+            code="location ~ /\\.git {\n"
+                 "    deny all;\n"
+                 "    return 404;\n"
+                 "}",
+        ),
+        FixStep(
+            "Apache (.htaccess)",
+            "",
+            code='RedirectMatch 404 /\\.git(/|$)',
+        ),
+        FixStep(
+            "Geçmişte sızmış sırları rotate et",
+            "`.git` erişilmişse geçmiş commit'lerdeki TÜM sırları sızmış say: "
+            "DB parolaları, API anahtarları, JWT secret, AWS credentials. "
+            "`truffleHog` veya `gitleaks` ile geçmişte sızdırılmış sırları bul.",
+        ),
+    ),
+    verification="`curl -I https://siteniz.com/.git/config` → 404 veya 403 dönmeli.",
+    references=(
+        ("git-dumper", "https://github.com/arthaud/git-dumper"),
+        ("gitleaks", "https://github.com/gitleaks/gitleaks"),
+    ),
+)
+
+_EXPOSED_SQL_DUMP_GUIDE = RemediationGuide(
+    problem_summary="Veritabanı yedeği (.sql) web kökünden indirilebiliyor.",
+    why_important=(
+        "Bu tam ifşa: tablo şeması + TÜM veri (kullanıcı hesapları, parolalar "
+        "hash'li olsa bile offline brute-force için), sipariş detayları, mesajlar. "
+        "Admin kullanıcının parola hash'i ele geçerse offline kırma denemesi başlar."
+    ),
+    fix_steps=(
+        FixStep(
+            "ACİL — Dosyayı sil, DB parolalarını değiştir",
+            "SQL dump görüldüyse saldırgan kopyalamış sayılmalı. Tüm DB parolalarını, "
+            "hash edilmiş kullanıcı parolalarını zorla sıfırla (kullanıcıları "
+            "parola değişimine yönlendir).",
+            code="sudo rm /var/www/html/backup.sql\n"
+                 "# DB parolalarını değiştir\n"
+                 "# Kullanıcılara 'parolanızı değiştirin' e-postası",
+        ),
+        FixStep(
+            "Yedekleri web kökünde tutma",
+            "Yedekler her zaman web erişimi olmayan bir dizinde (`/var/backups/`) "
+            "veya dış depolamada (S3 encrypted bucket, Backblaze B2) olmalı.",
+            code="# Doğru yedek dizini\n"
+                 "/var/backups/db/  # web tarafından erişilemez\n"
+                 "# Otomatik yedek script + rotation\n"
+                 "mysqldump mydb | gzip > /var/backups/db/$(date +%F).sql.gz",
+        ),
+        FixStep(
+            "Nginx — .sql uzantılarını engelle",
+            "",
+            code='location ~ \\.(sql|bak|old|backup)$ {\n'
+                 '    deny all;\n'
+                 '    return 404;\n'
+                 "}",
+        ),
+    ),
+    verification="`curl -I https://siteniz.com/backup.sql` → 404.",
+    references=(
+        ("OWASP Backup Files", "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/04-Review_Old_Backup_and_Unreferenced_Files_for_Sensitive_Information"),
+    ),
+)
+
+_EXPOSED_WP_CONFIG_GUIDE = RemediationGuide(
+    problem_summary="WordPress wp-config.php yedeği (.bak/.save) public — DB parolası ve secret'lar ifşa.",
+    why_important=(
+        "wp-config.php WordPress'in DB bağlantı parolasını, table prefix'ini ve "
+        "8 adet güvenlik secret key'ini içerir. Yedek dosyası görüldüyse saldırgan "
+        "DB'ye direkt erişebilir, secret key'lerle session hijack yapabilir."
+    ),
+    fix_steps=(
+        FixStep(
+            "ACİL — Yedekleri sil, tüm parolaları yenile",
+            "",
+            code="rm /var/www/html/wp-config.php.bak\n"
+                 "rm /var/www/html/wp-config.php.save\n\n"
+                 "# DB parolasını değiştir (MySQL'de)\n"
+                 "ALTER USER wp_user WITH PASSWORD '<yeni>';\n"
+                 "# wp-config.php güncelle (DB_PASSWORD)\n\n"
+                 "# WordPress secret key'leri yenile\n"
+                 "curl -s https://api.wordpress.org/secret-key/1.1/salt/\n"
+                 "# Çıktıyı wp-config.php'ye yapıştır",
+        ),
+        FixStep(
+            "Editor yedek dosyalarını engelle",
+            "Nginx:",
+            code='location ~ \\.(bak|save|swp|orig|tmp)$ {\n'
+                 '    deny all;\n'
+                 '    return 404;\n'
+                 "}",
+        ),
+        FixStep(
+            "wp-config.php'yi web kökünün bir üstüne taşı",
+            "WordPress bunu destekler — daha güvenli:",
+            code="# /var/www/html/ içinde WP kurulu ise\n"
+                 "mv wp-config.php ../wp-config.php\n"
+                 "# WP otomatik bir üst dizinde arar",
+        ),
+    ),
+    verification="`curl -I https://siteniz.com/wp-config.php.bak` → 404.",
+    references=(
+        ("WordPress Hardening", "https://wordpress.org/documentation/article/hardening-wordpress/"),
+    ),
+)
+
+_EXPOSED_HTACCESS_GUIDE = RemediationGuide(
+    problem_summary=".htaccess dosyası web üzerinden okunabilir.",
+    why_important=(
+        ".htaccess Apache yapılandırma direktiflerini içerir — RewriteRule'lar, "
+        "AuthType, IP whitelist/blacklist. Okunduğunda saldırgan uygulamanın "
+        "route mantığını ve (varsa) HTTP basic auth credentials dosya yolunu görür."
+    ),
+    fix_steps=(
+        FixStep(
+            "Apache — kendi dizin koruma kuralı",
+            "Apache default olarak .htaccess okumasını engeller. Eğer engellenmiyorsa:",
+            code='<FilesMatch "^\\.ht">\n'
+                 '    Require all denied\n'
+                 '</FilesMatch>',
+        ),
+        FixStep(
+            "Mümkünse .htaccess yerine httpd.conf kullan",
+            "`.htaccess` performans ve güvenlik açısından httpd.conf'tan daha "
+            "zayıf. Her istek dizinde .htaccess arar. Root erişiminiz varsa "
+            "kuralları httpd.conf `<Directory>` bloğuna taşıyın.",
+        ),
+    ),
+    verification="`curl -I https://siteniz.com/.htaccess` → 403 veya 404.",
+    references=(
+        ("Apache Security Tips", "https://httpd.apache.org/docs/2.4/misc/security_tips.html"),
+    ),
+)
+
+_EXPOSED_DS_STORE_GUIDE = RemediationGuide(
+    problem_summary=".DS_Store dosyası web kökünde — macOS meta verisi sızıyor.",
+    why_important=(
+        ".DS_Store macOS'un Finder'da görüntülenen her dizin için oluşturduğu "
+        "binary bir index dosyasıdır. Klasördeki TÜM dosya adlarını içerir. "
+        "Web'de görünürse saldırgan gizli backup dosyalarınızı, admin klasörlerinizi, "
+        "test scriptlerinizi keşfedebilir."
+    ),
+    fix_steps=(
+        FixStep(
+            "Dosyaları sil",
+            "",
+            code="find /var/www/html -name '.DS_Store' -delete",
+        ),
+        FixStep(
+            "Git'e girmesini engelle (.gitignore)",
+            "",
+            code="echo '**/.DS_Store' >> .gitignore\n"
+                 "git rm --cached **/.DS_Store  # zaten commit edilmişse",
+        ),
+        FixStep(
+            "Web sunucusu engeli",
+            "Nginx:",
+            code='location ~ \\.DS_Store$ { return 404; }',
+        ),
+        FixStep(
+            "macOS'ta ağ sürücülerde oluşmasını engelle",
+            "",
+            code="defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true",
+        ),
+    ),
+    verification="`curl -I https://siteniz.com/.DS_Store` → 404.",
+    references=(
+        ("Apple Tech Note", "https://support.apple.com/en-us/HT208209"),
+    ),
+)
+
+_EXPOSED_SERVER_STATUS_GUIDE = RemediationGuide(
+    problem_summary="Apache /server-status sayfası public erişilebilir.",
+    why_important=(
+        "/server-status aktif HTTP bağlantıları, son istekler, uptime, "
+        "yüklenen modüller, virtual host listesi gibi hassas işletim bilgisini "
+        "dışa açar. Saldırgan tarama + keşif yüzeyini büyük ölçüde genişletir."
+    ),
+    fix_steps=(
+        FixStep(
+            "Apache — /server-status'u kapat veya kısıtla",
+            "`httpd.conf` veya ilgili VirtualHost içinde:",
+            code="# Tamamen kapat\n"
+                 "<Location /server-status>\n"
+                 "    Require all denied\n"
+                 "</Location>\n\n"
+                 "# Ya da sadece localhost'a izin (iç monitoring için)\n"
+                 "<Location /server-status>\n"
+                 "    Require host localhost\n"
+                 "    Require ip 127.0.0.1\n"
+                 "</Location>",
+        ),
+        FixStep(
+            "mod_status modülünü tamamen kaldır (kullanmıyorsanız)",
+            "",
+            code="sudo a2dismod status\n"
+                 "sudo systemctl restart apache2",
+        ),
+    ),
+    verification="`curl -I https://siteniz.com/server-status` → 403 veya 404.",
+    references=(
+        ("Apache mod_status", "https://httpd.apache.org/docs/2.4/mod/mod_status.html"),
+    ),
+)
+
+_EXPOSED_PHPINFO_GUIDE = RemediationGuide(
+    problem_summary="phpinfo.php public erişilebilir — PHP yapılandırması ifşa.",
+    why_important=(
+        "phpinfo() çıktısı sunucunun PHP sürümünü, yüklü eklentileri, "
+        "environment değişkenlerini (gizli API key'ler olabilir), dosya yollarını, "
+        "hatta bazen DB bağlantı bilgilerini gösterir. Geliştirici aracıdır — "
+        "production'da kesinlikle olmamalıdır."
+    ),
+    fix_steps=(
+        FixStep(
+            "ACİL — Dosyayı sil",
+            "",
+            code="find /var/www -name 'phpinfo.php' -delete\n"
+                 "find /var/www -name 'info.php' -delete\n"
+                 "find /var/www -name 'test.php' -delete",
+        ),
+        FixStep(
+            "Environment değişkenlerini sızmış kabul et",
+            "phpinfo $_ENV'i dökerse muhtemelen .env veya sistem ortamından "
+            "geldi — DB_PASSWORD, API_KEY gibi tüm sırları rotate edin.",
+        ),
+        FixStep(
+            "expose_php = Off (php.ini)",
+            "PHP'nin kendi versiyon bilgisini HTTP header'ında sızdırmasını engelle:",
+            code="; /etc/php/X.X/apache2/php.ini\n"
+                 "expose_php = Off",
+        ),
+    ),
+    verification="`curl -I https://siteniz.com/phpinfo.php` → 404.",
+    references=(
+        ("PHP Security", "https://www.php.net/manual/en/security.php"),
+    ),
+)
+
+_EXPOSED_ADMIN_GUIDE = RemediationGuide(
+    problem_summary="Yönetim paneli (/admin) public erişilebilir.",
+    why_important=(
+        "Admin panelleri saldırganların birinci hedefidir — brute-force parola "
+        "denemeleri, bilinen CVE'ler (Joomla admin takeover, Drupal SQL injection), "
+        "default credentials. Public panel = sürekli saldırı altında."
+    ),
+    fix_steps=(
+        FixStep(
+            "VPN veya IP allowlist arkasına taşı",
+            "Admin panele sadece ofis IP'sinden veya VPN üzerinden erişim.",
+            code="# Nginx — sadece belirli IP'lere izin\n"
+                 "location /admin {\n"
+                 "    allow 203.0.113.0/24;   # Ofis IP'si\n"
+                 "    allow 127.0.0.1;        # Localhost\n"
+                 "    deny all;\n"
+                 "    proxy_pass http://backend;\n"
+                 "}",
+        ),
+        FixStep(
+            "URL'yi tahmin edilemez hale getir",
+            "`/admin` yerine `/company-name-panel-xyz12` gibi özel yol. "
+            "Güvenlik tek başına yeterli değil ama otomatik tarama yüzeyini daralttır.",
+        ),
+        FixStep(
+            "Kuvvetli parola + MFA + rate limit + fail2ban",
+            "Yönetici hesapları: 16+ karakter parola, 2FA zorunlu, "
+            "başarısız girişlerde IP bloğu (fail2ban, Cloudflare Rate Limiting).",
+        ),
+        FixStep(
+            "HTTP Basic Auth ile ekstra katman",
+            "Uygulama login'inden ÖNCE web server katmanında parola iste:",
+            code="# Nginx\n"
+                 "location /admin {\n"
+                 "    auth_basic 'Restricted';\n"
+                 "    auth_basic_user_file /etc/nginx/.htpasswd;\n"
+                 "    proxy_pass http://backend;\n"
+                 "}",
+        ),
+    ),
+    verification="Dışarıdan `curl -I https://siteniz.com/admin` → 403/401; VPN'den 200.",
+    references=(
+        ("OWASP Admin Interface", "https://owasp.org/www-community/attacks/Brute_force_attack"),
+    ),
+)
+
+_EXPOSED_PHPMYADMIN_GUIDE = RemediationGuide(
+    problem_summary="phpMyAdmin public erişilebilir.",
+    why_important=(
+        "phpMyAdmin brute-force saldırılarının birinci hedefidir. 'phpmyadmin', "
+        "'pma', 'mysql-admin' gibi path'ler her saniye taranıyor. Ayrıca phpMyAdmin'in "
+        "kendi zafiyet geçmişi var (CVE-2020-10804, CVE-2018-19968 vb.) — güncel "
+        "tutulsa bile hedef yüzeyi büyük."
+    ),
+    fix_steps=(
+        FixStep(
+            "phpMyAdmin'i kaldır (en iyi çözüm)",
+            "Modern alternatifler: MySQL Workbench (desktop), Adminer (tek dosya, "
+            "hafif), direkt `mysql` CLI. phpMyAdmin gerçekten gerekli mi değerlendir.",
+            code="sudo apt remove phpmyadmin\n"
+                 "sudo rm -rf /var/www/html/phpmyadmin",
+        ),
+        FixStep(
+            "Gerekliyse VPN arkasına taşı",
+            "",
+            code="# Nginx — sadece VPN subnet'inden\n"
+                 "location /pma-xyz123 {\n"
+                 "    allow 10.8.0.0/24;   # VPN subnet\n"
+                 "    deny all;\n"
+                 "    alias /var/www/phpmyadmin;\n"
+                 "}",
+        ),
+        FixStep(
+            "Path'i değiştir + HTTP Basic Auth + fail2ban",
+            "`/phpmyadmin` yerine tahmin edilemez path, web katmanında ek auth, "
+            "başarısız login'lerde IP bloklama.",
+        ),
+    ),
+    verification="`curl -I https://siteniz.com/phpmyadmin` → 404 veya auth zorunlu.",
+    references=(
+        ("phpMyAdmin Security", "https://docs.phpmyadmin.net/en/latest/setup.html#securing-your-phpmyadmin-installation"),
+    ),
+)
+
+_X_POWERED_BY_GUIDE = RemediationGuide(
+    problem_summary="X-Powered-By header'ı uygulama framework versiyonunu sızdırıyor.",
+    why_important=(
+        "`X-Powered-By: PHP/7.4.3` gibi header'lar saldırgana hedef yazılımın "
+        "tam sürümünü verir. Saldırgan o sürüme özgü CVE'leri arar, exploit dener. "
+        "Gizlemek kesin güvenlik değil ama keşif yüzeyini küçültür."
+    ),
+    fix_steps=(
+        FixStep(
+            "PHP — expose_php kapat",
+            "`php.ini`:",
+            code="expose_php = Off",
+        ),
+        FixStep(
+            "Nginx — tüm Powered-By header'ını kaldır",
+            "",
+            code='more_clear_headers "X-Powered-By" "X-AspNet-Version" "X-AspNetMvc-Version";',
+        ),
+        FixStep(
+            "Express.js (Node.js)",
+            "",
+            code="app.disable('x-powered-by');",
+        ),
+        FixStep(
+            "IIS — ASP.NET version header'ı",
+            "`web.config`:",
+            code='<system.webServer>\n'
+                 '  <httpProtocol>\n'
+                 '    <customHeaders>\n'
+                 '      <remove name="X-Powered-By" />\n'
+                 '      <remove name="X-AspNet-Version" />\n'
+                 '      <remove name="X-AspNetMvc-Version" />\n'
+                 '    </customHeaders>\n'
+                 '  </httpProtocol>\n'
+                 '</system.webServer>',
+        ),
+        FixStep(
+            "Cloudflare",
+            "Rules → Transform Rules → Modify Response Header → Remove → "
+            "`X-Powered-By`.",
+        ),
+    ),
+    verification="`curl -I https://siteniz.com/ | grep -i powered` komutunda header görünmemeli.",
+    references=(
+        ("OWASP Fingerprinting", "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/01-Information_Gathering/02-Fingerprint_Web_Server"),
+    ),
+)
+
+# --- Port-bazlı rehberler ---
+
+_PORT_RDP_GUIDE = RemediationGuide(
+    problem_summary="RDP (Remote Desktop, port 3389) açık.",
+    why_important=(
+        "RDP internet'te en çok saldırıya uğrayan servislerden biri. BlueKeep "
+        "(CVE-2019-0708), DejaBlue, NLA bypass, CredSSP gibi kritik zafiyetler. "
+        "Ayrıca brute-force ve parola sprey saldırıları sürekli. 2020-2022 "
+        "ransomware saldırılarının %55'i public RDP üzerinden başladı."
+    ),
+    fix_steps=(
+        FixStep(
+            "RDP'yi public'ten KALDIR, VPN arkasına al",
+            "Bu en kritik adım. VPN kurulumu (WireGuard, OpenVPN, Tailscale) "
+            "→ RDP sadece VPN subnet'inden erişilebilir. 3389 portu dışarıya "
+            "tamamen kapalı olmalı.",
+        ),
+        FixStep(
+            "Windows Firewall — 3389 portunu block",
+            "",
+            code="# PowerShell (admin)\n"
+                 "New-NetFirewallRule -DisplayName 'Block-RDP-Public' "
+                 "-Direction Inbound -Protocol TCP -LocalPort 3389 -Action Block",
+        ),
+        FixStep(
+            "Port değiştirme (güvenlik değil, gürültü azaltma)",
+            "3389 yerine random port (ör. 50189). Kayıt defteri:",
+            code='Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp" '
+                 '-Name PortNumber -Value 50189',
+        ),
+        FixStep(
+            "NLA (Network Level Authentication) zorunlu",
+            "Kayıt defteri veya Grup Politikası → 'Require use of specific "
+            "security layer for RDP connections' → 'SSL (TLS 1.0)' + "
+            "'Require NLA' → Enabled.",
+        ),
+        FixStep(
+            "Kuvvetli parola + MFA + Account lockout",
+            "Admin hesap parolası 16+ karakter. Azure AD / Duo gibi MFA. "
+            "Group Policy → 'Account lockout threshold' → 5 failed attempts.",
+        ),
+    ),
+    verification="Dışarıdan `Test-NetConnection siteniz.com -Port 3389` → Failed. VPN ile bağlanınca çalışmalı.",
+    references=(
+        ("CISA RDP Alert", "https://www.cisa.gov/news-events/cybersecurity-advisories/aa20-073a"),
+    ),
+)
+
+_PORT_SMB_GUIDE = RemediationGuide(
+    problem_summary="SMB (port 445, microsoft-ds) açık.",
+    why_important=(
+        "SMB public'e açılmış olması CISA'nın 'en tehlikeli 10 konfigürasyon "
+        "hatası' listesinde. EternalBlue (CVE-2017-0144), SMBGhost (CVE-2020-0796), "
+        "PrintNightmare gibi kritik zafiyetlerin tümü SMB üzerinden. 2017 WannaCry "
+        "saldırısı bu zafiyetle yayıldı."
+    ),
+    fix_steps=(
+        FixStep(
+            "Public SMB'yi KAPATMAK — tek güvenli yol",
+            "SMB internet'e açık olmamalı. Firewall'da 445 portunu dışarıdan block, "
+            "iç ağda bile sadece gerekli subnet'lere izin ver.",
+            code="# Windows Firewall\n"
+                 "New-NetFirewallRule -DisplayName 'Block-SMB-Public' "
+                 "-Direction Inbound -Protocol TCP -LocalPort 445 -Action Block",
+        ),
+        FixStep(
+            "SMBv1'i tamamen devre dışı bırak",
+            "SMBv1 (kullanımdan kalkmış) en saldırıya açık sürüm. EternalBlue bunu "
+            "hedefler.",
+            code='Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol',
+        ),
+        FixStep(
+            "SMB signing zorunlu",
+            "",
+            code='Set-SmbServerConfiguration -RequireSecuritySignature $true',
+        ),
+        FixStep(
+            "SMB yerine SFTP/Nextcloud değerlendir",
+            "Dosya paylaşımı için SFTP + kullanıcı başına dizin veya Nextcloud "
+            "(self-hosted) SMB'den çok daha güvenli.",
+        ),
+    ),
+    verification="Dışarıdan port 445'e telnet/Test-NetConnection → erişim olmamalı.",
+    references=(
+        ("Microsoft: Disable SMBv1", "https://learn.microsoft.com/windows-server/storage/file-server/troubleshoot/detect-enable-and-disable-smbv1-v2-v3"),
+    ),
+)
+
+_PORT_FTP_GUIDE = RemediationGuide(
+    problem_summary="FTP (port 21) açık — şifrelenmemiş dosya transferi.",
+    why_important=(
+        "FTP 1985'ten kalma, şifrelenmemiş bir protokol. Kullanıcı adı, parola, "
+        "dosya içeriği ağı dinleyen herkes tarafından okunabilir. Ayrıca anonim "
+        "FTP yapılandırılmış olabilir — isimsiz erişim. 2025'te FTP kullanmanın "
+        "neredeyse hiç meşru sebebi yok."
+    ),
+    fix_steps=(
+        FixStep(
+            "FTP yerine SFTP (SSH üzerinden) kullan",
+            "SFTP modern, şifreli, SSH'in zaten açık olan 22 portunu kullanır. "
+            "FileZilla, WinSCP gibi istemciler SFTP destekler.",
+            code="# Client bağlantı örneği\n"
+                 "sftp user@sunucu.com\n"
+                 "# veya PuTTY/FileZilla'da 'SFTP' protokolü seç",
+        ),
+        FixStep(
+            "FTPS (FTP over TLS) alternatif",
+            "Eski FTP istemcileri ile uyumluluk gerekiyorsa FTPS (explicit TLS):",
+            code="# vsftpd.conf\n"
+                 "ssl_enable=YES\n"
+                 "force_local_data_ssl=YES\n"
+                 "force_local_logins_ssl=YES",
+        ),
+        FixStep(
+            "FTP servisini kaldır",
+            "",
+            code="sudo systemctl stop vsftpd\n"
+                 "sudo systemctl disable vsftpd\n"
+                 "sudo apt remove vsftpd",
+        ),
+        FixStep(
+            "Anonim FTP'yi devre dışı bırak (kullanılıyorsa)",
+            "",
+            code="# vsftpd.conf\n"
+                 "anonymous_enable=NO\n"
+                 "local_enable=YES",
+        ),
+    ),
+    verification="`curl ftp://siteniz.com` → bağlanamamalı. `sftp user@siteniz.com` → çalışmalı.",
+    references=(
+        ("SFTP Hardening", "https://infosec.mozilla.org/guidelines/openssh"),
+    ),
+)
+
+_PORT_TELNET_GUIDE = RemediationGuide(
+    problem_summary="Telnet (port 23) açık — şifrelenmemiş uzaktan erişim.",
+    why_important=(
+        "Telnet FTP'den bile eski (1969!) ve tamamen şifresiz. Parola ve tüm "
+        "komutlar açık metinde. 2020'den sonra açık olması ciddi bir ihmal "
+        "göstergesidir. Modern OS'lar Telnet desteğini default kapalı tutar."
+    ),
+    fix_steps=(
+        FixStep(
+            "SSH'e geç — Telnet'i tamamen kaldır",
+            "SSH 1995'ten beri Telnet'in yerine. Modern, şifreli, güçlü auth.",
+            code="# Linux\n"
+                 "sudo systemctl stop telnet\n"
+                 "sudo systemctl disable telnet\n"
+                 "sudo apt remove telnetd\n\n"
+                 "# SSH açık olduğundan emin ol\n"
+                 "sudo systemctl enable --now ssh",
+        ),
+        FixStep(
+            "Windows — Telnet istemcisini bile kapat",
+            "",
+            code='Disable-WindowsOptionalFeature -Online -FeatureName TelnetClient',
+        ),
+    ),
+    verification="`telnet siteniz.com 23` → connection refused.",
+    references=(
+        ("RFC on deprecating Telnet", "https://www.rfc-editor.org/rfc/rfc4949.html"),
+    ),
+)
+
+_PORT_VNC_GUIDE = RemediationGuide(
+    problem_summary="VNC (port 5900) açık — zayıf şifreli uzaktan masaüstü.",
+    why_important=(
+        "VNC default protokolü (RFB) yalnızca parola için zayıf DES şifreleme "
+        "kullanır, ekran trafiği genelde şifresizdir. TightVNC, RealVNC'in eski "
+        "sürümleri brute-force ve DoS zafiyetlerine açık. Public'e açık VNC "
+        "çoğunlukla default parolayla çalışır."
+    ),
+    fix_steps=(
+        FixStep(
+            "VPN veya SSH tünel arkasına taşı",
+            "VNC public'e açık olmamalı. SSH tünel ile bağlan:",
+            code="# Client'ta:\n"
+                 "ssh -L 5901:localhost:5900 user@sunucu\n"
+                 "# VNC client'ı localhost:5901'e bağlar — şifreli",
+        ),
+        FixStep(
+            "VNC yerine RDP (Windows) veya NoMachine (Linux)",
+            "RDP native şifreleme + NLA destekler. NoMachine SSH üzerinden "
+            "çalışır, VNC'den çok daha güvenli.",
+        ),
+        FixStep(
+            "Kullanılmıyorsa VNC servisini kapat",
+            "",
+            code="sudo systemctl stop vncserver\n"
+                 "sudo systemctl disable vncserver",
+        ),
+        FixStep(
+            "Kullanılacaksa — güçlü parola + TLS",
+            "TigerVNC veya modern RealVNC TLS destekler. Config'de TLS zorla, "
+            "password en az 16 karakter.",
+        ),
+    ),
+    verification="Dışarıdan `telnet siteniz.com 5900` → bağlantı olmamalı. İçeriden SSH tüneliyle çalışmalı.",
+    references=(
+        ("VNC Security", "https://tigervnc.org/doc/vncserver.html"),
+    ),
+)
+
+_PORT_GENERIC_GUIDE = RemediationGuide(
+    problem_summary="Açık bir TCP portu tespit edildi.",
+    why_important=(
+        "Her açık port bir saldırı yüzeyidir. Gerçekten gerekli olmayan her port "
+        "kapalı olmalı — minimum exposure prensibi. Gerekli portlar bile güvenlik "
+        "duvarıyla belirli IP/subnet'lere kısıtlanmalı."
+    ),
+    fix_steps=(
+        FixStep(
+            "Gerçekten gerekli mi sor",
+            "Bu port hangi servisi çalıştırıyor? Bu servis public'e açık "
+            "kalmalı mı? Eğer sadece localhost kullanıyorsa bağlama adresini "
+            "`127.0.0.1` yap — dışarı erişim olmasın.",
+        ),
+        FixStep(
+            "Güvenlik duvarı — default deny, gerekli olanı allow",
+            "",
+            code="# Linux (ufw)\n"
+                 "sudo ufw default deny incoming\n"
+                 "sudo ufw allow from <app_ip> to any port <port>\n"
+                 "sudo ufw enable",
+        ),
+        FixStep(
+            "Windows Firewall",
+            "",
+            code="New-NetFirewallRule -DisplayName 'Block-Port-X' "
+                 "-Direction Inbound -LocalPort <PORT> -Action Block",
+        ),
+        FixStep(
+            "Servis yazılımını güncel tut",
+            "Açık port + eski yazılım = kritik CVE riski. Otomatik güvenlik "
+            "güncellemesi aç (`unattended-upgrades`, Windows Update).",
+        ),
+    ),
+    verification="Dışarıdan `nc -zv siteniz.com <port>` → engellenmiş / timeout olmalı.",
+    references=(
+        ("NIST Firewall Guide", "https://csrc.nist.gov/publications/detail/sp/800-41/rev-1/final"),
+    ),
+)
+
+
 # =====================================================================
 # Finding title → guide key eşlemesi
 # =====================================================================
@@ -800,6 +1725,48 @@ _PATTERN_MATCHERS: tuple[tuple[str, _TitleMatcher, RemediationGuide], ...] = (
     ("wifi_open", lambda t: "Şifresiz Wi-Fi" in t, _WIFI_OPEN_GUIDE),
     ("wifi_wep", lambda t: "WEP şifrelemeli Wi-Fi" in t, _WIFI_WEP_GUIDE),
     ("wifi_old_wpa", lambda t: "Eski WPA şifrelemeli" in t, _WIFI_OLD_WPA_GUIDE),
+
+    # Web probes — Level 2 attack detection
+    ("sql_injection", lambda t: "SQL Injection" in t, _SQL_INJECTION_GUIDE),
+    ("xss_reflected", lambda t: "Reflected XSS" in t, _XSS_GUIDE),
+    ("path_traversal", lambda t: "Path traversal" in t, _PATH_TRAVERSAL_GUIDE),
+    ("ssl_old_protocol", lambda t: "Eski TLS sürümü destekleniyor" in t, _SSL_OLD_PROTOCOL_GUIDE),
+    ("ssl_cert_problem", lambda t: "SSL sertifika sorunu" in t, _SSL_CERT_PROBLEM_GUIDE),
+    ("x_powered_by_leak",
+     lambda t: ("Versiyon sızıntısı: X-Powered-By" in t
+                or "Versiyon sızıntısı: X-AspNet" in t),
+     _X_POWERED_BY_GUIDE),
+
+    # Exposed files
+    ("exposed_git", lambda t: ".git deposu" in t or ".git/HEAD" in t, _EXPOSED_GIT_GUIDE),
+    ("exposed_sql_dump",
+     lambda t: "Veritabanı yedeği" in t or "Veritabanı dump" in t,
+     _EXPOSED_SQL_DUMP_GUIDE),
+    ("exposed_wp_config",
+     lambda t: "WordPress yapılandırma" in t,
+     _EXPOSED_WP_CONFIG_GUIDE),
+    ("exposed_htaccess", lambda t: ".htaccess dosyası erişilebilir" in t, _EXPOSED_HTACCESS_GUIDE),
+    ("exposed_ds_store", lambda t: ".DS_Store sızmış" in t, _EXPOSED_DS_STORE_GUIDE),
+    ("exposed_server_status", lambda t: "server-status public" in t, _EXPOSED_SERVER_STATUS_GUIDE),
+    ("exposed_phpinfo", lambda t: "phpinfo.php public" in t, _EXPOSED_PHPINFO_GUIDE),
+    ("exposed_admin", lambda t: "Admin paneli" in t, _EXPOSED_ADMIN_GUIDE),
+    ("exposed_phpmyadmin", lambda t: "phpMyAdmin public" in t, _EXPOSED_PHPMYADMIN_GUIDE),
+
+    # DB parity
+    ("postgres_default_creds",
+     lambda t: "PostgreSQL varsayılan parola" in t,
+     _POSTGRES_DEFAULT_GUIDE),
+
+    # Port-specific — sıralama kritik: spesifik önce, sonunda generic
+    ("port_rdp", lambda t: "Açık port: 3389" in t, _PORT_RDP_GUIDE),
+    ("port_smb",
+     lambda t: "Açık port: 445" in t or "Açık port: 139" in t,
+     _PORT_SMB_GUIDE),
+    ("port_ftp", lambda t: "Açık port: 21" in t, _PORT_FTP_GUIDE),
+    ("port_telnet", lambda t: "Açık port: 23" in t, _PORT_TELNET_GUIDE),
+    ("port_vnc", lambda t: "Açık port: 5900" in t, _PORT_VNC_GUIDE),
+    # Generic port catch-all — EN SON olmalı (önce spesifikler eşleşsin)
+    ("port_generic", lambda t: t.startswith("Açık port:"), _PORT_GENERIC_GUIDE),
 )
 
 

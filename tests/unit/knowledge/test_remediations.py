@@ -25,23 +25,20 @@ def _finding_with_title(title: str) -> Finding:
 
 class TestGuideStructure:
     @pytest.mark.parametrize("key", [
-        "csp_missing",
-        "hsts_missing",
-        "xfo_missing",
-        "xcto_missing",
-        "referrer_missing",
-        "server_leak",
-        "http_only",
-        "security_txt",
-        "redis_open",
-        "mongodb_open",
-        "elasticsearch_open",
-        "mysql_default",
-        "ssh_default",
-        "env_exposed",
-        "wifi_open",
-        "wifi_wep",
-        "wifi_old_wpa",
+        # İlk 17 rehber
+        "csp_missing", "hsts_missing", "xfo_missing", "xcto_missing",
+        "referrer_missing", "server_leak", "http_only", "security_txt",
+        "redis_open", "mongodb_open", "elasticsearch_open", "mysql_default",
+        "ssh_default", "env_exposed", "wifi_open", "wifi_wep", "wifi_old_wpa",
+        # Yeni eklenen 16 rehber
+        "sql_injection", "xss_reflected", "path_traversal",
+        "ssl_old_protocol", "ssl_cert_problem", "x_powered_by_leak",
+        "exposed_git", "exposed_sql_dump", "exposed_wp_config",
+        "exposed_htaccess", "exposed_ds_store", "exposed_server_status",
+        "exposed_phpinfo", "exposed_admin", "exposed_phpmyadmin",
+        "postgres_default_creds",
+        "port_rdp", "port_smb", "port_ftp", "port_telnet", "port_vnc",
+        "port_generic",
     ])
     def test_every_known_key_returns_guide(self, key: str) -> None:
         guide = get_guide_by_key(key)
@@ -86,6 +83,27 @@ class TestTitleMatching:
         ("MySQL varsayılan parola kabul ediliyor — root@3306", True),
         ("SSH varsayılan parola kabul ediliyor — root@22", True),
         (".env dosyası public erişilebilir", True),
+        # Yeni finding tipleri
+        ("SQL Injection: `id` parametresi (MySQL)", True),
+        ("Reflected XSS: `q` parametresi", True),
+        ("Path traversal: `file` parametresi", True),
+        ("Eski TLS sürümü destekleniyor: TLSv1", True),
+        ("SSL sertifika sorunu", True),
+        ("Versiyon sızıntısı: X-Powered-By", True),
+        (".git deposu public erişilebilir", True),
+        ("Veritabanı yedeği public (backup.sql)", True),
+        ("WordPress yapılandırma yedeği (.bak) sızmış", True),
+        (".htaccess dosyası erişilebilir", True),
+        (".DS_Store sızmış (macOS meta veri)", True),
+        ("Apache server-status public", True),
+        ("phpinfo.php public", True),
+        ("Admin paneli tespit edildi", True),
+        ("phpMyAdmin public", True),
+        ("PostgreSQL varsayılan parola kabul ediliyor — postgres@5432", True),
+        ("Açık port: 3389/tcp (ms-wbt-server)", True),
+        ("Açık port: 445/tcp (microsoft-ds)", True),
+        ("Açık port: 21/tcp (ftp)", True),
+        ("Açık port: 80/tcp (http)", True),
     ])
     def test_known_findings_get_guide(self, title: str, expected_key_present: bool) -> None:
         finding = _finding_with_title(title)
