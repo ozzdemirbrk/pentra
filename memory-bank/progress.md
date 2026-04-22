@@ -18,7 +18,7 @@ Faz 2: MVP (localhost tarama)         ██████████  %100 (154 
 Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
 Faz 4: Servis versiyon + CVE          ██████████  %100 (252 test, E2E 0 FP)
 Faz 5: DB probe + yerel ağ + Wi-Fi    ██████████  %100 (DB + Default creds + Wi-Fi + yerel ağ + IP range)
-Faz 6: Akıllı rapor + geçmiş (HTML)   █████░░░░░  %50 (rehberler ✅ — PDF/MD iptal)
+Faz 6: Akıllı rapor + geçmiş (HTML)   ████████░░  %75 (rehberler + risk skoru + exec summary ✅)
 Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 ```
 
@@ -187,7 +187,14 @@ desteği zayıf. Pragmatik karar: iptal et, HTML'i korur.
 - İleride tercihen WeasyPrint (daha iyi CSS + Unicode) veya Playwright PDF
   değerlendirilebilir (Faz 7 veya v2)
 
-**Batch 2 (yeni) — Executive Summary + Genel Risk Skoru**
+**Batch 2 ✅ (commit a236d96) — Executive Summary + Genel Risk Skoru**
+- [x] `reporting/risk_score.py` — 0-10 skor, Türkçe etiket (Temiz/Düşük/Orta/Yüksek/Kritik), renk, özet cümle
+  - CVE'li bulgularda CVSS önceliği; severity ağırlıkları fallback
+  - Log-tabanlı "çoklu risk" bonusu
+  - top_actions helper — ilk 3 öncelikli bulgu
+- [x] Report dataclass: `risk` + `top_actions` alanları; ReportBuilder otomatik
+- [x] HTML şablonunda Header altında renk kodlu risk kartı + Yönetici Özeti + İlk Yapılacaklar TOP-3
+- [x] 21 yeni test (417 toplam)
 - [ ] Genel risk skoru hesaplama (her bulgunun CVSS'ini ağırlıklandır)
 - [ ] Rapor başında teknik olmayan Türkçe özet
   ("Sisteminizde 3 kritik, 5 yüksek risk tespit edildi. En acil: X.")
