@@ -61,6 +61,40 @@ class XssProbe(WebProbeBase):
         findings: list[Finding] = []
         reported_params: set[str] = set()
 
+        # --- Echo-fallback tespiti ---
+        # Bazı siteler (SPA, dev server, debug endpoint) GELEN HER parametreyi
+        # yanıtta yansıtır. Bu durumda XSS probe'u 20+ false positive verir.
+        # Önce rastgele (asla XSS olmayacak) bir parametre adı deneyip yansıyıp
+        # yansımadığına bakarız. Yansıyorsa site echo-fallback yapıyor demektir,
+        # probe'u atlayıp "genel echo davranışı" diye bilgilendirme döndürürüz.
+        if self._site_echoes_random_param(url, session):
+            return [
+                Finding(
+                    scanner_name="web_scanner",
+                    severity=Severity.INFO,
+                    title="Site tüm parametreleri yansıtıyor — XSS testi atlandı",
+                    description=(
+                        "Bu site rastgele isimli bir parametreye bile yanıtta içeriği "
+                        "yansıtarak cevap veriyor (SPA fallback, dev server echo, debug "
+                        "endpoint vb.). Tipik yanıtlı XSS testleri bu tür sitelerde "
+                        "false positive üretir. **Bu site üretim sistemi ise** geliştirici "
+                        "ekibiyle input echoing davranışını inceleyin — HTML kaçışı "
+                        "uygulanmıyorsa gerçek XSS zafiyeti var demektir."
+                    ),
+                    target=url,
+                    remediation=(
+                        "Geliştirici için: her yanıtta kullanıcı girdisini render etmeden "
+                        "önce HTML escape uygulayın. Framework kullanıyorsanız "
+                        "(React/Vue/Jinja2) autoescape'in aktif olduğundan emin olun."
+                    ),
+                    evidence=self._build_evidence(
+                        request_method="GET",
+                        request_path=url,
+                        why_vulnerable="Echo-fallback tespit edildi — rastgele canary yansıdı",
+                    ),
+                ),
+            ]
+
         for param in _PARAMS_TO_TEST:
             if param in reported_params:
                 continue
@@ -125,6 +159,30 @@ class XssProbe(WebProbeBase):
                 break  # Bir kanıt yeter
 
         return findings
+
+    def _site_echoes_random_param(
+        self, url: str, session: requests.Session,
+    ) -> bool:
+        """Rastgele bir parametre gönderip yansıyıp yansımadığına bak.
+
+        Asla XSS'e sebep olmayacak bir parametre adı + tag benzeri içerik
+        gönderir. Yanıtta bu içerik çıkıyorsa → site her şeyi echo yapıyor,
+        XSS probe'u güvenilir sonuç vermez.
+        """
+        probe_param = f"pentra{secrets.token_hex(3)}"
+        probe_canary = _make_canary()
+        probe_marker = f"<xxx{probe_canary}>"
+        test_url = self._build_url_with_param(url, probe_param, probe_marker)
+
+        try:
+            response = session.get(
+                test_url, timeout=self.timeout, allow_redirects=False,
+            )
+        except requests.RequestException:
+            return False
+
+        # Canary yanıtta direkt görünüyorsa → site echo yapıyor
+        return probe_marker in response.text
 
     # -----------------------------------------------------------------
     @staticmethod

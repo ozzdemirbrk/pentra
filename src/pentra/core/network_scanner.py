@@ -13,6 +13,8 @@ yeterince hızlıdır. Diğer modlar Npcap + UAC gerektirebilir (Faz 3+ için).
 
 from __future__ import annotations
 
+import ipaddress
+
 from pentra.core.scanner_base import ScannerBase
 from pentra.core.service_probes.base import ServiceProbeBase
 from pentra.core.service_probes.elasticsearch_probe import ElasticsearchAuthProbe
@@ -21,7 +23,7 @@ from pentra.core.service_probes.mysql_probe import MysqlDefaultCredsProbe
 from pentra.core.service_probes.postgresql_probe import PostgresDefaultCredsProbe
 from pentra.core.service_probes.redis_probe import RedisAuthProbe
 from pentra.core.service_probes.ssh_probe import SshDefaultCredsProbe
-from pentra.models import Finding, ScanDepth, Severity, Target
+from pentra.models import Finding, ScanDepth, Severity, Target, TargetType
 
 # Port → Service probe eşlemesi. Açık port bulunduğunda ilgili probe çalışır.
 def _default_service_probes() -> dict[int, ServiceProbeBase]:
@@ -100,7 +102,7 @@ class NetworkScanner(ScannerBase):
             )
             return
 
-        arguments = self._build_nmap_args(depth)
+        arguments = self._build_nmap_args(depth, target)
         self._emit_progress(5, f"Nmap argümanları: {arguments}")
 
         try:
@@ -115,7 +117,12 @@ class NetworkScanner(ScannerBase):
         if not self._throttle(packets=1):
             return  # iptal edildi
 
-        self._emit_progress(10, f"{target.value} taranıyor...")
+        # CIDR ağlarında kullanıcı ne kadar bekleyeceğini bilsin
+        network_warning = _estimate_scan_time(target, depth)
+        if network_warning:
+            self._emit_progress(10, network_warning)
+        else:
+            self._emit_progress(10, f"{target.value} taranıyor...")
 
         try:
             scanner.scan(hosts=target.value, arguments=arguments)
@@ -184,18 +191,26 @@ class NetworkScanner(ScannerBase):
     # Yardımcılar
     # -----------------------------------------------------------------
     @staticmethod
-    def _build_nmap_args(depth: ScanDepth) -> str:
-        """Derinliğe göre nmap argümanlarını oluşturur."""
+    def _build_nmap_args(depth: ScanDepth, target: Target | None = None) -> str:
+        """Derinliğe göre nmap argümanlarını oluşturur.
+
+        LOCAL_NETWORK / IP_RANGE için `-Pn` KULLANILMAZ — nmap'in kendi
+        host discovery'sine (ARP/ICMP) izin veririz, yoksa 254 host'un her
+        biri canlı sayılıp her birinde 100 port denenir (dakikalarca).
+        """
+        is_network_scan = (
+            target is not None
+            and target.target_type in (TargetType.LOCAL_NETWORK, TargetType.IP_RANGE)
+        )
+        host_discovery = "" if is_network_scan else "-Pn"
+
         match depth:
             case ScanDepth.QUICK:
-                # TCP connect, top 100 port + servis/versiyon (hafif)
-                return "-sT -F --open -T4 -Pn -sV --version-intensity 2"
+                return f"-sT -F --open -T4 {host_discovery} -sV --version-intensity 2".strip()
             case ScanDepth.STANDARD:
-                # Top 1000 port + tam servis/versiyon
-                return "-sT -sV --open -T4 -Pn"
+                return f"-sT -sV --open -T4 {host_discovery}".strip()
             case ScanDepth.DEEP:
-                # Tam port, versiyon, OS, varsayılan scriptler
-                return "-sT -sV -O --script=default --open -T4 -Pn"
+                return f"-sT -sV -O --script=default --open -T4 {host_discovery}".strip()
 
     def _extract_findings(
         self,
@@ -323,6 +338,45 @@ class NetworkScanner(ScannerBase):
             Severity.HIGH: 3, Severity.CRITICAL: 4,
         }
         return base if order[base] >= order[cvss_tier] else cvss_tier
+
+
+def _estimate_scan_time(target: Target, depth: ScanDepth) -> str:
+    """CIDR hedefler için kullanıcıya süre tahmini mesajı döndürür.
+
+    Geri dönüş: kullanıcıya gösterilecek Türkçe metin (boşsa standart mesaj).
+    """
+    if target.target_type not in (TargetType.LOCAL_NETWORK, TargetType.IP_RANGE):
+        return ""
+
+    try:
+        network = ipaddress.ip_network(target.value, strict=False)
+    except ValueError:
+        return ""
+
+    host_count = network.num_addresses
+    if host_count <= 1:
+        return ""
+
+    # Kaba tahmin: Quick modunda aktif host başı ~3 sn, ping sweep ~0.5 sn/host
+    # /24 için tipik olarak 5-20 aktif host → 1-2 dk
+    if host_count <= 256:
+        minutes_est = "1-3 dakika"
+    elif host_count <= 4096:
+        minutes_est = "5-15 dakika"
+    else:
+        minutes_est = "15+ dakika"
+
+    depth_text = {
+        ScanDepth.QUICK: "Hızlı",
+        ScanDepth.STANDARD: "Standart",
+        ScanDepth.DEEP: "Derin",
+    }.get(depth, "")
+
+    return (
+        f"{network} ağı ({host_count} adres) {depth_text} derinlikte taranıyor. "
+        f"Önce aktif cihazlar tespit edilecek, sonra onların portları. "
+        f"Tahmini süre: ~{minutes_est}. Nmap çalışırken alt log güncellenmez — sabırlı olun."
+    )
 
 
 def _build_remediation(port: int, service: str) -> str:
