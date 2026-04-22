@@ -5,7 +5,7 @@
 ---
 
 ## Son Güncelleme
-**2026-04-22** — Faz 6 Batch 2 tamam: Genel Risk Skoru (0-10) + Executive Summary + TOP-3 aksiyon listesi. Rapor artık "yönetici raporu" seviyesinde. 417 test yeşil. Commit a236d96 + a766fc9. Sıradaki: Faz 6 Batch 3 (SQLite geçmiş + tarama karşılaştırma). AI kullanılmıyor — tüm metin deterministik + 33 hardcoded rehber.
+**2026-04-22** — Faz 6 %100 tamam: SQLite tarama geçmişi + "önceki taramadan ne değişti" karşılaştırması. Kullanıcı aynı hedefi tekrar tararsa rapora otomatik trend bilgisi eklenir (iyileşme/kötüleşme + yeni/çözülmüş bulgu listesi). SQLite Python stdlib — kurulum yok. 442 test yeşil. Commit 7841629. Sıradaki: Faz 7 (Paketleme — .exe).
 
 ---
 
