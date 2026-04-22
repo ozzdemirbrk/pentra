@@ -1,158 +1,170 @@
-"""PDF exporter — HtmlExporter çıktısını xhtml2pdf ile PDF'e dönüştürür.
+"""PDF exporter — ayrı sade Jinja2 şablonuyla xhtml2pdf'e uygun HTML üretir.
 
-xhtml2pdf iki ciddi sınırlamaya sahip:
-    1. Default fontlar (Helvetica/Times) yalnızca Latin-1 destekler — Türkçe
-       karakterler (ğ, ş, ı, ç, ö, ü) için glyph yoktur → PDF'te kutu ☐ görünür.
-    2. Emoji hiçbir PDF fontunda standart olarak gömülü değil.
+Önceki yaklaşım (HtmlExporter'ın çıktısını dönüştürmek) iki sorun yaratıyordu:
+    1. Modern CSS (flexbox, grid) xhtml2pdf'te render olmuyor → tasarım bozuk
+    2. Türkçe karakterler default font'larda glyph eksikliğinden kutu
 
-Çözümler:
-    - PDF üretiminden önce **Arial TTF** (Windows'ta mevcut) register edilir
-    - Raporun <head>'ine `@font-face` tanımı enjekte edilir
-    - Body stili `font-family: 'Arial-TR'` ile override edilir
-    - Emoji karakterleri regex ile strip edilir (PDF'te zaten render olmaz)
+Bu sürümde: PDF için özel hazırlanmış `pdf_report.html.j2` şablonu. Tablo
+tabanlı layout, emoji yok, @font-face ile Arial (veya DejaVu) yüklenir,
+link_callback TTF yolunu çözer.
 """
 
 from __future__ import annotations
 
 import logging
 import platform
-import re
+from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 
-from pentra.reporting.exporters.html_exporter import HtmlExporter
+from jinja2 import Environment, FileSystemLoader
+
+from pentra.knowledge.remediations_tr import get_guide
+from pentra.reporting.logo import get_logo_data_uri
 from pentra.reporting.report_builder import Report
 
 logger = logging.getLogger(__name__)
+
+_TEMPLATE_DIR: Path = Path(__file__).parent.parent / "templates"
+_TEMPLATE_NAME: str = "pdf_report.html.j2"
+
+# Bir kez register ederiz — process ömrü boyunca
+_FONT_REGISTERED: bool = False
 
 
 class PdfExportError(Exception):
     """PDF üretimi başarısız olduğunda fırlatılır."""
 
 
-# Geniş emoji unicode aralıkları — PDF'te render olmazlar, kaldır
-_EMOJI_RE = re.compile(
-    "["
-    "\U0001F300-\U0001F9FF"  # Miscellaneous Symbols, Pictographs, Emoticons
-    "\U0001FA00-\U0001FAFF"  # Extended-A
-    "\U0001F1E0-\U0001F1FF"  # Regional indicator (flags)
-    "\U00002600-\U000027BF"  # Miscellaneous Symbols, Dingbats
-    "\U0000FE00-\U0000FE0F"  # Variation Selectors
-    "\u200d"                  # Zero-width joiner
-    "]+",
-    flags=re.UNICODE,
-)
-
-
-def _find_turkish_font() -> Path | None:
-    """Türkçe destekli bir TrueType font dosyası bul.
-
-    Windows'ta Arial standart olarak vardır. Farklı OS'larda DejaVu veya
-    Noto arar.
-    """
-    candidates: list[Path] = []
-
-    if platform.system() == "Windows":
-        fonts_dir = Path("C:/Windows/Fonts")
-        candidates.extend([
-            fonts_dir / "arial.ttf",
-            fonts_dir / "Arial.ttf",
-            fonts_dir / "segoeui.ttf",
-        ])
-    else:
-        candidates.extend([
-            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-            Path("/usr/share/fonts/TTF/DejaVuSans.ttf"),
-            Path("/Library/Fonts/Arial.ttf"),
-            Path("/System/Library/Fonts/Helvetica.ttc"),
-        ])
-
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return None
-
-
-# Font yalnızca bir kez register edilir (process ömrü boyunca)
-_FONT_REGISTERED: dict[str, str] = {}
-
-
-def _ensure_font_registered() -> str | None:
-    """Türkçe destekli fontu ReportLab'a register et, font adını döndür.
-
-    Zaten kayıtlıysa tekrar çalıştırılmaz.
-    """
+def _register_pdf_font() -> bool:
+    """Türkçe destekli TTF'yi ReportLab'a register et, başarıda True döner."""
+    global _FONT_REGISTERED
     if _FONT_REGISTERED:
-        return next(iter(_FONT_REGISTERED))
+        return True
 
-    font_path = _find_turkish_font()
-    if font_path is None:
-        logger.warning("PDF için Türkçe destekli TTF bulunamadı — kutu karakterler oluşabilir")
-        return None
+    regular, bold = _find_font_files()
+    if regular is None:
+        return False
 
     try:
         from reportlab.pdfbase import pdfmetrics  # type: ignore[import-not-found]
         from reportlab.pdfbase.ttfonts import TTFont  # type: ignore[import-not-found]
     except ImportError:
-        return None
+        return False
 
-    font_name = "PentraPDF"
     try:
-        pdfmetrics.registerFont(TTFont(font_name, str(font_path)))
-        _FONT_REGISTERED[font_name] = str(font_path)
-        logger.info("PDF için font register edildi: %s → %s", font_name, font_path)
-        return font_name
+        pdfmetrics.registerFont(TTFont("ArialTR", str(regular)))
+        if bold is not None:
+            pdfmetrics.registerFont(TTFont("ArialTR-Bold", str(bold)))
+        # xhtml2pdf için aynı font'u italic/bolditalic variantları olarak da
+        # göster — eksik variant istendiğinde fallback olmasın
+        try:
+            from reportlab.pdfbase.pdfmetrics import registerFontFamily  # type: ignore[import-not-found]
+            registerFontFamily(
+                "ArialTR",
+                normal="ArialTR",
+                bold="ArialTR-Bold" if bold is not None else "ArialTR",
+                italic="ArialTR",
+                boldItalic="ArialTR-Bold" if bold is not None else "ArialTR",
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        _FONT_REGISTERED = True
+        logger.info("PDF fontu register edildi: %s", regular)
+        return True
     except Exception as e:  # noqa: BLE001
-        logger.warning("Font register başarısız (%s): %s", font_path, e)
-        return None
+        logger.warning("PDF font register başarısız: %s", e)
+        return False
 
 
-def _strip_emojis(text: str) -> str:
-    """PDF'te render olmayan emoji karakterlerini kaldırır."""
-    return _EMOJI_RE.sub("", text)
+# ---------------------------------------------------------------------
+# Font tespiti
+# ---------------------------------------------------------------------
+def _find_font_files() -> tuple[Path | None, Path | None]:
+    """(regular, bold) font dosyalarını tespit et. Yoksa (None, None)."""
+    candidates: list[tuple[Path, Path]] = []
+
+    if platform.system() == "Windows":
+        fonts = Path("C:/Windows/Fonts")
+        candidates.append((fonts / "arial.ttf", fonts / "arialbd.ttf"))
+        candidates.append((fonts / "Arial.ttf", fonts / "Arialbd.ttf"))
+        candidates.append((fonts / "segoeui.ttf", fonts / "seguisb.ttf"))
+    elif platform.system() == "Darwin":
+        candidates.append((
+            Path("/Library/Fonts/Arial.ttf"),
+            Path("/Library/Fonts/Arial Bold.ttf"),
+        ))
+    else:
+        for base in (
+            Path("/usr/share/fonts/truetype/dejavu"),
+            Path("/usr/share/fonts/TTF"),
+        ):
+            candidates.append((base / "DejaVuSans.ttf", base / "DejaVuSans-Bold.ttf"))
+
+    for reg, bold in candidates:
+        if reg.exists():
+            return reg, (bold if bold.exists() else None)
+    return None, None
 
 
-def _inject_pdf_styles(html: str, font_name: str | None) -> str:
-    """HTML <head>'ine PDF'e özel CSS enjekte et — font override + basit reset."""
-    font_family = font_name if font_name else "Helvetica"
-    pdf_css = f"""
-<style>
-    /* PDF-özel override — xhtml2pdf modern CSS'yi desteklemiyor */
-    body, p, div, span, td, th, h1, h2, h3, h4, li, a, pre, code {{
-        font-family: "{font_family}", "Helvetica", sans-serif;
-    }}
-    pre, code {{
-        font-size: 9pt;
-        background: #f4f4f4;
-        padding: 4px;
-    }}
-    /* Kodu sarmaya zorla — PDF'te overflow scroll olmaz */
-    pre {{ white-space: pre-wrap; word-wrap: break-word; }}
-</style>
-"""
-    # <head> kapanmasından önce inject et — varolan CSS'i geçersiz kılsın
-    return html.replace("</head>", pdf_css + "</head>", 1)
+# ---------------------------------------------------------------------
+# Jinja filtreleri
+# ---------------------------------------------------------------------
+def _tr_datetime(value: datetime) -> str:
+    return value.strftime("%Y-%m-%d %H:%M")
 
 
+_SEVERITY_TR = {
+    "critical": "Kritik",
+    "high": "Yuksek",
+    "medium": "Orta",
+    "low": "Dusuk",
+    "info": "Bilgi",
+}
+
+
+def _severity_label(value: str) -> str:
+    return _SEVERITY_TR.get(value, value.capitalize())
+
+
+# ---------------------------------------------------------------------
+# PdfExporter
+# ---------------------------------------------------------------------
 class PdfExporter:
-    """Report → PDF dosyası (xhtml2pdf üzerinden HTML'den dönüştürme)."""
+    """Report → PDF (xhtml2pdf ile ayrı sade şablondan)."""
 
-    def __init__(self, html_exporter: HtmlExporter | None = None) -> None:
-        self._html_exporter = html_exporter if html_exporter is not None else HtmlExporter()
-        # Font'u lazy register et — yalnızca ihtiyaç olunca
-        self._font_name: str | None = None
+    def __init__(
+        self,
+        template_dir: Path | None = None,
+        *,
+        html_exporter: object | None = None,  # Backward-compat
+    ) -> None:
+        del html_exporter
+        self._template_dir = template_dir if template_dir is not None else _TEMPLATE_DIR
+        self._env = Environment(
+            loader=FileSystemLoader(str(self._template_dir)),
+            autoescape=True,
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        self._env.filters["tr_datetime"] = _tr_datetime
+        self._env.filters["severity_label"] = _severity_label
+        self._env.globals["get_remediation_guide"] = get_guide
+        self._env.globals["logo_data_uri"] = get_logo_data_uri()
+
+        # Font'u hemen register et — link_callback yerine pdfmetrics yolu
+        self._font_available = _register_pdf_font()
+        if not self._font_available:
+            logger.warning(
+                "PDF için Türkçe destekli TTF bulunamadı — kutu karakter oluşabilir.",
+            )
+
+    def render_html(self, report: Report) -> str:
+        template = self._env.get_template(_TEMPLATE_NAME)
+        return template.render(report=report, generated_at=datetime.now())
 
     def render_bytes(self, report: Report) -> bytes:
-        """Raporu PDF byte dizisine dönüştürür."""
-        # Font'u ilk PDF üretiminde register et
-        if self._font_name is None:
-            self._font_name = _ensure_font_registered()
-
-        html = self._html_exporter.render(report)
-
-        # PDF-için uyarlama: emoji strip + font CSS inject
-        html = _strip_emojis(html)
-        html = _inject_pdf_styles(html, self._font_name)
+        html = self.render_html(report)
 
         try:
             from xhtml2pdf import pisa  # type: ignore[import-not-found]
@@ -162,7 +174,12 @@ class PdfExporter:
             ) from e
 
         buffer = BytesIO()
-        pisa_status = pisa.CreatePDF(src=html, dest=buffer, encoding="utf-8")
+        pisa_status = pisa.CreatePDF(
+            src=html,
+            dest=buffer,
+            encoding="utf-8",
+            link_callback=self._link_callback,
+        )
         if pisa_status.err:
             raise PdfExportError(
                 f"PDF üretimi başarısız: {pisa_status.err} hata(lar)ı oluştu.",
@@ -170,8 +187,20 @@ class PdfExporter:
         return buffer.getvalue()
 
     def export(self, report: Report, output_path: Path) -> Path:
-        """PDF'i `output_path`'a yazar, dosya yolunu döner."""
         pdf_bytes = self.render_bytes(report)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(pdf_bytes)
         return output_path
+
+    # -----------------------------------------------------------------
+    # xhtml2pdf link_callback — @font-face url() çağrısını engelle,
+    # img data URI'lerini değişmeden geçir
+    # -----------------------------------------------------------------
+    def _link_callback(self, uri: str, rel: str) -> str:
+        # Font url()'leri — artık pdfmetrics.registerFont kullanıyoruz
+        # @font-face template'te YOK, bu callback'e font URI'si gelmemeli
+        if uri.startswith("data:"):
+            return uri
+        if uri.startswith("file:///"):
+            return uri[8:]
+        return uri

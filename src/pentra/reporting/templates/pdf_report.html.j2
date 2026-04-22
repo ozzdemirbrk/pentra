@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Pentra Guvenlik Raporu</title>
+<style>
+    /* Font — PdfExporter._register_pdf_font() tarafından önceden
+       pdfmetrics.registerFont ile ReportLab'a yüklenir. @font-face yok. */
+
+    @page {
+        size: A4;
+        margin: 1.5cm 1.5cm 2cm 1.5cm;
+        @frame footer {
+            -pdf-frame-content: footerContent;
+            bottom: 0.5cm;
+            margin-left: 1.5cm;
+            margin-right: 1.5cm;
+            height: 1cm;
+        }
+    }
+
+    * {
+        font-family: "ArialTR", Helvetica, sans-serif;
+    }
+
+    body {
+        font-size: 10pt;
+        color: #1a1a2e;
+    }
+
+    h1 {
+        font-size: 22pt;
+        color: #16213e;
+        margin: 0 0 4pt 0;
+    }
+    h2 {
+        font-size: 15pt;
+        color: #16213e;
+        margin: 14pt 0 8pt 0;
+        border-bottom: 1pt solid #dcdcdc;
+        padding-bottom: 3pt;
+    }
+    h3 {
+        font-size: 11pt;
+        color: #263238;
+        margin: 8pt 0 4pt 0;
+    }
+    p { margin: 4pt 0; line-height: 1.4; }
+
+    /* Header — logo + başlık yan yana */
+    .header-tbl { width: 100%; margin-bottom: 12pt; }
+    .header-tbl td { vertical-align: middle; padding: 0; }
+    .header-tbl .logo { width: 60pt; }
+    .header-tbl .logo img { height: 48pt; width: auto; }
+
+    .subtitle { color: #666; font-size: 10pt; margin-bottom: 12pt; }
+
+    /* Meta bilgi tablosu */
+    .meta-tbl {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 14pt;
+        background: #f5f7fa;
+    }
+    .meta-tbl td {
+        padding: 8pt 10pt;
+        border: 1pt solid #e0e4eb;
+        vertical-align: top;
+        width: 25%;
+    }
+    .meta-label {
+        font-size: 8pt;
+        color: #7a7a7a;
+        text-transform: uppercase;
+        letter-spacing: 0.3pt;
+    }
+    .meta-value {
+        font-size: 13pt;
+        font-weight: bold;
+        color: #16213e;
+        margin-top: 2pt;
+    }
+
+    /* Özet kartlar — tablo hücreleri */
+    .summary-tbl {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 14pt;
+    }
+    .summary-tbl td {
+        width: 20%;
+        padding: 14pt 4pt;
+        text-align: center;
+        color: white;
+        border: 2pt solid white;
+    }
+    .summary-count { font-size: 22pt; font-weight: bold; line-height: 1; }
+    .summary-label { font-size: 9pt; margin-top: 4pt; text-transform: uppercase; }
+
+    .sev-critical { background-color: #8b0000; }
+    .sev-high     { background-color: #d32f2f; }
+    .sev-medium   { background-color: #ef6c00; }
+    .sev-low      { background-color: #fbc02d; color: #fff; }
+    .sev-info     { background-color: #0288d1; }
+
+    /* Bulgu kutuları */
+    .finding {
+        border: 1pt solid #dcdcdc;
+        border-left: 4pt solid #dcdcdc;
+        padding: 10pt 12pt;
+        margin-bottom: 8pt;
+        -pdf-keep-in-frame-mode: "shrink";
+        page-break-inside: avoid;
+    }
+    .finding.sev-critical { border-left-color: #8b0000; }
+    .finding.sev-high     { border-left-color: #d32f2f; }
+    .finding.sev-medium   { border-left-color: #ef6c00; }
+    .finding.sev-low      { border-left-color: #fbc02d; }
+    .finding.sev-info     { border-left-color: #0288d1; }
+
+    .finding-title {
+        font-weight: bold;
+        font-size: 11pt;
+        margin-bottom: 4pt;
+    }
+    .badge {
+        display: inline-block;
+        padding: 1pt 6pt;
+        color: white;
+        font-size: 8pt;
+        font-weight: bold;
+        border-radius: 2pt;
+        margin-right: 6pt;
+        text-transform: uppercase;
+    }
+    .finding-target {
+        font-family: "Courier New", monospace;
+        font-size: 8pt;
+        color: #666;
+    }
+    .finding-desc {
+        color: #333;
+        margin-top: 4pt;
+        line-height: 1.4;
+    }
+    .finding-remediation {
+        background: #f0f7ff;
+        border-left: 2pt solid #0288d1;
+        padding: 6pt 10pt;
+        margin-top: 8pt;
+    }
+    .finding-remediation b { color: #01579b; }
+
+    /* CVE kartı */
+    .cve-box {
+        background: #fff3e0;
+        border-left: 2pt solid #ef6c00;
+        padding: 5pt 8pt;
+        margin: 3pt 0;
+        font-size: 9pt;
+    }
+    .cve-id { font-family: "Courier New", monospace; font-weight: bold; color: #01579b; }
+    .cvss-badge {
+        display: inline-block;
+        padding: 1pt 5pt;
+        color: white;
+        font-size: 8pt;
+        font-weight: bold;
+    }
+
+    /* Detaylı rehber — PDF'te inline (collapse yok) */
+    .guide-box {
+        background: #fafafa;
+        border: 1pt solid #cfd8dc;
+        padding: 10pt;
+        margin-top: 10pt;
+        page-break-inside: avoid;
+    }
+    .guide-title {
+        font-weight: bold;
+        color: #263238;
+        font-size: 11pt;
+        margin-bottom: 6pt;
+    }
+    .guide-section-title {
+        font-weight: bold;
+        color: #263238;
+        margin-top: 8pt;
+        font-size: 10pt;
+    }
+    .fix-step {
+        border-left: 2pt solid #0288d1;
+        padding-left: 8pt;
+        margin: 5pt 0 7pt 0;
+    }
+    .fix-step-platform {
+        font-weight: bold;
+        color: #01579b;
+        font-size: 10pt;
+    }
+    .fix-step-code {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 6pt 8pt;
+        font-family: "Courier New", monospace;
+        font-size: 8pt;
+        margin-top: 3pt;
+        white-space: pre-wrap;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 30pt 20pt;
+        color: #666;
+    }
+    .empty-state-icon { font-size: 22pt; color: #4caf50; }
+
+    /* Footer */
+    #footerContent {
+        text-align: center;
+        color: #888;
+        font-size: 8pt;
+        border-top: 0.5pt solid #dcdcdc;
+        padding-top: 4pt;
+    }
+
+    code, pre {
+        font-family: "Courier New", monospace;
+        font-size: 9pt;
+    }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<table class="header-tbl">
+    <tr>
+        {% if logo_data_uri %}
+        <td class="logo"><img src="{{ logo_data_uri }}" alt=""></td>
+        {% endif %}
+        <td>
+            <h1>Pentra Guvenlik Raporu</h1>
+            <div class="subtitle">Bireysel guvenlik denetim raporu — {{ report.ended_at | tr_datetime }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Meta bilgiler -->
+<table class="meta-tbl">
+    <tr>
+        <td>
+            <div class="meta-label">Hedef</div>
+            <div class="meta-value">{{ report.target.value }}</div>
+        </td>
+        <td>
+            <div class="meta-label">Derinlik</div>
+            <div class="meta-value">{{ report.depth.value | capitalize }}</div>
+        </td>
+        <td>
+            <div class="meta-label">Sure</div>
+            <div class="meta-value">{{ report.duration_pretty }}</div>
+        </td>
+        <td>
+            <div class="meta-label">Toplam Bulgu</div>
+            <div class="meta-value">{{ report.summary.total }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Özet -->
+<h2>Ozet</h2>
+<table class="summary-tbl">
+    <tr>
+        <td class="sev-critical">
+            <div class="summary-count">{{ report.summary.critical }}</div>
+            <div class="summary-label">Kritik</div>
+        </td>
+        <td class="sev-high">
+            <div class="summary-count">{{ report.summary.high }}</div>
+            <div class="summary-label">Yuksek</div>
+        </td>
+        <td class="sev-medium">
+            <div class="summary-count">{{ report.summary.medium }}</div>
+            <div class="summary-label">Orta</div>
+        </td>
+        <td class="sev-low">
+            <div class="summary-count">{{ report.summary.low }}</div>
+            <div class="summary-label">Dusuk</div>
+        </td>
+        <td class="sev-info">
+            <div class="summary-count">{{ report.summary.info }}</div>
+            <div class="summary-label">Bilgi</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Bulgular -->
+<h2>Bulgular</h2>
+
+{% if report.findings %}
+    {% for finding in report.findings %}
+    <div class="finding sev-{{ finding.severity.value }}">
+        <div class="finding-title">
+            <span class="badge sev-{{ finding.severity.value }}">{{ finding.severity.value | severity_label }}</span>
+            {{ finding.title }}
+        </div>
+        <div class="finding-target">{{ finding.target }}</div>
+        <div class="finding-desc">{{ finding.description }}</div>
+
+        {% if finding.evidence and finding.evidence.get('cves') %}
+        <div style="margin-top: 8pt;">
+            <b>Bilinen Guvenlik Aciklari ({{ finding.evidence['cves']|length }}):</b>
+            {% for cve in finding.evidence['cves'] %}
+            <div class="cve-box">
+                <span class="cve-id">{{ cve.id }}</span>
+                {% if cve.cvss %}
+                <span class="cvss-badge sev-{% if cve.cvss >= 9.0 %}critical{% elif cve.cvss >= 7.0 %}high{% elif cve.cvss >= 4.0 %}medium{% else %}low{% endif %}">CVSS {{ cve.cvss }}</span>
+                {% endif %}
+                <span style="color: #666; font-size: 8pt;">{{ cve.severity }}</span>
+                <div style="color: #444; margin-top: 3pt; font-size: 9pt;">{{ cve.description }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if finding.remediation %}
+        <div class="finding-remediation">
+            <b>Oneri:</b> {{ finding.remediation }}
+        </div>
+        {% endif %}
+
+        {% set guide = get_remediation_guide(finding) %}
+        {% if guide %}
+        <div class="guide-box">
+            <div class="guide-title">Detayli Onarim Rehberi</div>
+
+            <div class="guide-section-title">Sorun</div>
+            <p>{{ guide.problem_summary }}</p>
+
+            <div class="guide-section-title">Neden Onemli</div>
+            <p>{{ guide.why_important }}</p>
+
+            <div class="guide-section-title">Nasil Duzeltirim</div>
+            {% for step in guide.fix_steps %}
+            <div class="fix-step">
+                <div class="fix-step-platform">{{ step.platform }}</div>
+                {% if step.instructions %}
+                <p style="margin: 3pt 0; font-size: 9pt;">{{ step.instructions }}</p>
+                {% endif %}
+                {% if step.code %}
+                <pre class="fix-step-code">{{ step.code }}</pre>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="guide-section-title">Dogrulama</div>
+            <p style="font-size: 9pt;">{{ guide.verification }}</p>
+
+            {% if guide.references %}
+            <div class="guide-section-title">Referanslar</div>
+            <ul style="margin: 4pt 0 0 15pt; padding: 0; font-size: 9pt;">
+            {% for ref_title, ref_url in guide.references %}
+                <li>{{ ref_title }}: {{ ref_url }}</li>
+            {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">OK</div>
+        <p><b>Herhangi bir bulgu tespit edilmedi.</b></p>
+        <p style="font-size: 9pt;">Sectiginiz tarama derinliginde gorunur bir guvenlik sorunu bulunamadi.</p>
+    </div>
+{% endif %}
+
+<!-- Footer (her sayfada) -->
+<div id="footerContent">
+    Pentra — Yerel guvenlik tarama araci &nbsp;·&nbsp; Rapor {{ generated_at | tr_datetime }} tarihinde uretildi
+    &nbsp;·&nbsp; Bu rapor hassas bilgi icerebilir, guvenli bir yerde saklayin
+</div>
+
+</body>
+</html>
