@@ -10,6 +10,7 @@ import dataclasses
 from datetime import datetime, timezone
 
 from pentra.models import Finding, ScanDepth, Severity, Target
+from pentra.reporting.risk_score import RiskAssessment, assess_risk, top_actions
 
 
 # ---------------------------------------------------------------------
@@ -51,6 +52,10 @@ class Report:
     ended_at: datetime
     findings: list[Finding]
     summary: ReportSummary
+    #: Risk skoru (0–10) + Türkçe etiket + özet cümle
+    risk: RiskAssessment
+    #: Rapor başında gösterilen ilk N öncelikli aksiyon
+    top_actions: list[Finding] = dataclasses.field(default_factory=list)
 
     @property
     def duration_seconds(self) -> float:
@@ -101,6 +106,8 @@ class ReportBuilder:
         )
 
         summary = ReportSummary.from_findings(sorted_findings)
+        risk = assess_risk(sorted_findings)
+        actions = top_actions(sorted_findings, max_count=3)
 
         return Report(
             target=target,
@@ -109,4 +116,6 @@ class ReportBuilder:
             ended_at=ended_at,
             findings=sorted_findings,
             summary=summary,
+            risk=risk,
+            top_actions=actions,
         )

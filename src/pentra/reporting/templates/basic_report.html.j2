@@ -140,6 +140,41 @@
             </div>
         </header>
 
+        {# Genel Risk Skoru + Executive Summary #}
+        <section>
+            <h2>🎯 Genel Risk Değerlendirmesi</h2>
+            <div style="display: flex; gap: 20px; align-items: stretch; flex-wrap: wrap;">
+                <div style="background: {{ report.risk.color }}; color: white; padding: 20px 28px;
+                            border-radius: 12px; min-width: 200px; text-align: center;
+                            flex: 0 0 auto; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="font-size: 52px; font-weight: 700; line-height: 1;">{{ report.risk.score_display }}</div>
+                    <div style="font-size: 13px; opacity: 0.9; margin-top: 4px;">10 üzerinden</div>
+                    <div style="font-size: 18px; font-weight: 600; margin-top: 10px; text-transform: uppercase;
+                                letter-spacing: 0.5px;">{{ report.risk.label }}</div>
+                </div>
+                <div style="flex: 1; min-width: 260px;">
+                    <div style="font-weight: 700; font-size: 15px; color: #263238; margin-bottom: 6px;">📝 Yönetici Özeti</div>
+                    <div style="color: #444; line-height: 1.6; font-size: 14px;">{{ report.risk.summary_tr | safe }}</div>
+
+                    {% if report.top_actions %}
+                    <div style="margin-top: 14px;">
+                        <div style="font-weight: 700; font-size: 14px; color: #263238; margin-bottom: 6px;">🚀 İlk Yapılacaklar</div>
+                        <ol style="margin: 0 0 0 20px; padding: 0; color: #444;">
+                        {% for act in report.top_actions %}
+                            <li style="margin: 4px 0; font-size: 13px;">
+                                <span style="background: {{ act.severity.value | severity_color }}; color: white;
+                                             padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 700;
+                                             text-transform: uppercase;">{{ act.severity.value | severity_label }}</span>
+                                {{ act.title }}
+                            </li>
+                        {% endfor %}
+                        </ol>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
         <section>
             <h2>📊 Özet</h2>
             <div class="summary-cards">

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from pentra.models import Finding, ScanDepth, Severity, Target, TargetType
 from pentra.reporting.report_builder import Report, ReportBuilder, ReportSummary
+from pentra.reporting.risk_score import assess_risk
 
 
 def _make_finding(severity: Severity, title: str = "t") -> Finding:
@@ -91,6 +92,7 @@ class TestReportBuilder:
             ended_at=datetime(2026, 1, 1, 10, 0, 45, tzinfo=timezone.utc),
             findings=[],
             summary=ReportSummary.from_findings([]),
+            risk=assess_risk([]),
         )
         assert report.duration_pretty == "45 sn"
 
@@ -102,6 +104,7 @@ class TestReportBuilder:
             ended_at=datetime(2026, 1, 1, 10, 5, 30, tzinfo=timezone.utc),
             findings=[],
             summary=ReportSummary.from_findings([]),
+            risk=assess_risk([]),
         )
         assert report.duration_pretty == "5 dk 30 sn"
 
@@ -113,5 +116,6 @@ class TestReportBuilder:
             ended_at=datetime(2026, 1, 1, 12, 15, 5, tzinfo=timezone.utc),
             findings=[],
             summary=ReportSummary.from_findings([]),
+            risk=assess_risk([]),
         )
         assert report.duration_pretty == "2 saat 15 dk 5 sn"
