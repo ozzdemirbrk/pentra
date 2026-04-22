@@ -159,26 +159,33 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 - [x] 17 yeni test (312 toplam)
 
 ### Faz 6 — Akıllı Rapor + PDF + Geçmiş
-- [ ] CVSS skoru (her bulgu için)
-- [ ] Executive summary (teknik olmayan)
-- [ ] PDF exporter (xhtml2pdf)
-- [ ] Markdown exporter
 
-- [ ] **Detaylı onarım rehberleri** (`knowledge/remediations_tr.py`)
-  Her bulgu için mevcut 1-2 cümlelik öneri yerine adım adım rehber:
-    1. **Sorun özeti** (1 cümle — bulgu başlığını tekrarla)
-    2. **Niye önemli** (risk context + gerçek saldırı senaryosu örneği)
-    3. **Nasıl düzeltirim** (sunucu tipine göre varyant):
-       - Nginx config snippet (copy-paste ready)
-       - Apache httpd.conf / .htaccess snippet
-       - IIS web.config XML snippet veya PowerShell cmdlet
-       - Cloudflare/CDN dashboard adımları (eğer uygunsa)
-    4. **Doğrulama** (fix sonrası test etmek için komut — ör. `curl -I URL`)
-    5. **Referanslar** (MDN, OWASP, sunucu resmi doc link'i)
-  Rapor şablonu bu bölümleri açılır/kapanır ("Detaylı rehberi göster") kart olarak
-  göstersin — temel özet hemen, detay isteyenler için genişletilebilir.
+**Batch 1 ✅ (commit a842f78, 1497ca1)**
+- [x] **Detaylı onarım rehberleri** (`knowledge/remediations_tr.py`)
+  14 bulgu tipi için 5-bölümlü rehber (sorun özeti, niye önemli, Nginx/Apache/
+  IIS/Cloudflare fix adımları, doğrulama komutu, MDN/OWASP referansları).
+  Rapor şablonu `<details>` açılır kart olarak sunar — kısa öneri üstte
+  varsayılan, detay opt-in.
+  Kapsam: CSP, HSTS, X-Frame, X-Content-Type, Referrer-Policy, Server leak,
+  HTTP-only, security.txt, Redis/Mongo/ES open, MySQL/SSH default creds,
+  .env exposed. 37 yeni test (351 toplam).
 
-- [ ] SQLite'ta geçmiş taramalar + karşılaştırma ("geçen tarama göre şu değişmiş")
+**Batch 2 (sıradaki) — PDF + Markdown export**
+- [ ] `reporting/exporters/pdf_exporter.py` — xhtml2pdf ile HTML → PDF
+- [ ] `reporting/exporters/markdown_exporter.py` — MD export (e-posta/README için)
+- [ ] `gui/screens/report.py` — üç format butonu (HTML zaten var, PDF/MD eklenir)
+- [ ] Testler (mocked xhtml2pdf, MD içerik doğrulama)
+
+**Batch 3 — Executive Summary + Genel Risk Skoru**
+- [ ] Genel risk skoru hesaplama (her bulgunun CVSS'ini ağırlıklandır)
+- [ ] Rapor başında teknik olmayan Türkçe özet
+  ("Sisteminizde 3 kritik, 5 yüksek risk tespit edildi. En acil: X.")
+- [ ] CVE'siz bulgular için severity → sayısal skor (CRITICAL=10, HIGH=7, vb.)
+
+**Batch 4 — SQLite Geçmiş + Diff**
+- [ ] `storage/scan_history.py` — SQLite ile geçmiş tarama kaydı
+- [ ] "Geçen taramadan beri ne değişti" karşılaştırması (yeni bulgu / kapanmış bulgu)
+- [ ] Wizard'a "Geçmiş" butonu (opsiyonel — v2'ye ertelenebilir)
 
 ### Faz 7 — Paketleme
 - [ ] `scripts/build_exe.py` — PyInstaller script
@@ -193,12 +200,12 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 
 | # | Konu | Durum |
 |---|---|---|
-| 1 | WeasyPrint'in Windows GTK bağımlılığı — alternatif değerlendir | Açık |
-| 2 | SQLCipher pip kurulum sorunu — Fernet uygulama-katmanı alternatifi | Açık |
-| 3 | PyInstaller .exe boyutu (~100-200MB) — kabul edilebilir mi? | Açık |
-| 4 | Scapy + Npcap ilk kurulum deneyimi — bundle mı, downloader mı? | Açık |
-| 5 | Windows SmartScreen uyarısı — kod imzalama sertifikası gerekli mi? | Açık |
-| 6 | CVE veritabanı kaynağı — offline NVD kopyası mı, online API mı? | Açık |
+| 1 | WeasyPrint'in Windows GTK bağımlılığı | **Çözüldü** — xhtml2pdf tercih edildi |
+| 2 | SQLCipher pip kurulum sorunu — Fernet uygulama-katmanı alternatifi | Açık (Faz 6/Batch 4'te) |
+| 3 | PyInstaller .exe boyutu (~100-200MB) — kabul edilebilir mi? | Açık (Faz 7) |
+| 4 | Scapy + Npcap ilk kurulum deneyimi — bundle mı, downloader mı? | Açık (Faz 7) |
+| 5 | Windows SmartScreen uyarısı — kod imzalama sertifikası gerekli mi? | Açık (Faz 7) |
+| 6 | CVE veritabanı kaynağı — offline NVD kopyası mı, online API mı? | **Çözüldü** — online NVD API (Faz 4) |
 
 ## 5. Proje Kararlarının Evrimi
 
