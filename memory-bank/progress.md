@@ -17,7 +17,7 @@ Faz 1: Güvenlik Katmanı               ██████████  %100 (12
 Faz 2: MVP (localhost tarama)         ██████████  %100 (154 test, E2E çalıştı)
 Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
 Faz 4: Servis versiyon + CVE          ██████████  %100 (252 test, E2E 0 FP)
-Faz 5: DB probe + yerel ağ + Wi-Fi    ██░░░░░░░░  %25 (DB auth probe'ları hazır)
+Faz 5: DB probe + yerel ağ + Wi-Fi    ████████░░  %75 (DB + Default creds + Wi-Fi hazır)
 Faz 6: Akıllı rapor + PDF + geçmiş    ░░░░░░░░░░  %0
 Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 ```

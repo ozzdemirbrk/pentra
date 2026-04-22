@@ -54,6 +54,10 @@ dmypy.json
 *.swo
 *~
 
+# Claude Code oturum ayarları — kullanıcıya özel, commit edilmez
+.claude/
+!.claude/commands/
+
 # ----------------------------------------------------
 # İşletim sistemi
 # ----------------------------------------------------
