@@ -158,31 +158,81 @@ class XssProbe(WebProbeBase):
                 reported_params.add(param)
                 break  # Bir kanıt yeter
 
+        # --- Threshold kontrolü (son savunma) ---
+        # Gerçek XSS sitelerinde 1-5 param etkilenir. Test edilen param'ların
+        # %50'sinden fazlası "vulnerable" görünüyorsa bu echo-fallback tipik
+        # davranışıdır — baseline testi yakalayamamış olabilir. Tek INFO ile değiştir.
+        threshold = max(1, int(len(_PARAMS_TO_TEST) * 0.5))
+        if len(findings) >= threshold:
+            return [
+                Finding(
+                    scanner_name="web_scanner",
+                    severity=Severity.INFO,
+                    title=(
+                        f"Site {len(findings)} parametrenin çoğunda yansıma gösteriyor "
+                        "— XSS testi güvenilir değil"
+                    ),
+                    description=(
+                        f"Test edilen {len(_PARAMS_TO_TEST)} parametrenin {len(findings)}'i "
+                        f"'yansıyor' olarak tespit edildi. Gerçek dünyada bu kadar çok "
+                        f"parametrenin hepsinde XSS olması nadirdir — büyük ihtimalle site "
+                        f"her parametre girdisini cevabına geri yansıtıyor (SPA fallback, "
+                        f"debug endpoint, dev server echo). Tipik yanıtlı XSS testleri bu "
+                        f"tür sitelerde false positive üretir. Geliştirici ekibiyle "
+                        f"görüşüp HTML escape davranışını doğrulayın."
+                    ),
+                    target=url,
+                    remediation=(
+                        "Geliştirici için: Kullanıcı girdisini HTML'e yazmadan önce "
+                        "context-aware escaping uygulayın. Framework (React/Vue/Jinja2) "
+                        "autoescape varsayılan olarak açık olmalı."
+                    ),
+                    evidence=self._build_evidence(
+                        request_method="GET",
+                        request_path=url,
+                        why_vulnerable=(
+                            f"{len(findings)}/{len(_PARAMS_TO_TEST)} param yansıyor — "
+                            f"threshold %50 aşıldı"
+                        ),
+                    ),
+                ),
+            ]
+
         return findings
 
     def _site_echoes_random_param(
         self, url: str, session: requests.Session,
     ) -> bool:
-        """Rastgele bir parametre gönderip yansıyıp yansımadığına bak.
+        """Rastgele param + XSS probe'larının kullandığı AYNI payload'larla test.
 
-        Asla XSS'e sebep olmayacak bir parametre adı + tag benzeri içerik
-        gönderir. Yanıtta bu içerik çıkıyorsa → site her şeyi echo yapıyor,
-        XSS probe'u güvenilir sonuç vermez.
+        Amaç: echo-fallback tespitinin aynı filtre davranışına takılmasını
+        önlemek. Eğer sunucu XSS payload'larına tepki veriyor ama
+        `<xxx>` gibi özel olmayan marker'a farklı davranıyorsa yalnızca
+        `<xxx>` ile test yaparak kaçabilirdik. Şimdi tüm payload tiplerini
+        rastgele param adıyla dener — biri yansıyorsa echo-fallback.
         """
         probe_param = f"pentra{secrets.token_hex(3)}"
-        probe_canary = _make_canary()
-        probe_marker = f"<xxx{probe_canary}>"
-        test_url = self._build_url_with_param(url, probe_param, probe_marker)
+        canary = _make_canary()
+        # XSS probe'unun kullandığı tüm context'lerle aynı marker'lar
+        test_payloads = [
+            f"<script>/*{canary}*/</script>",
+            f"<xss{canary}>",
+            f"';//{canary}",
+        ]
 
-        try:
-            response = session.get(
-                test_url, timeout=self.timeout, allow_redirects=False,
-            )
-        except requests.RequestException:
-            return False
+        for payload in test_payloads:
+            test_url = self._build_url_with_param(url, probe_param, payload)
+            try:
+                response = session.get(
+                    test_url, timeout=self.timeout, allow_redirects=False,
+                )
+            except requests.RequestException:
+                continue
 
-        # Canary yanıtta direkt görünüyorsa → site echo yapıyor
-        return probe_marker in response.text
+            if payload in response.text:
+                return True
+
+        return False
 
     # -----------------------------------------------------------------
     @staticmethod
