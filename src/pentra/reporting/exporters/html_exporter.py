@@ -7,6 +7,8 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
+from pentra.knowledge.remediations_tr import get_guide
+
 from pentra.reporting.report_builder import Report
 
 _TEMPLATE_DIR: Path = Path(__file__).parent.parent / "templates"
@@ -68,6 +70,8 @@ class HtmlExporter:
         self._env.filters["tr_datetime"] = _tr_datetime
         self._env.filters["severity_label"] = _severity_label
         self._env.filters["severity_color"] = _severity_color
+        # Detaylı onarım rehberi arama — her finding için template'den çağrılır
+        self._env.globals["get_remediation_guide"] = get_guide
 
     def render(self, report: Report) -> str:
         template = self._env.get_template(_TEMPLATE_NAME)
