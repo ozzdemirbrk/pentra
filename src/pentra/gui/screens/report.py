@@ -46,6 +46,15 @@ class ReportPage(QWizardPage):
 
         layout = QVBoxLayout(self)
 
+        # Risk skoru + karşılaştırma banner — initializePage'de doldurulur
+        self._risk_banner = QFrame()
+        self._risk_banner.setStyleSheet(
+            "QFrame { background: #f5f7fa; border-radius: 8px; padding: 12px; }",
+        )
+        self._risk_banner_layout = QVBoxLayout(self._risk_banner)
+        self._risk_banner_layout.setContentsMargins(12, 10, 12, 10)
+        layout.addWidget(self._risk_banner)
+
         # Özet alanı
         self._summary_area = QFrame()
         self._summary_area.setStyleSheet(
@@ -141,6 +150,7 @@ class ReportPage(QWizardPage):
             except Exception:  # noqa: BLE001
                 pass
 
+        self._populate_risk_banner(self._report)
         self._populate_summary(self._report.summary)
         self._populate_findings(self._report.findings)
 
@@ -154,6 +164,91 @@ class ReportPage(QWizardPage):
     # -----------------------------------------------------------------
     # UI doldurma
     # -----------------------------------------------------------------
+    def _populate_risk_banner(self, report: Report) -> None:
+        """Risk skoru + karşılaştırma bilgisi — GUI üst banner."""
+        # Önceki widget'ları temizle
+        while self._risk_banner_layout.count():
+            item = self._risk_banner_layout.takeAt(0)
+            w = item.widget() if item else None
+            if w is not None:
+                w.deleteLater()
+
+        # Risk skoru satırı
+        risk_row = QHBoxLayout()
+
+        risk_label = QLabel(
+            f"<div style='font-size: 11px; color: #666;'>GENEL RİSK</div>"
+            f"<div style='font-size: 28px; font-weight: 700; color: {report.risk.color};'>"
+            f"{report.risk.score_display}/10 &nbsp;"
+            f"<span style='font-size: 14px; text-transform: uppercase;'>{report.risk.label}</span>"
+            f"</div>",
+        )
+        risk_label.setTextFormat(Qt.TextFormat.RichText)
+        risk_row.addWidget(risk_label)
+        risk_row.addStretch()
+
+        if report.comparison is not None:
+            cmp = report.comparison
+            trend_icon = {
+                "improved": "📉 İyileşme",
+                "worsened": "📈 Kötüleşme",
+                "stable": "➡️ Durağan",
+            }.get(cmp.risk_trend, "")
+            trend_color = {
+                "improved": "#388e3c",
+                "worsened": "#d32f2f",
+                "stable": "#666",
+            }.get(cmp.risk_trend, "#666")
+
+            delta_text = (
+                f"{cmp.risk_delta:+.1f}" if abs(cmp.risk_delta) >= 0.1 else "0.0"
+            )
+            cmp_label = QLabel(
+                f"<div style='font-size: 11px; color: #666; text-align: right;'>ÖNCEKİ TARAMAYLA</div>"
+                f"<div style='font-size: 14px; color: {trend_color}; font-weight: 600; text-align: right;'>"
+                f"{trend_icon} ({delta_text})</div>",
+            )
+            cmp_label.setTextFormat(Qt.TextFormat.RichText)
+            risk_row.addWidget(cmp_label)
+
+        self._risk_banner_layout.addLayout(risk_row)
+
+        # Yönetici özeti satırı
+        summary_label = QLabel(report.risk.summary_tr)
+        summary_label.setTextFormat(Qt.TextFormat.RichText)
+        summary_label.setWordWrap(True)
+        summary_label.setStyleSheet(
+            "QLabel { color: #444; font-size: 13px; padding: 6px 0 0 0; }",
+        )
+        self._risk_banner_layout.addWidget(summary_label)
+
+        # Karşılaştırma kartları (önceki tarama varsa)
+        if report.comparison is not None:
+            cmp = report.comparison
+            cmp_row = QHBoxLayout()
+            cmp_row.setContentsMargins(0, 10, 0, 0)
+            for count, label, color, bg in (
+                (cmp.new_count, "Yeni Risk", "#d32f2f", "#ffebee"),
+                (cmp.resolved_count, "Çözülmüş", "#388e3c", "#e8f5e9"),
+                (cmp.unchanged_count, "Değişmemiş", "#455a64", "#eceff1"),
+            ):
+                card = QFrame()
+                card.setStyleSheet(
+                    f"QFrame {{ background: {bg}; border-left: 3px solid {color}; "
+                    f"border-radius: 4px; padding: 6px 10px; }}",
+                )
+                cl = QVBoxLayout(card)
+                cl.setContentsMargins(6, 4, 6, 4)
+                num = QLabel(str(count))
+                num.setStyleSheet(f"QLabel {{ color: {color}; font-size: 20px; font-weight: 700; }}")
+                txt = QLabel(label)
+                txt.setStyleSheet("QLabel { color: #555; font-size: 10px; text-transform: uppercase; }")
+                cl.addWidget(num)
+                cl.addWidget(txt)
+                cmp_row.addWidget(card, stretch=1)
+
+            self._risk_banner_layout.addLayout(cmp_row)
+
     def _populate_summary(self, summary: ReportSummary) -> None:
         # Eski widget'ları temizle
         while self._summary_layout.count():

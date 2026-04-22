@@ -36,6 +36,7 @@ from pentra.models import TargetType
 from pentra.safety.authorization import AuthorizationManager
 from pentra.safety.scope_validator import ScopeValidator
 from pentra.storage.audit_log import AuditLog
+from pentra.storage.scan_history import ScanHistory
 
 
 def _build_scanner_factory(
@@ -88,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
     # ---- Paylaşımlı servisler ----
     appdata = get_appdata_dir()
     audit_log = AuditLog(log_path=appdata / "audit.log")
+    scan_history = ScanHistory(db_path=appdata / "history.db")
     scope_validator = ScopeValidator()
     auth_manager = AuthorizationManager()  # secret otomatik, TTL 30 dk
 
@@ -117,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     # ---- Sihirbaz ----
-    wizard = PentraWizard(orchestrator=orchestrator)
+    wizard = PentraWizard(orchestrator=orchestrator, scan_history=scan_history)
     wizard.setPage(PageId.AUTHORIZATION, AuthorizationPage())
     wizard.setPage(PageId.TARGET_SELECT, TargetSelectPage())
     wizard.setPage(PageId.DEPTH_SELECT, DepthSelectPage())
