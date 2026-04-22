@@ -80,6 +80,8 @@ class PentraWizard(QWizard):
         self.setButtonText(QWizard.WizardButton.BackButton, "< Geri")
         self.setButtonText(QWizard.WizardButton.CancelButton, "İptal")
         self.setButtonText(QWizard.WizardButton.FinishButton, "Bitir")
+        # "Commit" butonu — tarama bitince gösterilen "raporu aç" butonu
+        self.setButtonText(QWizard.WizardButton.CommitButton, "📊 Raporla")
 
         # Sayfa eklenmesi app.py'dan yapılır (bağımlılıkları enjekte etmek için)
 

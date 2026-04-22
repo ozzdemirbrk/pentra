@@ -5,7 +5,7 @@
 ---
 
 ## Son Güncelleme
-**2026-04-22** — Faz 5 Batch 1 tamamlandı. DB auth probe'ları (Redis, Elasticsearch, MongoDB) ve NetworkScanner entegrasyonu eklendi. 267 test yeşil (+15 yeni). Commit bcd3391.
+**2026-04-22** — Faz 5 %100, Faz 6 Batch 1 (33 detaylı rehber + logo) tamam. PDF/MD export iptal — HTML yeterli. "Commit" butonu "📊 Raporla" olarak düzeltildi. Sıradaki: Faz 6 Batch 2 (Executive Summary + Genel Risk Skoru). 396 test yeşil.
 
 ---
 
