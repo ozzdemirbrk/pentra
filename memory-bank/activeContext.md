@@ -5,29 +5,33 @@
 ---
 
 ## Son Güncelleme
-**2026-04-22** — Faz 5 Batch 1 (DB auth probe'ları) tamamlandı. Batch 2 (MySQL/PostgreSQL/SSH default creds) başlıyor.
+**2026-04-22** — Faz 5 %100 tamam (4 batch). 312 test yeşil. Kullanıcı E2E test yapıyor. Sırada Faz 6 (akıllı rapor + PDF + detaylı onarım rehberleri) var.
 
 ---
 
 ## 1. Şu Anki Odak
 
-**Aşama**: 🗄️ **Faz 5 Batch 2 — Default Credentials Probe'ları**
+**Aşama**: 🧪 **Faz 5 E2E test bekleniyor — sonra Faz 6 başlayacak**
 
-**Tamamlanan** (commit `bcd3391`, `3525759`):
-- Faz 5 Batch 1: Redis + Elasticsearch + MongoDB auth check
-- ServiceProbeBase mimarisi (port → probe registry)
-- NetworkScanner entegrasyonu (açık DB portu → otomatik auth test)
-- 267 test yeşil
+**Faz 5 özeti** (commit'ler: bcd3391, 5222b4f, 570c23f, 614fbde, 5923bcc):
+- Batch 1: Redis + Elasticsearch + MongoDB auth probe
+- Batch 2: MySQL + PostgreSQL + SSH default credentials probe
+- Batch 3: Wi-Fi pasif scanner (netsh wlan parser, EN+TR)
+- Batch 4: LOCAL_NETWORK (otomatik /24 tespit) + IP_RANGE (manuel CIDR/IP)
 
-**Sıradaki Batch 2 — Default Credentials**:
-- MySQL (port 3306): pymysql ile root:'', root:root (max 2 deneme)
-- PostgreSQL (port 5432): psycopg2-binary ile postgres:postgres, postgres:''
-- SSH (port 22): paramiko ile root:root, admin:admin, pi:raspberry
-- **Önemli**: Her servis için max 2-3 kombinasyon. Reddedilirse hemen bırak (fail2ban tetiklememek için). Bağlanabilirse hemen kopart, veri çekmez.
+**Scanner kapsamı** (tüm target tipleri aktif):
+- Localhost, URL, Wi-Fi, yerel ağ, IP aralığı → her biri çalışır durumda
+- 8 portta otomatik service probe (22, 3306, 5432, 6379, 9200, 27017-19)
+- NetworkScanner her açık port için CVE lookup (NVD)
 
-**Sonraki Batch'ler**:
-- Batch 3: Wi-Fi pasif scanner (Windows netsh wlan)
-- Batch 4: Yerel ağ keşfi (IP_RANGE target aktifleştir, CIDR ping sweep)
+**Sıradaki Faz 6 — Akıllı Rapor + PDF + Detaylı Rehberler**:
+- CVSS bazlı risk skoru (genel + her bulgu için)
+- Executive summary (teknik olmayan özet)
+- PDF exporter (xhtml2pdf)
+- Markdown exporter
+- **Detaylı onarım rehberleri** (knowledge/remediations_tr.py) — kullanıcının özel isteği:
+  her bulgu için Nginx/Apache/IIS/Cloudflare varyantlı adım adım rehber
+- SQLite'ta geçmiş taramalar + "geçen tarama göre ne değişti" diff
 
 ## 2. Son Değişiklikler (Kronolojik)
 
