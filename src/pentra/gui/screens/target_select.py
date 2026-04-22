@@ -99,11 +99,25 @@ class TargetSelectPage(QWizardPage):
         self._url_panel.setVisible(False)
         layout.addWidget(self._url_panel)
 
-        # --- 3-5) Yakında seçenekleri (disabled) ---
+        # --- 3) Wi-Fi ağları (aktif — Faz 5) ---
+        self._rb_wifi = QRadioButton("📡  Çevredeki Wi-Fi ağları")
+        self._rb_wifi.setStyleSheet("QRadioButton { font-size: 13px; padding: 6px; }")
+        self._group.addButton(self._rb_wifi)
+        layout.addWidget(self._rb_wifi)
+
+        desc_wifi = QLabel(
+            "&nbsp;&nbsp;&nbsp;&nbsp;<small>Çevrenizdeki Wi-Fi ağlarını (pasif) listeler — "
+            "paket gönderilmez. Zayıf şifrelemeli (WEP, şifresiz) veya modası geçmiş ağları "
+            "tespit eder.</small>",
+        )
+        desc_wifi.setWordWrap(True)
+        desc_wifi.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(desc_wifi)
+
+        # --- 4-5) Yakında seçenekleri (disabled — Faz 5/Batch 4) ---
         soon_options = [
             ("🏠  Yerel ağım (192.168.x.x)", "Ev/ofis ağınızdaki tüm cihazları keşfeder"),
             ("🌐  Belirli bir IP veya IP aralığı", "Tek bir IP veya CIDR notasyonunda aralık"),
-            ("📡  Çevredeki Wi-Fi ağları", "Pasif Wi-Fi taraması — paket gönderilmez"),
         ]
         for label, desc in soon_options:
             rb = QRadioButton(f"{label}   — yakında")
@@ -136,6 +150,8 @@ class TargetSelectPage(QWizardPage):
         """İleri aktif kriterleri."""
         if self._rb_localhost.isChecked():
             return True
+        if self._rb_wifi.isChecked():
+            return True
         if self._rb_url.isChecked():
             url_text = self._url_input.text().strip()
             if not url_text:
@@ -156,6 +172,15 @@ class TargetSelectPage(QWizardPage):
                 target_type=TargetType.LOCALHOST,
                 value="127.0.0.1",
                 description="Bu bilgisayar",
+            )
+            wizard.context.external_target_confirmed = False
+            return True
+
+        if self._rb_wifi.isChecked():
+            wizard.context.target = Target(
+                target_type=TargetType.WIFI,
+                value="*",
+                description="Çevredeki Wi-Fi ağları",
             )
             wizard.context.external_target_confirmed = False
             return True

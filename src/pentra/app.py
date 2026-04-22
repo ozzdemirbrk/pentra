@@ -23,6 +23,7 @@ from pentra.core.rate_limiter import TokenBucket
 from pentra.core.scan_orchestrator import ScanOrchestrator
 from pentra.core.scanner_base import ScannerBase
 from pentra.core.web_scanner import WebScanner
+from pentra.core.wifi_scanner import WifiScanner
 from pentra.knowledge.cve_mapper import CveMapper
 from pentra.knowledge.nvd_client import NvdClient
 from pentra.gui.screens.authorization import AuthorizationPage
@@ -46,14 +47,19 @@ def _build_scanner_factory(
     """TargetType'a göre uygun Scanner örneği üretir."""
 
     def factory(target_type: TargetType) -> ScannerBase:
-        # Faz 3: URL → WebScanner, diğerleri → NetworkScanner.
-        # Faz 4+'ta Wi-Fi ve ağ keşfi için ek scanner'lar eklenecek.
+        # URL → WebScanner, WIFI → WifiScanner, diğerleri → NetworkScanner.
         if target_type == TargetType.URL:
             return WebScanner(
                 rate_limiter=rate_limiter,
                 audit_log=audit_log,
                 auth_manager=auth_manager,
                 cve_mapper=cve_mapper,
+            )
+        if target_type == TargetType.WIFI:
+            return WifiScanner(
+                rate_limiter=rate_limiter,
+                audit_log=audit_log,
+                auth_manager=auth_manager,
             )
         return NetworkScanner(
             rate_limiter=rate_limiter,

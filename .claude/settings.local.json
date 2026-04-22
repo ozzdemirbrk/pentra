@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe -m pytest tests/unit/core/test_wifi_scanner.py -q --no-cov)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -q --no-cov)"
+    ]
+  }
+}

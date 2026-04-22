@@ -143,11 +143,13 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 - [x] NetworkScanner registry: 8 portta 6 probe (3306, 5432, 22, 6379, 9200, 27017-9)
 - [x] 13 yeni test (280 toplam)
 
-**Batch 3 (Wi-Fi)**
-- [ ] `core/wifi_scanner.py` — Windows `netsh wlan show networks mode=bssid` parser
-- [ ] Zayıf şifrelemeli ağ (WEP, Open) tespiti
-- [ ] WPS açık tespiti (netsh çıktısından)
-- [ ] target_select GUI: Wi-Fi seçeneği aktif
+**Batch 3 ✅ (bu turda commit)**
+- [x] `core/wifi_scanner.py` — netsh wlan parser (EN + TR etiket desteği)
+- [x] Finding seviyeleri: Open/WEP → HIGH, eski WPA → MEDIUM, WPA2/3 → INFO
+- [x] target_select.py: Wi-Fi radyo butonu aktif
+- [x] app.py factory: TargetType.WIFI → WifiScanner
+- [x] 15 yeni test (295 toplam) — netsh çıktı parse + değerlendirme
+- [ ] WPS açık tespiti → netsh güvenilir raporlamadığı için kapsam dışı (v2'de monitor mode + wash ile)
 
 **Batch 4 (Yerel ağ keşfi)**
 - [ ] IP_RANGE ve LOCAL_NETWORK target tipleri GUI'de aktif
