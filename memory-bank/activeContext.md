@@ -5,27 +5,29 @@
 ---
 
 ## Son Güncelleme
-**2026-04-21** — Faz 2 MVP tamamlandı + yol haritası revize edildi. Kullanıcının "sızabiliyor mu test etsin" açıklamasıyla **Seviye 2 (non-destructive probing)** çerçevesi netleşti. CLAUDE.md § 2'ye yazıldı.
+**2026-04-22** — Faz 5 Batch 1 (DB auth probe'ları) tamamlandı. Batch 2 (MySQL/PostgreSQL/SSH default creds) başlıyor.
 
 ---
 
 ## 1. Şu Anki Odak
 
-**Aşama**: 🎯 **Faz 4 tamam — Faz 5 veya Faz 6 başlayacak**
+**Aşama**: 🗄️ **Faz 5 Batch 2 — Default Credentials Probe'ları**
 
-E2E doğrulaması:
-- Zonguldak'ta 7 gerçek bulgu, 0 false positive
-- CVE mantığı iki farklı bug ile geçti: (1) soft-404 fix (Faz 3) (2) CPE fallback fix (Faz 4)
-- Raporlar artık güvenilir
+**Tamamlanan** (commit `bcd3391`, `3525759`):
+- Faz 5 Batch 1: Redis + Elasticsearch + MongoDB auth check
+- ServiceProbeBase mimarisi (port → probe registry)
+- NetworkScanner entegrasyonu (açık DB portu → otomatik auth test)
+- 267 test yeşil
 
-Faz 3 tamamlandı. E2E test zonguldak.bel.tr üzerinde yapıldı: ilk raporda 3 CRITICAL false positive vardı (`.env`, `database.sql`, `.DS_Store` — soft-404 kaynaklı), düzeltildi. Şimdi 0 FP, 7 gerçek bulgu. Tüm header eksiklikleri + IIS 10.0 versiyon sızıntısı + security.txt yok.
+**Sıradaki Batch 2 — Default Credentials**:
+- MySQL (port 3306): pymysql ile root:'', root:root (max 2 deneme)
+- PostgreSQL (port 5432): psycopg2-binary ile postgres:postgres, postgres:''
+- SSH (port 22): paramiko ile root:root, admin:admin, pi:raspberry
+- **Önemli**: Her servis için max 2-3 kombinasyon. Reddedilirse hemen bırak (fail2ban tetiklememek için). Bağlanabilirse hemen kopart, veri çekmez.
 
-**Faz 4 planı**:
-1. NetworkScanner'da `-sV` aktifleştir (servis versiyonu tespiti)
-2. `knowledge/cve_mapper.py` — servis+versiyon → bilinen CVE eşleştirme
-3. NVD (National Vulnerability Database) JSON feed yerel kopyası
-4. Default credentials check modülü (SSH/MySQL/Redis/RDP için tek-seferlik dene)
-5. Web probe'lara da versiyon+CVE entegrasyonu (Server: Microsoft-IIS/10.0 → IIS 10.0 CVE'leri)
+**Sonraki Batch'ler**:
+- Batch 3: Wi-Fi pasif scanner (Windows netsh wlan)
+- Batch 4: Yerel ağ keşfi (IP_RANGE target aktifleştir, CIDR ping sweep)
 
 ## 2. Son Değişiklikler (Kronolojik)
 
