@@ -17,7 +17,7 @@ Faz 1: Güvenlik Katmanı               ██████████  %100 (12
 Faz 2: MVP (localhost tarama)         ██████████  %100 (154 test, E2E çalıştı)
 Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
 Faz 4: Servis versiyon + CVE          ██████████  %100 (252 test, E2E 0 FP)
-Faz 5: DB probe + yerel ağ + Wi-Fi    ████████░░  %75 (DB + Default creds + Wi-Fi hazır)
+Faz 5: DB probe + yerel ağ + Wi-Fi    ██████████  %100 (DB + Default creds + Wi-Fi + yerel ağ + IP range)
 Faz 6: Akıllı rapor + PDF + geçmiş    ░░░░░░░░░░  %0
 Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 ```
@@ -151,11 +151,12 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 - [x] 15 yeni test (295 toplam) — netsh çıktı parse + değerlendirme
 - [ ] WPS açık tespiti → netsh güvenilir raporlamadığı için kapsam dışı (v2'de monitor mode + wash ile)
 
-**Batch 4 (Yerel ağ keşfi)**
-- [ ] IP_RANGE ve LOCAL_NETWORK target tipleri GUI'de aktif
-- [ ] NetworkScanner: CIDR girdisi için ping sweep + paralel port scan
-- [ ] Cihaz başına özet (host → açık portlar → servis/versiyon)
-- [ ] Otomatik yerel ağ tespiti (ipconfig/route parse ile CIDR önerme)
+**Batch 4 ✅ (commit 614fbde)**
+- [x] `utils/network_utils.py` — get_local_ip, guess_local_cidr, is_valid_cidr
+- [x] LOCAL_NETWORK radyosu aktif (/24 otomatik tespit)
+- [x] IP_RANGE radyosu aktif (CIDR input + yetki checkbox + tek IP → /32)
+- [x] NetworkScanner için ek iş gerekmedi (nmap CIDR'yi doğal destekliyor)
+- [x] 17 yeni test (312 toplam)
 
 ### Faz 6 — Akıllı Rapor + PDF + Geçmiş
 - [ ] CVSS skoru (her bulgu için)
