@@ -5,7 +5,7 @@
 ---
 
 ## Son Güncelleme
-**2026-04-22** — Faz 5 %100, Faz 6 Batch 1 (33 detaylı rehber + logo) tamam. PDF/MD export iptal — HTML yeterli. "Commit" butonu "📊 Raporla" olarak düzeltildi. Sıradaki: Faz 6 Batch 2 (Executive Summary + Genel Risk Skoru). 396 test yeşil.
+**2026-04-22** — Faz 6 Batch 2 tamam: Genel Risk Skoru (0-10) + Executive Summary + TOP-3 aksiyon listesi. Rapor artık "yönetici raporu" seviyesinde. 417 test yeşil. Commit a236d96 + a766fc9. Sıradaki: Faz 6 Batch 3 (SQLite geçmiş + tarama karşılaştırma). AI kullanılmıyor — tüm metin deterministik + 33 hardcoded rehber.
 
 ---
 
