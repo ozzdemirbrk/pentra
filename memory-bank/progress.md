@@ -136,11 +136,12 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 - [x] NetworkScanner entegrasyonu — açık DB portlarında probe çalışır
 - [x] 15 yeni test (267 toplam)
 
-**Batch 2 (sıradaki)**
-- [ ] MySQL default creds probe (root:'', root:root, admin:admin — tek-seferlik)
-- [ ] PostgreSQL default creds probe (postgres:postgres, postgres:'')
-- [ ] SSH default creds probe (paramiko ile — root:root, admin:admin tek-seferlik)
-  **Önemli**: fail2ban gibi sistemlerde hesap kilitleyebilir → finding'de uyarı ver
+**Batch 2 ✅ (commit 5222b4f)**
+- [x] MySQL default creds probe (port 3306, root:'', root:root — max 2 deneme)
+- [x] PostgreSQL default creds probe (port 5432, postgres:postgres, postgres:'' — max 2)
+- [x] SSH default creds probe (port 22, root:root, admin:admin, pi:raspberry — max 3)
+- [x] NetworkScanner registry: 8 portta 6 probe (3306, 5432, 22, 6379, 9200, 27017-9)
+- [x] 13 yeni test (280 toplam)
 
 **Batch 3 (Wi-Fi)**
 - [ ] `core/wifi_scanner.py` — Windows `netsh wlan show networks mode=bssid` parser
