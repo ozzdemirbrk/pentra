@@ -5,7 +5,7 @@
 ---
 
 ## Son Güncelleme
-**2026-04-22** — Faz 6 %100 tamam: SQLite tarama geçmişi + "önceki taramadan ne değişti" karşılaştırması. Kullanıcı aynı hedefi tekrar tararsa rapora otomatik trend bilgisi eklenir (iyileşme/kötüleşme + yeni/çözülmüş bulgu listesi). SQLite Python stdlib — kurulum yok. 442 test yeşil. Commit 7841629. Sıradaki: Faz 7 (Paketleme — .exe).
+**2026-04-22** — Faz 6 %100 E2E doğrulandı. Kullanıcı zonguldak.bel.tr'yi 2 kez taradı: ilk raporda karşılaştırma yok (doğru), ikincide var (0 yeni / 0 çözülmüş / 7 değişmemiş / durağan). history.db 24 KB. İki bug (ScanHistory app.py'de bağlı değildi + GUI banner yoktu) commit c404604'te düzeltildi. 442 test yeşil. Sıradaki: **Faz 7 — Paketleme (.exe)**. Kullanıcı plan istiyor — onaysız başlanmayacak.
 
 ---
 
