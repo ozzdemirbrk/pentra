@@ -17,14 +17,27 @@ from pentra.core.scanner_base import ScannerBase
 from pentra.core.service_probes.base import ServiceProbeBase
 from pentra.core.service_probes.elasticsearch_probe import ElasticsearchAuthProbe
 from pentra.core.service_probes.mongodb_probe import MongoDbAuthProbe
+from pentra.core.service_probes.mysql_probe import MysqlDefaultCredsProbe
+from pentra.core.service_probes.postgresql_probe import PostgresDefaultCredsProbe
 from pentra.core.service_probes.redis_probe import RedisAuthProbe
+from pentra.core.service_probes.ssh_probe import SshDefaultCredsProbe
 from pentra.models import Finding, ScanDepth, Severity, Target
 
 # Port → Service probe eşlemesi. Açık port bulunduğunda ilgili probe çalışır.
 def _default_service_probes() -> dict[int, ServiceProbeBase]:
     """Her port için kayıtlı probe (port numarası → probe örneği)."""
     registry: dict[int, ServiceProbeBase] = {}
-    for probe_cls in (RedisAuthProbe, ElasticsearchAuthProbe, MongoDbAuthProbe):
+    probe_classes: tuple[type[ServiceProbeBase], ...] = (
+        # Auth-open checks (parolasız erişim)
+        RedisAuthProbe,
+        ElasticsearchAuthProbe,
+        MongoDbAuthProbe,
+        # Default credentials checks (varsayılan parola — max 2-3 deneme)
+        MysqlDefaultCredsProbe,
+        PostgresDefaultCredsProbe,
+        SshDefaultCredsProbe,
+    )
+    for probe_cls in probe_classes:
         probe_instance = probe_cls()
         for port in probe_instance.default_ports:
             registry[port] = probe_instance
