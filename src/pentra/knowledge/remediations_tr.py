@@ -619,6 +619,117 @@ _SSH_DEFAULT_GUIDE = RemediationGuide(
     ),
 )
 
+_WIFI_OPEN_GUIDE = RemediationGuide(
+    problem_summary="Şifresiz (Open) Wi-Fi ağı tespit edildi.",
+    why_important=(
+        "Şifresiz Wi-Fi'de tüm trafik ortamdaki herhangi biri tarafından dinlenebilir "
+        "— HTTPS olmayan sitelerdeki parolalar, çerezler, form verileri açıkta. "
+        "Ayrıca saldırgan sahte bir kablosuz ağ oluşturup (Evil Twin) kullanıcıları "
+        "ağa çekebilir ve tüm trafiği yönlendirebilir. Misafir Wi-Fi diye şifre "
+        "koymamak bir seçenek değil — misafir Wi-Fi bile şifreli olmalı."
+    ),
+    fix_steps=(
+        FixStep(
+            "1. Router yönetim paneline gir",
+            "Tarayıcıda router IP'sini aç (genelde **192.168.1.1** veya **192.168.0.1**). "
+            "Admin kullanıcı adı + parolasıyla gir. Bilmiyorsan router'ın altındaki "
+            "sticker'a bak.",
+        ),
+        FixStep(
+            "2. Şifreleme ayarını aç",
+            "Menüde **Kablosuz (Wireless) → Güvenlik** bölümüne git. Güvenlik modu: "
+            "**WPA3-Personal** seç (varsa) ya da **WPA2-Personal (AES/CCMP)**. "
+            "WEP ve 'Open' seçeneklerini ASLA kullanma.",
+        ),
+        FixStep(
+            "3. Güçlü bir parola belirle",
+            "En az 12 karakter, karışık. Wi-Fi parolası genelde bir kez girilir, "
+            "uzun olsun. Örnek yapı: 3-4 rastgele kelime birleştir.",
+            code="Kabul edilebilir: Yagmurlu-Pazar-Kedi-Su42!\n"
+                 "Çok güçlü:         correct-horse-battery-staple-99",
+        ),
+        FixStep(
+            "4. Misafir ağı kur",
+            "Modern router'larda 'Guest Network' özelliği var — etkinleştirin. "
+            "Misafirler bu ağa bağlansın, ana ağınıza erişim olmasın. Böylece "
+            "misafirin malware'li cihazı sizin akıllı TV'nize/yazıcınıza erişemez.",
+        ),
+        FixStep(
+            "5. WPS'i kapat",
+            "WPS ('kolay bağlanma' tuşu) brute-force saldırısına açıktır. Router "
+            "ayarlarında WPS'i kapatın — modern cihazlar QR kod ile daha güvenli "
+            "bağlanıyor zaten.",
+        ),
+    ),
+    verification=(
+        "Wi-Fi ayarlarını görüntüle → ağın yanında kilit ikonu görünmeli. "
+        "Yeni bir cihazla bağlanmayı dene, parola isteyecektir."
+    ),
+    references=(
+        ("EFF: Create a Strong Password", "https://ssd.eff.org/module/creating-new-password"),
+        ("CISA: Secure Wireless Networks", "https://www.cisa.gov/news-events/news/securing-wireless-networks"),
+    ),
+)
+
+_WIFI_WEP_GUIDE = RemediationGuide(
+    problem_summary="WEP şifrelemeli Wi-Fi ağı — kırık algoritma.",
+    why_important=(
+        "WEP şifrelemesi 2007'den beri kırık. Modern bir dizüstü + aircrack-ng "
+        "birkaç dakikada WEP anahtarını çözer. Bu ağ pratik olarak şifresiz "
+        "sayılmalı — saldırgan ağa bağlanıp iç sistemlere erişebilir (yazıcı, "
+        "NAS, akıllı ev cihazları)."
+    ),
+    fix_steps=(
+        FixStep(
+            "ACİL — WEP'i kapat, WPA2/3'e geç",
+            "Router yönetim paneli → Kablosuz → Güvenlik: "
+            "**WPA2-Personal (AES)** veya **WPA3-Personal**. WEP'i asla bırakma.",
+        ),
+        FixStep(
+            "Eski cihazlar için ayrı ağ",
+            "Eğer eski Wi-Fi cihazlarınız WPA2'yi desteklemiyorsa, onlar için "
+            "ayrı bir Guest Network kurun — ana ağınız WPA2/3 kalsın. Veya "
+            "eski cihazları değiştirin.",
+        ),
+        FixStep(
+            "Router modern mi?",
+            "2010 öncesi router'lar WPA3'ü, bazıları iyi WPA2'yi bile "
+            "desteklemez. Yeni bir router almak (500-1500 TL) iyi yatırımdır. "
+            "Wi-Fi 6 (802.11ax) destekli modeller tercih edilir.",
+        ),
+    ),
+    verification="Wi-Fi ayarları → güvenlik türü 'WPA2' veya 'WPA3' yazmalı, 'WEP' değil.",
+    references=(
+        ("Aircrack-ng tutorial", "https://www.aircrack-ng.org/doku.php?id=tutorial"),
+    ),
+)
+
+_WIFI_OLD_WPA_GUIDE = RemediationGuide(
+    problem_summary="Eski WPA (TKIP) şifrelemeli ağ — WPA2'den zayıf.",
+    why_important=(
+        "Orijinal WPA (TKIP ile) 2004'te geldi ama 2012'den beri zayıflıkları "
+        "biliniyor. WPA2'ye (AES/CCMP) geçiş güvenlik için şart. TKIP brute-force "
+        "ve packet injection saldırılarına WPA2-AES'ten daha açık."
+    ),
+    fix_steps=(
+        FixStep(
+            "WPA2 veya WPA3'e geç",
+            "Router paneli → Kablosuz → Güvenlik: **WPA2-Personal (AES/CCMP)** "
+            "veya **WPA3-Personal**. Mixed mode (WPA/WPA2) KULLANMAYIN — "
+            "sadece WPA2 veya sadece WPA3 seçin.",
+        ),
+        FixStep(
+            "Parolayı yenile",
+            "WPA'dan WPA2/3'e geçerken parolayı da değiştir — eski parola "
+            "eski güvenlik modelinin parçasıydı.",
+        ),
+    ),
+    verification="Wi-Fi ayarları → 'WPA2' veya 'WPA3' yazmalı, 'WPA' tek başına değil.",
+    references=(
+        ("Cisco: WPA vs WPA2 vs WPA3", "https://www.cisco.com/c/en/us/products/wireless/what-is-wpa3.html"),
+    ),
+)
+
 _EXPOSED_ENV_GUIDE = RemediationGuide(
     problem_summary=".env dosyası web kökünden erişilebilir — kritik sırlar ifşa.",
     why_important=(
@@ -686,6 +797,9 @@ _PATTERN_MATCHERS: tuple[tuple[str, _TitleMatcher, RemediationGuide], ...] = (
     ("mysql_default", lambda t: "MySQL varsayılan parola" in t, _MYSQL_DEFAULT_GUIDE),
     ("ssh_default", lambda t: "SSH varsayılan parola" in t, _SSH_DEFAULT_GUIDE),
     ("env_exposed", lambda t: ".env dosyası public" in t, _EXPOSED_ENV_GUIDE),
+    ("wifi_open", lambda t: "Şifresiz Wi-Fi" in t, _WIFI_OPEN_GUIDE),
+    ("wifi_wep", lambda t: "WEP şifrelemeli Wi-Fi" in t, _WIFI_WEP_GUIDE),
+    ("wifi_old_wpa", lambda t: "Eski WPA şifrelemeli" in t, _WIFI_OLD_WPA_GUIDE),
 )
 
 

@@ -39,6 +39,9 @@ class TestGuideStructure:
         "mysql_default",
         "ssh_default",
         "env_exposed",
+        "wifi_open",
+        "wifi_wep",
+        "wifi_old_wpa",
     ])
     def test_every_known_key_returns_guide(self, key: str) -> None:
         guide = get_guide_by_key(key)
