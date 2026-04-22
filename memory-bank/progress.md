@@ -18,7 +18,7 @@ Faz 2: MVP (localhost tarama)         ██████████  %100 (154 
 Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
 Faz 4: Servis versiyon + CVE          ██████████  %100 (252 test, E2E 0 FP)
 Faz 5: DB probe + yerel ağ + Wi-Fi    ██████████  %100 (DB + Default creds + Wi-Fi + yerel ağ + IP range)
-Faz 6: Akıllı rapor + PDF + geçmiş    ███░░░░░░░  %30 (detaylı rehberler ✅)
+Faz 6: Akıllı rapor + PDF + geçmiş    ██████░░░░  %60 (rehberler + PDF/MD + Wi-Fi rehberi ✅)
 Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 ```
 
@@ -170,11 +170,13 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
   HTTP-only, security.txt, Redis/Mongo/ES open, MySQL/SSH default creds,
   .env exposed. 37 yeni test (351 toplam).
 
-**Batch 2 (sıradaki) — PDF + Markdown export**
-- [ ] `reporting/exporters/pdf_exporter.py` — xhtml2pdf ile HTML → PDF
-- [ ] `reporting/exporters/markdown_exporter.py` — MD export (e-posta/README için)
-- [ ] `gui/screens/report.py` — üç format butonu (HTML zaten var, PDF/MD eklenir)
-- [ ] Testler (mocked xhtml2pdf, MD içerik doğrulama)
+**Batch 2 ✅ (commit 3bcc79e)**
+- [x] `reporting/exporters/pdf_exporter.py` — xhtml2pdf ile HTML → PDF
+- [x] `reporting/exporters/markdown_exporter.py` + `templates/basic_report.md.j2`
+- [x] `gui/screens/report.py` — 3 format butonu (HTML + PDF + MD) + "Farklı Yere..." formattan seçim
+- [x] 12 yeni test (363 toplam)
+- [x] Bonus: Wi-Fi için 3 detaylı rehber (Open/WEP/eski WPA)
+- [x] Kullanıcı logo: `public/logo/Pentra.png` → Batch 3'te rapora entegre edilecek
 
 **Batch 3 — Executive Summary + Genel Risk Skoru**
 - [ ] Genel risk skoru hesaplama (her bulgunun CVSS'ini ağırlıklandır)
