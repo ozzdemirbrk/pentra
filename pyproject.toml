@@ -42,10 +42,6 @@ dependencies = [
 
     # Rapor
     "Jinja2>=3.1",
-    # WeasyPrint Windows'ta GTK3 gerektirir; alternatif değerlendirilecek.
-    # "weasyprint>=60",
-    "xhtml2pdf>=0.2.15",
-    "markdown-it-py>=3",
 
     # Veri & güvenlik
     "cryptography>=42",

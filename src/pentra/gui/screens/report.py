@@ -27,8 +27,6 @@ from pentra.config import get_desktop_dir
 from pentra.gui.wizard import PentraWizard
 from pentra.models import Finding, Severity
 from pentra.reporting.exporters.html_exporter import HtmlExporter
-from pentra.reporting.exporters.markdown_exporter import MarkdownExporter
-from pentra.reporting.exporters.pdf_exporter import PdfExporter, PdfExportError
 from pentra.reporting.report_builder import Report, ReportBuilder, ReportSummary
 
 
@@ -44,8 +42,6 @@ class ReportPage(QWizardPage):
         self._report: Report | None = None
         self._builder = ReportBuilder()
         self._html_exporter = HtmlExporter()
-        self._md_exporter = MarkdownExporter()
-        self._pdf_exporter = PdfExporter(html_exporter=self._html_exporter)
 
         layout = QVBoxLayout(self)
 
@@ -66,37 +62,19 @@ class ReportPage(QWizardPage):
         scroll.setWidget(self._findings_container)
         layout.addWidget(scroll, stretch=1)
 
-        # Aksiyon butonları — 3 format
+        # Aksiyon butonları — HTML raporu kaydet (varsayılan masaüstü / farklı yer)
         buttons = QHBoxLayout()
 
-        self._btn_save_html = QPushButton("💾  HTML Kaydet")
-        self._btn_save_html.setStyleSheet(
+        self._btn_save = QPushButton("💾  Raporu Masaüstüne Kaydet")
+        self._btn_save.setStyleSheet(
             "QPushButton { padding: 10px 20px; background: #2196f3; color: white; "
             "border: none; border-radius: 6px; font-size: 14px; } "
             "QPushButton:hover { background: #1976d2; }",
         )
-        self._btn_save_html.clicked.connect(self._on_save_html_clicked)
-        buttons.addWidget(self._btn_save_html)
+        self._btn_save.clicked.connect(self._on_save_clicked)
+        buttons.addWidget(self._btn_save)
 
-        self._btn_save_pdf = QPushButton("📄  PDF Kaydet")
-        self._btn_save_pdf.setStyleSheet(
-            "QPushButton { padding: 10px 20px; background: #d32f2f; color: white; "
-            "border: none; border-radius: 6px; font-size: 14px; } "
-            "QPushButton:hover { background: #b71c1c; }",
-        )
-        self._btn_save_pdf.clicked.connect(self._on_save_pdf_clicked)
-        buttons.addWidget(self._btn_save_pdf)
-
-        self._btn_save_md = QPushButton("📝  Markdown Kaydet")
-        self._btn_save_md.setStyleSheet(
-            "QPushButton { padding: 10px 20px; background: #424242; color: white; "
-            "border: none; border-radius: 6px; font-size: 14px; } "
-            "QPushButton:hover { background: #212121; }",
-        )
-        self._btn_save_md.clicked.connect(self._on_save_md_clicked)
-        buttons.addWidget(self._btn_save_md)
-
-        self._btn_save_as = QPushButton("📁  Farklı Yere...")
+        self._btn_save_as = QPushButton("📁  Farklı Yere Kaydet...")
         self._btn_save_as.clicked.connect(self._on_save_as_clicked)
         buttons.addWidget(self._btn_save_as)
 
@@ -205,78 +183,36 @@ class ReportPage(QWizardPage):
     # -----------------------------------------------------------------
     # Kaydet aksiyonları
     # -----------------------------------------------------------------
-    def _timestamped_path(self, extension: str) -> Path:
+    def _timestamped_path(self) -> Path:
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        return get_desktop_dir() / f"Pentra_Rapor_{ts}.{extension}"
+        return get_desktop_dir() / f"Pentra_Rapor_{ts}.html"
 
-    def _on_save_html_clicked(self) -> None:
+    def _on_save_clicked(self) -> None:
         if self._report is None:
             return
-        self._do_save_html(self._timestamped_path("html"))
-
-    def _on_save_pdf_clicked(self) -> None:
-        if self._report is None:
-            return
-        self._do_save_pdf(self._timestamped_path("pdf"))
-
-    def _on_save_md_clicked(self) -> None:
-        if self._report is None:
-            return
-        self._do_save_md(self._timestamped_path("md"))
+        self._do_save(self._timestamped_path())
 
     def _on_save_as_clicked(self) -> None:
-        """Format seçimli kaydetme — uzantıya göre exporter seçer."""
         if self._report is None:
             return
-        default_path = str(self._timestamped_path("html"))
-        selected, chosen_filter = QFileDialog.getSaveFileName(
+        selected, _ = QFileDialog.getSaveFileName(
             self,
             "Raporu Kaydet",
-            default_path,
-            "HTML dosyaları (*.html);;PDF dosyaları (*.pdf);;Markdown (*.md);;Tüm dosyalar (*)",
+            str(self._timestamped_path()),
+            "HTML dosyaları (*.html);;Tüm dosyalar (*)",
         )
-        if not selected:
-            return
-        path = Path(selected)
-        ext = path.suffix.lower()
-        if ext == ".pdf":
-            self._do_save_pdf(path)
-        elif ext == ".md":
-            self._do_save_md(path)
-        else:
-            self._do_save_html(path)
+        if selected:
+            self._do_save(Path(selected))
 
-    def _do_save_html(self, path: Path) -> None:
+    def _do_save(self, path: Path) -> None:
         if self._report is None:
             return
         try:
             written = self._html_exporter.export(self._report, path)
         except OSError as e:
-            QMessageBox.warning(self, "Kayıt Başarısız", f"HTML yazılamadı: {e}")
+            QMessageBox.warning(self, "Kayıt Başarısız", f"Rapor yazılamadı: {e}")
             return
         self._save_status.setText(f"✅ Kaydedildi: {written}")
-        self._store_saved_path(written)
-
-    def _do_save_pdf(self, path: Path) -> None:
-        if self._report is None:
-            return
-        try:
-            written = self._pdf_exporter.export(self._report, path)
-        except (OSError, PdfExportError) as e:
-            QMessageBox.warning(self, "PDF Başarısız", f"PDF oluşturulamadı: {e}")
-            return
-        self._save_status.setText(f"✅ PDF kaydedildi: {written}")
-        self._store_saved_path(written)
-
-    def _do_save_md(self, path: Path) -> None:
-        if self._report is None:
-            return
-        try:
-            written = self._md_exporter.export(self._report, path)
-        except OSError as e:
-            QMessageBox.warning(self, "Kayıt Başarısız", f"Markdown yazılamadı: {e}")
-            return
-        self._save_status.setText(f"✅ Markdown kaydedildi: {written}")
         self._store_saved_path(written)
 
     def _store_saved_path(self, written: Path) -> None:

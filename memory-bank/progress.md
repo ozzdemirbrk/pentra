@@ -18,7 +18,7 @@ Faz 2: MVP (localhost tarama)         ██████████  %100 (154 
 Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
 Faz 4: Servis versiyon + CVE          ██████████  %100 (252 test, E2E 0 FP)
 Faz 5: DB probe + yerel ağ + Wi-Fi    ██████████  %100 (DB + Default creds + Wi-Fi + yerel ağ + IP range)
-Faz 6: Akıllı rapor + PDF + geçmiş    ██████░░░░  %60 (rehberler + PDF/MD + Wi-Fi rehberi ✅)
+Faz 6: Akıllı rapor + geçmiş (HTML)   █████░░░░░  %50 (rehberler ✅ — PDF/MD iptal)
 Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 ```
 
@@ -158,27 +158,36 @@ Kullanıcının "URL testi, sızabiliyor mu?" sorusunun ilk cevabı.
 - [x] NetworkScanner için ek iş gerekmedi (nmap CIDR'yi doğal destekliyor)
 - [x] 17 yeni test (312 toplam)
 
-### Faz 6 — Akıllı Rapor + PDF + Geçmiş
+### Faz 6 — Akıllı Rapor + Geçmiş (sadece HTML)
 
-**Batch 1 ✅ (commit a842f78, 1497ca1)**
+**Batch 1 ✅ (commit a842f78, 9db8bd8)**
 - [x] **Detaylı onarım rehberleri** (`knowledge/remediations_tr.py`)
-  14 bulgu tipi için 5-bölümlü rehber (sorun özeti, niye önemli, Nginx/Apache/
-  IIS/Cloudflare fix adımları, doğrulama komutu, MDN/OWASP referansları).
-  Rapor şablonu `<details>` açılır kart olarak sunar — kısa öneri üstte
-  varsayılan, detay opt-in.
-  Kapsam: CSP, HSTS, X-Frame, X-Content-Type, Referrer-Policy, Server leak,
-  HTTP-only, security.txt, Redis/Mongo/ES open, MySQL/SSH default creds,
-  .env exposed. 37 yeni test (351 toplam).
+  33 bulgu tipi için 5-bölümlü rehber: sorun özeti, niye önemli, Nginx/Apache/
+  IIS/Cloudflare fix adımları + kod snippet'leri, doğrulama komutu, referanslar.
+  HTML rapor şablonu `<details>` açılır kart olarak sunar.
+  Kapsam: tüm güvenlik header'ları, Server/X-Powered-By leak, HTTP-only,
+  security.txt, Redis/Mongo/ES auth, MySQL/PostgreSQL/SSH default creds,
+  .env/.git/SQL dump/.htaccess/.DS_Store/phpinfo/admin/phpMyAdmin exposed,
+  Wi-Fi (Open/WEP/eski WPA), port-spesifik (RDP/SMB/FTP/Telnet/VNC + generic),
+  SQL injection / XSS / Path traversal / SSL/TLS.
+- [x] Logo entegrasyonu (`reporting/logo.py` — base64 data URI)
+- [x] HTML template header'a logo + başlık
 
-**Batch 2 ✅ (commit 3bcc79e)**
-- [x] `reporting/exporters/pdf_exporter.py` — xhtml2pdf ile HTML → PDF
-- [x] `reporting/exporters/markdown_exporter.py` + `templates/basic_report.md.j2`
-- [x] `gui/screens/report.py` — 3 format butonu (HTML + PDF + MD) + "Farklı Yere..." formattan seçim
-- [x] 12 yeni test (363 toplam)
-- [x] Bonus: Wi-Fi için 3 detaylı rehber (Open/WEP/eski WPA)
-- [x] Kullanıcı logo: `public/logo/Pentra.png` → Batch 3'te rapora entegre edilecek
+**❌ Batch 2 İPTAL (commit 3bcc79e → geri alındı)**
+Kullanıcı test etti: PDF'te Türkçe karakterler kutu, layout bozuk; MD'ye gerek
+görmedi. xhtml2pdf Windows TEMP font kopyalamasında takılıyor, modern CSS
+desteği zayıf. Pragmatik karar: iptal et, HTML'i korur.
+- Silindi: `pdf_exporter.py`, `markdown_exporter.py`, `pdf_report.html.j2`,
+  `basic_report.md.j2` + testler
+- `requirements.txt`'ten xhtml2pdf çıkarıldı
+- `gui/screens/report.py`: 3 buton yerine tek "Masaüstüne Kaydet" + "Farklı
+  Yere..." (HTML only)
+- Test: 363 → 396 yeşil (PDF+MD testleri gittiği için azaldı ama gerçek kod
+  eksilmedi — rehber testleri duruyor)
+- İleride tercihen WeasyPrint (daha iyi CSS + Unicode) veya Playwright PDF
+  değerlendirilebilir (Faz 7 veya v2)
 
-**Batch 3 — Executive Summary + Genel Risk Skoru**
+**Batch 2 (yeni) — Executive Summary + Genel Risk Skoru**
 - [ ] Genel risk skoru hesaplama (her bulgunun CVSS'ini ağırlıklandır)
 - [ ] Rapor başında teknik olmayan Türkçe özet
   ("Sisteminizde 3 kritik, 5 yüksek risk tespit edildi. En acil: X.")

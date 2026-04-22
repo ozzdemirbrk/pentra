@@ -20,8 +20,6 @@ netaddr>=1.0
 
 # -------- Rapor Üretimi --------
 Jinja2>=3.1
-xhtml2pdf>=0.2.15
-markdown-it-py>=3
 
 # -------- Veri & Güvenlik --------
 cryptography>=42
