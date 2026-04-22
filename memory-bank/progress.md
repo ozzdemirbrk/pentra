@@ -18,7 +18,7 @@ Faz 2: MVP (localhost tarama)         ██████████  %100 (154 
 Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
 Faz 4: Servis versiyon + CVE          ██████████  %100 (252 test, E2E 0 FP)
 Faz 5: DB probe + yerel ağ + Wi-Fi    ██████████  %100 (DB + Default creds + Wi-Fi + yerel ağ + IP range)
-Faz 6: Akıllı rapor + PDF + geçmiş    ░░░░░░░░░░  %0
+Faz 6: Akıllı rapor + PDF + geçmiş    ███░░░░░░░  %30 (detaylı rehberler ✅)
 Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 ```
 
