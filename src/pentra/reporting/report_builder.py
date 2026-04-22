@@ -56,6 +56,8 @@ class Report:
     risk: RiskAssessment
     #: Rapor başında gösterilen ilk N öncelikli aksiyon
     top_actions: list[Finding] = dataclasses.field(default_factory=list)
+    #: Önceki taramayla karşılaştırma (varsa); ilk tarama ise None
+    comparison: "ScanComparison | None" = None
 
     @property
     def duration_seconds(self) -> float:
@@ -88,6 +90,7 @@ class ReportBuilder:
         findings: list[Finding],
         started_at: datetime,
         ended_at: datetime | None = None,
+        comparison: "ScanComparison | None" = None,
     ) -> Report:
         if ended_at is None:
             ended_at = datetime.now(timezone.utc)
@@ -118,4 +121,5 @@ class ReportBuilder:
             summary=summary,
             risk=risk,
             top_actions=actions,
+            comparison=comparison,
         )

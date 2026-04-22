@@ -18,7 +18,7 @@ Faz 2: MVP (localhost tarama)         ██████████  %100 (154 
 Faz 3: Web Scanner (Seviye 2 probing) ██████████  %100 (208 test, false positive fix dahil)
 Faz 4: Servis versiyon + CVE          ██████████  %100 (252 test, E2E 0 FP)
 Faz 5: DB probe + yerel ağ + Wi-Fi    ██████████  %100 (DB + Default creds + Wi-Fi + yerel ağ + IP range)
-Faz 6: Akıllı rapor + geçmiş (HTML)   ████████░░  %75 (rehberler + risk skoru + exec summary ✅)
+Faz 6: Akıllı rapor + geçmiş (HTML)   ██████████  %100 (rehberler + risk + exec + SQLite geçmiş ✅)
 Faz 7: Paketleme (.exe) + dağıtım     ░░░░░░░░░░  %0
 ```
 
@@ -200,10 +200,23 @@ desteği zayıf. Pragmatik karar: iptal et, HTML'i korur.
   ("Sisteminizde 3 kritik, 5 yüksek risk tespit edildi. En acil: X.")
 - [ ] CVE'siz bulgular için severity → sayısal skor (CRITICAL=10, HIGH=7, vb.)
 
-**Batch 4 — SQLite Geçmiş + Diff**
-- [ ] `storage/scan_history.py` — SQLite ile geçmiş tarama kaydı
-- [ ] "Geçen taramadan beri ne değişti" karşılaştırması (yeni bulgu / kapanmış bulgu)
-- [ ] Wizard'a "Geçmiş" butonu (opsiyonel — v2'ye ertelenebilir)
+**Batch 3 ✅ — SQLite Geçmiş + Diff** (bu turda commit)
+- [x] `storage/scan_history.py` — SQLite (Python stdlib, kurulum yok)
+  - Schema: scans + findings tabloları (target_key index'i)
+  - record(report), find_previous(target), list_recent(), delete_all()
+  - Dosya: `%APPDATA%/Pentra/history.db` — otomatik oluşur
+- [x] `reporting/comparison.py` — ScanComparison dataclass + compare()
+  - (title, target) bazlı eşleştirme: new / resolved / unchanged
+  - risk_trend: improved / worsened / stable
+- [x] Report dataclass'ına `comparison: ScanComparison | None` eklendi
+- [x] Wizard + app.py: ScanHistory enjekte edildi
+- [x] ReportPage.initializePage: find_previous → compare → record akışı
+- [x] HTML şablonunda "📈 Önceki Tarama ile Karşılaştırma" bölümü (risk kartı üstünde)
+  - Yeni Risk / Çözülmüş / Değişmemiş renkli kartları
+  - Risk trend ok'lu gösterim (📉 iyileşme / 📈 kötüleşme)
+  - İlk 5 yeni bulgu + ilk 5 çözülmüş bulgu listesi
+- [x] 25 yeni test (442 toplam)
+- [ ] Opsiyonel "Geçmiş Taramalar" GUI penceresi → ileride eklenebilir
 
 ### Faz 7 — Paketleme
 - [ ] `scripts/build_exe.py` — PyInstaller script

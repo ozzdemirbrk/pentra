@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 from pentra.config import get_desktop_dir
 from pentra.gui.wizard import PentraWizard
 from pentra.models import Finding, Severity
+from pentra.reporting.comparison import compare as compare_scans
 from pentra.reporting.exporters.html_exporter import HtmlExporter
 from pentra.reporting.report_builder import Report, ReportBuilder, ReportSummary
 
@@ -98,13 +99,47 @@ class ReportPage(QWizardPage):
             self._show_error_state("Tarama bilgileri eksik")
             return
 
-        self._report = self._builder.build(
+        # 1) Önce risk skoru için bir kez build et (comparison olmadan)
+        preliminary = self._builder.build(
             target=ctx.target,
             depth=ctx.depth,
             findings=ctx.findings,
             started_at=ctx.scan_started_at,
             ended_at=ctx.scan_ended_at,
         )
+
+        # 2) Geçmişte aynı hedef için tarama var mı bak
+        comparison = None
+        history = wizard.scan_history
+        if history is not None:
+            try:
+                previous = history.find_previous(ctx.target)
+                if previous is not None:
+                    comparison = compare_scans(
+                        previous=previous,
+                        current_findings=ctx.findings,
+                        current_risk_score=preliminary.risk.score,
+                    )
+            except Exception:  # noqa: BLE001
+                # Geçmiş sorgusu başarısız olsa bile rapor çalışmaya devam
+                pass
+
+        # 3) Nihai Report — comparison ile
+        self._report = self._builder.build(
+            target=ctx.target,
+            depth=ctx.depth,
+            findings=ctx.findings,
+            started_at=ctx.scan_started_at,
+            ended_at=ctx.scan_ended_at,
+            comparison=comparison,
+        )
+
+        # 4) Geçmişe kaydet (bir sonraki tarama için karşılaştırma bazı)
+        if history is not None:
+            try:
+                history.record(self._report)
+            except Exception:  # noqa: BLE001
+                pass
 
         self._populate_summary(self._report.summary)
         self._populate_findings(self._report.findings)

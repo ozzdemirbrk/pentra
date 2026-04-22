@@ -16,6 +16,7 @@ from pentra.models import Finding, ScanDepth, Target
 
 if TYPE_CHECKING:
     from pentra.core.scan_orchestrator import PreparedScan, ScanOrchestrator
+    from pentra.storage.scan_history import ScanHistory
 
 
 # ---------------------------------------------------------------------
@@ -63,11 +64,18 @@ class PageId:
 class PentraWizard(QWizard):
     """Ana uygulama penceresi — 5-sayfa tarama sihirbazı."""
 
-    def __init__(self, orchestrator: "ScanOrchestrator", parent=None) -> None:
+    def __init__(
+        self,
+        orchestrator: "ScanOrchestrator",
+        scan_history: "ScanHistory | None" = None,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
 
         self.context = WizardContext()
         self.orchestrator = orchestrator
+        #: Tarama geçmişi — None ise geçmiş kaydı yapılmaz (test/dev senaryosu için)
+        self.scan_history: "ScanHistory | None" = scan_history
 
         self.setWindowTitle("Pentra — Güvenlik Taraması")
         self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
