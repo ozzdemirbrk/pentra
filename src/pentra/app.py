@@ -22,6 +22,7 @@ from pentra.core.network_scanner import NetworkScanner
 from pentra.core.rate_limiter import TokenBucket
 from pentra.core.scan_orchestrator import ScanOrchestrator
 from pentra.core.scanner_base import ScannerBase
+from pentra.core.update_checker import UpdateChecker
 from pentra.core.web_scanner import WebScanner
 from pentra.core.wifi_scanner import WifiScanner
 from pentra.knowledge.cve_mapper import CveMapper
@@ -128,6 +129,23 @@ def main(argv: list[str] | None = None) -> int:
     wizard.setStartId(PageId.AUTHORIZATION)
 
     wizard.show()
+
+    # ---- Arka planda güncelleme kontrolü ----
+    # İnternet yoksa sessizce geçer; yeni sürüm varsa küçük bir dialog göstereceğiz.
+    _update_checker = UpdateChecker()
+
+    def _on_update_available(new_version: str, release_url: str) -> None:
+        # Lazy import — startup süresini uzatmamak için
+        from pentra.gui.widgets.update_notification import UpdateNotificationDialog
+        dialog = UpdateNotificationDialog(
+            new_version=new_version, release_url=release_url, parent=wizard,
+        )
+        dialog.show()
+
+    _update_checker.update_available.connect(_on_update_available)
+    _update_checker.start()
+    # Worker, app.exec() süresince yaşayacak — tek-shot, bittiğinde Qt otomatik temizler.
+    # Referansı tutmak için app.exec() içinde scope'ta kalması yeterli.
 
     return app.exec()
 

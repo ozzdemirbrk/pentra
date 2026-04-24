@@ -9,56 +9,51 @@ from __future__ import annotations
 import requests
 
 from pentra.core.web_probes.base import WebProbeBase
+from pentra.i18n import t
 from pentra.models import Finding, Severity
 
 
-# ---------------------------------------------------------------------
-# Beklenen header'lar ve severity'leri
-# ---------------------------------------------------------------------
-_REQUIRED_HEADERS: dict[str, tuple[Severity, str, str]] = {
-    # header_name → (severity, title, description+remediation)
+# Eksik security header'lar için meta — severity ve i18n anahtarları
+_REQUIRED_HEADERS: dict[str, tuple[Severity, str, str, str]] = {
+    # header_name → (severity, title_key, desc_key, remediation_key)
     "Strict-Transport-Security": (
         Severity.MEDIUM,
-        "HSTS eksik",
-        "Strict-Transport-Security (HSTS) header'ı yanıtta yok. "
-        "Bu header olmadan tarayıcı HTTPS'ten HTTP'ye düşürme saldırılarına açık olur. "
-        "Önerilen değer: `max-age=31536000; includeSubDomains` (sadece HTTPS sitesinde).",
+        "finding.web.hsts_missing.title",
+        "finding.web.hsts_missing.desc",
+        "finding.web.hsts_missing.remediation",
     ),
     "Content-Security-Policy": (
         Severity.MEDIUM,
-        "CSP eksik",
-        "Content-Security-Policy (CSP) header'ı yok. CSP, XSS saldırılarına karşı "
-        "en etkili tarayıcı seviyesinde savunmadır. Başlangıç değeri: "
-        "`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'`",
+        "finding.web.csp_missing.title",
+        "finding.web.csp_missing.desc",
+        "finding.web.csp_missing.remediation",
     ),
     "X-Frame-Options": (
         Severity.LOW,
-        "X-Frame-Options eksik (clickjacking koruması)",
-        "X-Frame-Options header'ı yok. Bu header'sız sayfa başka bir sitede "
-        "iframe'e gömülüp clickjacking saldırısında kullanılabilir. "
-        "Önerilen: `DENY` veya `SAMEORIGIN`.",
+        "finding.web.xfo_missing.title",
+        "finding.web.xfo_missing.desc",
+        "finding.web.xfo_missing.remediation",
     ),
     "X-Content-Type-Options": (
         Severity.LOW,
-        "X-Content-Type-Options eksik (MIME sniffing)",
-        "X-Content-Type-Options header'ı yok. Tarayıcıların content-type'ı "
-        "tahmin etmesini engellemek için bu header'ı `nosniff` olarak ayarlayın.",
+        "finding.web.xcto_missing.title",
+        "finding.web.xcto_missing.desc",
+        "finding.web.xcto_missing.remediation",
     ),
     "Referrer-Policy": (
         Severity.LOW,
-        "Referrer-Policy eksik",
-        "Referrer-Policy header'ı yok. Kullanıcının hangi sayfadan geldiği "
-        "bilgisi başka sitelere sızar. Önerilen: `strict-origin-when-cross-origin`.",
+        "finding.web.referrer_policy_missing.title",
+        "finding.web.referrer_policy_missing.desc",
+        "finding.web.referrer_policy_missing.remediation",
     ),
 }
 
-# Server header sızıntısı (versiyon açığa çıkaran) — INFO seviyesi
 _LEAKY_HEADERS: tuple[str, ...] = ("Server", "X-Powered-By", "X-AspNet-Version", "X-AspNetMvc-Version")
 
 
 class SecurityHeadersProbe(WebProbeBase):
     name: str = "security_headers"
-    description: str = "HTTP yanıt header'larında eksik güvenlik ayarları tespiti"
+    description_key: str = "probe.web.security_headers.description"
 
     def probe(self, url: str, session: requests.Session) -> list[Finding]:
         findings: list[Finding] = []
@@ -66,13 +61,16 @@ class SecurityHeadersProbe(WebProbeBase):
         try:
             response = session.get(url, timeout=self.timeout, allow_redirects=True)
         except requests.RequestException as e:
-            # Ağ hatası — sessiz geç, WebScanner üst katmanda günceller
             return [
                 Finding(
                     scanner_name="web_scanner",
                     severity=Severity.INFO,
-                    title=f"{self.name}: Bağlantı başarısız",
-                    description=f"Siteye bağlanılamadı: {e}",
+                    title=t(
+                        "finding.web.header_connection_failed.title", probe=self.name,
+                    ),
+                    description=t(
+                        "finding.web.header_connection_failed.desc", error=str(e),
+                    ),
                     target=url,
                 ),
             ]
@@ -80,7 +78,7 @@ class SecurityHeadersProbe(WebProbeBase):
         is_https = url.lower().startswith("https://")
 
         # ---- Eksik güvenlik header'ları ----
-        for header_name, (severity, title, description) in _REQUIRED_HEADERS.items():
+        for header_name, (severity, title_key, desc_key, rem_key) in _REQUIRED_HEADERS.items():
             # HSTS sadece HTTPS sitelerde anlamlıdır
             if header_name == "Strict-Transport-Security" and not is_https:
                 continue
@@ -90,15 +88,17 @@ class SecurityHeadersProbe(WebProbeBase):
                     Finding(
                         scanner_name="web_scanner",
                         severity=severity,
-                        title=title,
-                        description=description,
+                        title=t(title_key),
+                        description=t(desc_key),
                         target=url,
-                        remediation=self._remediation_for(header_name),
+                        remediation=t(rem_key),
                         evidence=self._build_evidence(
                             request_method="GET",
                             request_path=url,
                             response_status=response.status_code,
-                            why_vulnerable=f"{header_name} header'ı yanıtta yok",
+                            why_vulnerable=t(
+                                "evidence.web.header_missing", header=header_name,
+                            ),
                         ),
                     ),
                 )
@@ -111,23 +111,27 @@ class SecurityHeadersProbe(WebProbeBase):
                     Finding(
                         scanner_name="web_scanner",
                         severity=Severity.INFO,
-                        title=f"Versiyon sızıntısı: {leaky}",
-                        description=(
-                            f"Sunucu `{leaky}: {value}` header'ını yanıtta dönüyor. "
-                            "Saldırgan hedef yazılımın versiyonunu öğrenip ona özel "
-                            "CVE'leri deneyebilir. Bu header'ı gizlemek güvenliği azaltmaz "
-                            "ama keşif yüzeyini küçültür."
+                        title=t("finding.web.version_leak.title", header=leaky),
+                        description=t(
+                            "finding.web.version_leak.desc",
+                            header=leaky, value=value,
                         ),
                         target=url,
-                        remediation=(
-                            f"Web sunucusu yapılandırmasından `{leaky}` header'ını kaldırın. "
-                            f"Nginx: `server_tokens off;` · Apache: `ServerTokens Prod`"
+                        remediation=t(
+                            "finding.web.version_leak.remediation", header=leaky,
                         ),
                         evidence=self._build_evidence(
                             request_method="GET",
                             request_path=url,
                             response_status=response.status_code,
-                            why_vulnerable=f"{leaky}: {value}",
+                            why_vulnerable=t(
+                                "evidence.web.version_leak",
+                                header=leaky, value=value,
+                            ),
+                            extra={
+                                "leaked_header": leaky,
+                                "leaked_value": value,
+                            },
                         ),
                     ),
                 )
@@ -138,45 +142,17 @@ class SecurityHeadersProbe(WebProbeBase):
                 Finding(
                     scanner_name="web_scanner",
                     severity=Severity.HIGH,
-                    title="HTTP üzerinden sunuluyor (şifresiz)",
-                    description=(
-                        "Site HTTP üzerinden sunuluyor. Tüm trafik (parolalar, çerezler, "
-                        "form verileri) ağı dinleyen saldırgan tarafından okunabilir. "
-                        "Günümüzde modern tarayıcılar da HTTP siteleri 'Güvenli Değil' "
-                        "olarak işaretliyor."
-                    ),
+                    title=t("finding.web.http_not_https.title"),
+                    description=t("finding.web.http_not_https.desc"),
                     target=url,
-                    remediation=(
-                        "Sertifikayı Let's Encrypt (ücretsiz) ile alın, sunucuda HTTPS'e "
-                        "yönlendirme kurun (301 redirect) ve HSTS header'ı ekleyin."
-                    ),
+                    remediation=t("finding.web.http_not_https.remediation"),
                     evidence=self._build_evidence(
                         request_method="GET",
                         request_path=url,
                         response_status=response.status_code,
-                        why_vulnerable="URL şeması http://",
+                        why_vulnerable=t("evidence.web.http_not_https"),
                     ),
                 ),
             )
 
         return findings
-
-    @staticmethod
-    def _remediation_for(header_name: str) -> str:
-        """Her header için tek satırlık Türkçe onarım önerisi."""
-        return {
-            "Strict-Transport-Security":
-                "Sunucu yapılandırmasına ekleyin: "
-                "`Strict-Transport-Security: max-age=31536000; includeSubDomains`",
-            "Content-Security-Policy":
-                "Önce raporlama modunda başlayın: "
-                "`Content-Security-Policy-Report-Only: default-src 'self'`, "
-                "sonra gerçek CSP'ye geçin.",
-            "X-Frame-Options":
-                "Ekleyin: `X-Frame-Options: SAMEORIGIN` "
-                "(veya modern alternatif CSP `frame-ancestors 'self'`)",
-            "X-Content-Type-Options":
-                "Ekleyin: `X-Content-Type-Options: nosniff`",
-            "Referrer-Policy":
-                "Ekleyin: `Referrer-Policy: strict-origin-when-cross-origin`",
-        }.get(header_name, "Sunucu yapılandırmasında bu header'ı ekleyin.")

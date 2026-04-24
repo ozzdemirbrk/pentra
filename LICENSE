@@ -1,23 +1,21 @@
-PENTRA — LİSANS (TASLAK)
-========================
+MIT License
 
-Bu yazılımın lisansı v1.0 sürümünden önce netleşecektir.
+Copyright (c) 2026 Burak Özdemir
 
-Geliştirme süreci boyunca, bu depoya katkı verenler aşağıdakileri kabul eder:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-1. Bu yazılım **etik ve yasal sınırlar içinde** kullanılmak üzere tasarlanmıştır.
-   Yetkisiz sistemlere yönelik tarama, Türkiye Cumhuriyeti Türk Ceza Kanunu
-   Madde 243, 244, 245 kapsamında suç teşkil eder.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-2. Bu yazılım "olduğu gibi" (AS IS) sağlanır; herhangi bir garanti verilmez.
-   Yanlış veya yetkisiz kullanımdan doğan tüm sorumluluk kullanıcıya aittir.
-
-3. Yazılımın kaynak kodu kamuya açık dağıtılmadan önce sahipleri (bkz.
-   pyproject.toml > authors) tarafından yazılı onay verilmelidir.
-
-v1.0 ile birlikte muhtemelen MIT veya AGPL-3.0 benzeri bir açık kaynak
-lisansı seçilecektir. Takip için depodaki LICENSE dosyası güncellenir.
-
----
-
-Son güncelleme: 2026-04-21
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

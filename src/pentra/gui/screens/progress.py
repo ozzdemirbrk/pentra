@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from pentra.core.scan_orchestrator import ScanRequest
 from pentra.core.scanner_base import ScannerBase
 from pentra.gui.wizard import PageId, PentraWizard
+from pentra.i18n import Translator, t
 from pentra.models import (
     AuthorizationToken,
     Finding,
@@ -54,8 +55,6 @@ class _ScanWorker(QThread):
         self._token = token
 
     def run(self) -> None:  # Qt'nin beklediği isim
-        # Bu fonksiyon worker thread'de çalışır. Scanner sinyalleri ana
-        # thread'e queued connection ile otomatik iletilir.
         self._scanner.scan(self._target, self._depth, self._token)
 
 
@@ -65,14 +64,11 @@ class _ScanWorker(QThread):
 class ProgressPage(QWizardPage):
     """Tarama sırasındaki ilerleme + bulgu akışı."""
 
-    # Rapor sayfasına geçiş için tetikleyici
     scan_finished = Signal()
 
     def __init__(self) -> None:
         super().__init__()
-        self.setTitle("Tarama İlerliyor")
-        self.setSubTitle("Lütfen bekleyin — bu işlem birkaç dakika sürebilir.")
-        self.setCommitPage(True)  # Bu sayfadan sonra geri dönüş kapalı
+        self.setCommitPage(True)
 
         self._worker: _ScanWorker | None = None
         self._scanner: ScannerBase | None = None
@@ -81,7 +77,7 @@ class ProgressPage(QWizardPage):
         layout = QVBoxLayout(self)
 
         # Hedef bilgisi
-        self._target_label = QLabel("Hedef: (hazırlanıyor...)")
+        self._target_label = QLabel()
         self._target_label.setStyleSheet("QLabel { font-size: 13px; color: #444; }")
         layout.addWidget(self._target_label)
 
@@ -93,15 +89,15 @@ class ProgressPage(QWizardPage):
         layout.addWidget(self._progress_bar)
 
         # Mevcut adım açıklaması
-        self._step_label = QLabel("Başlıyor...")
+        self._step_label = QLabel()
         self._step_label.setStyleSheet("QLabel { font-size: 12px; color: #666; padding: 4px; }")
         self._step_label.setWordWrap(True)
         layout.addWidget(self._step_label)
 
         # Canlı olay listesi
-        events_label = QLabel("<b>Canlı akış:</b>")
-        events_label.setTextFormat(Qt.TextFormat.RichText)
-        layout.addWidget(events_label)
+        self._events_label = QLabel()
+        self._events_label.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(self._events_label)
 
         self._events = QListWidget()
         self._events.setStyleSheet(
@@ -111,20 +107,37 @@ class ProgressPage(QWizardPage):
         layout.addWidget(self._events, stretch=1)
 
         # İptal butonu
-        self._btn_cancel = QPushButton("❌  İptal et")
+        self._btn_cancel = QPushButton()
         self._btn_cancel.clicked.connect(self._on_cancel_clicked)
         layout.addWidget(self._btn_cancel)
+
+        self.retranslate_ui()
+        Translator.instance().languageChanged.connect(lambda _l: self.retranslate_ui())
+
+    # -----------------------------------------------------------------
+    # Çeviri — sadece statik metinleri günceller; canlı olay listesi
+    # olduğu gibi (tarihsel akış) kalır.
+    # -----------------------------------------------------------------
+    def retranslate_ui(self) -> None:
+        self.setTitle(t("progress.title"))
+        self.setSubTitle(t("progress.subtitle"))
+        self._events_label.setText(t("progress.events_header_html"))
+        self._btn_cancel.setText(t("progress.btn_cancel"))
+
+        # Eğer tarama başlamadıysa başlangıç mesajını göster
+        if not self._completed and self._worker is None:
+            self._target_label.setText(t("progress.target_initial"))
+            self._step_label.setText(t("progress.step_initial"))
 
     # -----------------------------------------------------------------
     # QWizardPage entegrasyonu
     # -----------------------------------------------------------------
     def initializePage(self) -> None:  # noqa: N802
         """Sayfa aktifleştiğinde taramayı başlat."""
-        # Önceki state'i temizle (kullanıcı geri-ileri yaparsa)
         self._completed = False
         self._events.clear()
         self._progress_bar.setValue(0)
-        self._step_label.setText("Güvenlik kontrolleri yapılıyor...")
+        self._step_label.setText(t("progress.step_running"))
 
         wizard = self.wizard()
         if not isinstance(wizard, PentraWizard):
@@ -132,11 +145,11 @@ class ProgressPage(QWizardPage):
         ctx = wizard.context
 
         if ctx.target is None or ctx.depth is None:
-            self._on_error("Hedef veya derinlik seçilmedi")
+            self._on_error(t("progress.error_missing_target"))
             return
 
         self._target_label.setText(
-            f"Hedef: <b>{ctx.target.value}</b> · Derinlik: <b>{ctx.depth.value}</b>",
+            t("progress.target_display_html", value=ctx.target.value, depth=ctx.depth.value),
         )
         self._target_label.setTextFormat(Qt.TextFormat.RichText)
 
@@ -151,14 +164,14 @@ class ProgressPage(QWizardPage):
         try:
             prepared = wizard.orchestrator.prepare(request)
         except AuthorizationDenied as e:
-            self._on_error(f"Yetki reddedildi: {e}")
+            self._on_error(t("progress.error_auth_denied", reason=str(e)))
             return
 
         ctx.prepared_scan = prepared
         ctx.scan_started_at = datetime.now(timezone.utc)
 
-        self._append_event("✔️ Güvenlik zinciri geçildi (scope + auth + token)", color="#4caf50")
-        self._append_event(f"🎯 Hedef: {ctx.target.value}")
+        self._append_event(t("progress.event_security_passed"), color="#4caf50")
+        self._append_event(t("progress.event_target", value=ctx.target.value))
 
         # 2) Scanner sinyallerine abone ol
         self._scanner = prepared.scanner
@@ -177,11 +190,9 @@ class ProgressPage(QWizardPage):
         self._worker.start()
 
     def isComplete(self) -> bool:  # noqa: N802
-        """İleri (Finish) butonu sadece tarama bitince aktif."""
         return self._completed
 
     def cleanupPage(self) -> None:  # noqa: N802
-        """Kullanıcı geri giderse işçiyi durdur."""
         if self._worker is not None and self._worker.isRunning():
             if self._scanner is not None:
                 self._scanner.cancel()
@@ -208,7 +219,7 @@ class ProgressPage(QWizardPage):
             wizard.context.findings.append(finding)
 
     def _on_scan_completed(self) -> None:
-        self._append_event("✅ Tarama tamamlandı!", color="#4caf50")
+        self._append_event(t("progress.event_completed"), color="#4caf50")
         self._progress_bar.setValue(100)
         self._btn_cancel.setEnabled(False)
         self._completed = True
@@ -218,13 +229,12 @@ class ProgressPage(QWizardPage):
             wizard.context.scan_ended_at = datetime.now(timezone.utc)
 
         self.completeChanged.emit()
-        # Kullanıcı İleri'ye basınca rapor sayfasına geçecek
 
     def _on_error(self, message: str) -> None:
-        self._append_event(f"❌ HATA: {message}", color="#f44336")
-        self._step_label.setText(f"Hata: {message}")
+        self._append_event(t("progress.event_error", message=message), color="#f44336")
+        self._step_label.setText(t("progress.step_error", message=message))
         self._btn_cancel.setEnabled(False)
-        self._completed = True  # Hata da bitme sayılır; rapor sayfası boş rapor gösterecek
+        self._completed = True
 
         wizard = self.wizard()
         if isinstance(wizard, PentraWizard):
@@ -239,7 +249,7 @@ class ProgressPage(QWizardPage):
     def _on_cancel_clicked(self) -> None:
         if self._scanner is not None:
             self._scanner.cancel()
-        self._append_event("⏹️  Kullanıcı iptal etti", color="#ff9800")
+        self._append_event(t("progress.event_cancelled"), color="#ff9800")
         self._btn_cancel.setEnabled(False)
 
     def _append_event(self, text: str, color: str | None = None) -> None:

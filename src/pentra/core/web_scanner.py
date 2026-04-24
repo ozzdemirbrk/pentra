@@ -19,6 +19,7 @@ from pentra.core.web_probes.security_headers import SecurityHeadersProbe
 from pentra.core.web_probes.sql_injection import SqlInjectionProbe
 from pentra.core.web_probes.ssl_tls import SslTlsProbe
 from pentra.core.web_probes.xss import XssProbe
+from pentra.i18n import t
 from pentra.models import Finding, ScanDepth, Severity, Target
 
 # User-Agent — probe'ların kendilerini tanıtması bir etik norm
@@ -36,20 +37,16 @@ class WebScanner(ScannerBase):
         return "web_scanner"
 
     # -----------------------------------------------------------------
-    # ScannerBase._do_scan implementasyonu
-    # -----------------------------------------------------------------
     def _do_scan(self, target: Target, depth: ScanDepth) -> None:
         probes = _select_probes(depth)
         if not probes:
-            self._emit_progress(100, "Bu derinlik için uygun probe yok")
+            self._emit_progress(100, t("progress.web.no_probes"))
             return
 
-        self._emit_progress(5, f"Web taraması başlıyor: {target.value}")
+        self._emit_progress(5, t("progress.web.scan_starting", target=target.value))
 
-        # Paylaşımlı HTTP oturumu
         session = requests.Session()
         session.headers.update({"User-Agent": _USER_AGENT})
-        # SSL sertifikasını doğrula (MVP'de — sonradan opt-out eklenebilir)
         session.verify = True
 
         total = len(probes)
@@ -64,20 +61,28 @@ class WebScanner(ScannerBase):
 
             percent = 10 + int(85 * idx / total)
             self._emit_progress(
-                percent, f"[{idx + 1}/{total}] Probe: {probe.description}",
+                percent,
+                t(
+                    "progress.web.probe_running",
+                    index=idx + 1, total=total, probe=probe.description,
+                ),
             )
 
             try:
                 findings = probe.probe(target.value, session)
             except requests.RequestException as e:
-                # Probe kendi yakalayamadıysa: bilgilendirme, devam
                 self._emit_progress(
-                    percent, f"{probe.name} ağ hatası — atlanıyor: {e}",
+                    percent,
+                    t(
+                        "progress.web.probe_network_error",
+                        probe=probe.name, error=str(e),
+                    ),
                 )
                 continue
             except Exception as e:  # noqa: BLE001
-                # Beklenmeyen hata — raporla ama taramayı durdurma
-                self._emit_error(f"{probe.name} hatası: {e}")
+                self._emit_error(
+                    t("error.web.probe_error", probe=probe.name, error=str(e)),
+                )
                 continue
 
             for f in findings:
@@ -89,25 +94,24 @@ class WebScanner(ScannerBase):
 
         session.close()
         self._emit_progress(
-            100, f"Web taraması tamamlandı — {total_findings} bulgu",
+            100,
+            t("progress.web.scan_complete", count=total_findings),
         )
 
     # -----------------------------------------------------------------
     def _enrich_with_cves(self, finding: Finding) -> Finding:
-        """Finding'in evidence'ında Server header varsa CVE'lerle zenginleştir."""
+        """Server header sızıntısı bulgularını NVD'den CVE ile zenginleştir."""
         if self._cve_mapper is None:
             return finding
 
-        # Versiyon sızıntısı bulgularını yakala — title "Versiyon sızıntısı: Server"
-        if "Versiyon sızıntısı: Server" not in finding.title:
+        # Evidence'ta marker — security_headers probe Server header sızıntısında
+        # bunu "Server" olarak set eder.
+        if finding.evidence.get("leaked_header") != "Server":
             return finding
 
-        server_header = str(finding.evidence.get("why_vulnerable", ""))
-        # "Server: Microsoft-IIS/10.0" formatını çıkar
-        if ":" in server_header:
-            header_value = server_header.split(":", 1)[1].strip()
-        else:
-            header_value = server_header
+        header_value = str(finding.evidence.get("leaked_value", ""))
+        if not header_value:
+            return finding
 
         try:
             cves = self._cve_mapper.lookup_from_server_header(header_value)
@@ -129,7 +133,6 @@ class WebScanner(ScannerBase):
             for c in cves[:5]
         ]
 
-        # Severity'yi CVSS'e göre yükselt
         max_cvss = max((c.cvss_score or 0.0) for c in cves)
         if max_cvss >= 9.0:
             new_severity = Severity.CRITICAL
@@ -140,7 +143,6 @@ class WebScanner(ScannerBase):
         else:
             new_severity = finding.severity
 
-        # Immutable Finding — replace ile yeni kopya
         new_evidence = dict(finding.evidence)
         new_evidence["cves"] = cve_details
 
@@ -149,7 +151,10 @@ class WebScanner(ScannerBase):
             severity=new_severity,
             cve_ids=cve_ids,
             evidence=new_evidence,
-            title=f"{finding.title} — {len(cves)} bilinen CVE",
+            title=t(
+                "finding.web.title_with_cves",
+                title=finding.title, count=len(cves),
+            ),
         )
 
 
@@ -157,10 +162,6 @@ class WebScanner(ScannerBase):
 # Probe kaydı & seçimi
 # ---------------------------------------------------------------------
 def _all_registered_probes() -> list[WebProbeBase]:
-    """Tüm kayıtlı probe örneklerini döner.
-
-    Yeni probe eklendikçe bu fonksiyona import + instance eklenir.
-    """
     return [
         SecurityHeadersProbe(),
         ExposedPathsProbe(),
@@ -172,9 +173,5 @@ def _all_registered_probes() -> list[WebProbeBase]:
 
 
 def _select_probes(depth: ScanDepth) -> list[WebProbeBase]:
-    """Derinliğe göre probe listesi.
-
-    MVP: tüm derinliklerde tüm probe'lar. Faz 4'te alt kümeye bölünebilir.
-    """
     del depth  # MVP'de derinlikten bağımsız
     return _all_registered_probes()

@@ -5,11 +5,12 @@ Skor mantığı:
     - Bulgu sayısı az bir kademe bonus verir (diminishing)
     - CVE'li bulgularda CVSS skoru severity ağırlığından öncelikli
 
-Etiket aralıkları (tr):
-    0.0 – 3.9 → Düşük (yeşil)
-    4.0 – 6.9 → Orta (sarı)
-    7.0 – 8.9 → Yüksek (turuncu)
-    9.0 – 10.0 → Kritik (kırmızı)
+Etiket aralıkları (i18n):
+    0.0       → Clean / Temiz
+    0.0 – 3.9 → Low / Düşük (yeşil)
+    4.0 – 6.9 → Medium / Orta (sarı)
+    7.0 – 8.9 → High / Yüksek (turuncu)
+    9.0 – 10.0 → Critical / Kritik (kırmızı)
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ import dataclasses
 import math
 from collections.abc import Iterable
 
+from pentra.i18n import t
 from pentra.models import Finding, Severity
 
 # Severity ağırlıkları — CVE yoksa bu kullanılır
@@ -35,20 +37,17 @@ class RiskAssessment:
     """Bir rapor için genel risk değerlendirmesi."""
 
     score: float  # 0.0 – 10.0
-    label: str  # "Temiz" / "Düşük" / "Orta" / "Yüksek" / "Kritik"
+    label: str  # Aktif dile çevrilmiş etiket
     color: str  # Hex — etiket rengi
-    summary_tr: str  # 1-2 cümlelik Türkçe özet
+    summary_tr: str  # 1-2 cümlelik özet (aktif dile göre üretilmiş)
 
     @property
     def score_display(self) -> str:
-        """Sayısal skoru 1 ondalıklı olarak yazdırır."""
         return f"{self.score:.1f}"
 
 
 def _finding_raw_score(finding: Finding) -> float:
-    """Tek bir bulgu için ham skor:
-    CVE'li ise maksimum CVSS, değilse severity ağırlığı.
-    """
+    """CVE'li ise max CVSS, değilse severity ağırlığı."""
     cves = finding.evidence.get("cves") if finding.evidence else None
     if cves:
         cvss_values = [
@@ -60,18 +59,13 @@ def _finding_raw_score(finding: Finding) -> float:
 
 
 def compute_risk_score(findings: Iterable[Finding]) -> float:
-    """0.0–10.0 arası skor döner.
-
-    Anchor: en yüksek bulgu skoru.
-    Bonus: aynı tip riskin çok olması (diminishing — log).
-    """
+    """0.0–10.0 arası skor döner."""
     findings_list = list(findings)
     if not findings_list:
         return 0.0
 
     max_single = max(_finding_raw_score(f) for f in findings_list)
 
-    # Kaç tane "önemli" bulgu var (INFO hariç) — skor çoğulluğu biraz artırır
     significant = [
         f for f in findings_list
         if f.severity in (Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM)
@@ -83,28 +77,33 @@ def compute_risk_score(findings: Iterable[Finding]) -> float:
 
 
 def risk_label_and_color(score: float) -> tuple[str, str]:
-    """Skora göre Türkçe etiket + renk (hex)."""
+    """Skora göre aktif dile çevrilmiş etiket + renk (hex)."""
     if score <= 0.0:
-        return "Temiz", "#388e3c"
+        return t("risk.label.clean"), "#388e3c"
     if score < 4.0:
-        return "Düşük", "#689f38"
+        return t("risk.label.low"), "#689f38"
     if score < 7.0:
-        return "Orta", "#ef6c00"
+        return t("risk.label.medium"), "#ef6c00"
     if score < 9.0:
-        return "Yüksek", "#d32f2f"
-    return "Kritik", "#8b0000"
+        return t("risk.label.high"), "#d32f2f"
+    return t("risk.label.critical"), "#8b0000"
+
+
+#: Risk etiketi kategorisi → aksiyon tonu anahtarı
+def _tone_key(score: float) -> str:
+    if score >= 7.0:
+        return "risk.summary.tone_urgent"
+    if score >= 4.0:
+        return "risk.summary.tone_moderate"
+    return "risk.summary.tone_low"
 
 
 def _build_summary_text(
     score: float, label: str, findings: list[Finding],
 ) -> str:
-    """Yönetici için 1-2 cümlelik Türkçe özet."""
+    """1-2 cümlelik aktif-dil özet metni."""
     if not findings:
-        return (
-            "Seçtiğiniz tarama derinliğinde güvenlik sorunu tespit edilmedi. "
-            "Sisteminiz bu tarama kapsamında temiz görünüyor — tebrikler. "
-            "Daha kapsamlı bir tarama için Standart/Derin seçeneğini deneyebilirsiniz."
-        )
+        return t("risk.summary.empty")
 
     # Severity başına sayım
     counts = {sev: 0 for sev in Severity}
@@ -112,39 +111,34 @@ def _build_summary_text(
         counts[f.severity] += 1
 
     parts: list[str] = []
-    for sev, ad in (
-        (Severity.CRITICAL, "kritik"),
-        (Severity.HIGH, "yüksek"),
-        (Severity.MEDIUM, "orta"),
-        (Severity.LOW, "düşük"),
+    for sev, word_key in (
+        (Severity.CRITICAL, "risk.summary.word_critical"),
+        (Severity.HIGH, "risk.summary.word_high"),
+        (Severity.MEDIUM, "risk.summary.word_medium"),
+        (Severity.LOW, "risk.summary.word_low"),
     ):
         if counts[sev]:
-            parts.append(f"<b>{counts[sev]} {ad}</b>")
+            parts.append(
+                t(
+                    "risk.summary.level_template",
+                    count=counts[sev], label=t(word_key),
+                ),
+            )
     if counts[Severity.INFO]:
-        parts.append(f"{counts[Severity.INFO]} bilgi")
-
-    parts_text = ", ".join(parts) if parts else "birkaç"
-
-    # Risk seviyesine göre aksiyon tonu
-    if label in ("Kritik", "Yüksek"):
-        tone = (
-            "Acil aksiyon gerekiyor — bazı bulgular saldırganın sisteminize "
-            "zarar vermesine yol açabilir."
-        )
-    elif label == "Orta":
-        tone = (
-            "Sisteminiz genel olarak tehlikeli durumda değil ama bazı "
-            "yapılandırma iyileştirmeleri önemli."
-        )
-    else:
-        tone = (
-            "Düşük öncelikli iyileştirmeler — acil bir risk yok ama en iyi "
-            "pratikler için uygulanması tavsiye edilir."
+        parts.append(
+            t("risk.summary.info_template", count=counts[Severity.INFO]),
         )
 
-    return (
-        f"Sisteminizde {parts_text} seviyeli toplam {len(findings)} bulgu "
-        f"tespit edildi. Risk seviyesi: <b>{label}</b> ({score:.1f}/10). {tone}"
+    parts_text = ", ".join(parts) if parts else "-"
+    tone = t(_tone_key(score))
+
+    return t(
+        "risk.summary.sentence",
+        parts=parts_text,
+        count=len(findings),
+        label=label,
+        score=f"{score:.1f}",
+        tone=tone,
     )
 
 

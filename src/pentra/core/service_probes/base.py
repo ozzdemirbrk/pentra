@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from pentra.i18n import t
 from pentra.models import Finding
 
 
@@ -21,11 +22,16 @@ class ServiceProbeBase(ABC):
     #: Audit log'da kullanılan kısa ad (ör. "redis_auth")
     name: str = ""
 
-    #: Türkçe insan-okunur açıklama (UI'da gösterilir)
-    description: str = ""
+    #: UI'da gösterilen açıklama için i18n anahtarı
+    description_key: str = ""
 
     #: Bağlantı timeout (saniye)
     timeout: float = 5.0
+
+    @property
+    def description(self) -> str:
+        """Aktif dile çevrilmiş, insan-okunur açıklama."""
+        return t(self.description_key) if self.description_key else ""
 
     @abstractmethod
     def probe(self, host: str, port: int) -> list[Finding]:

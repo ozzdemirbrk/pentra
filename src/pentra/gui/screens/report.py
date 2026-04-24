@@ -25,10 +25,21 @@ from PySide6.QtWidgets import (
 
 from pentra.config import get_desktop_dir
 from pentra.gui.wizard import PentraWizard
+from pentra.i18n import Translator, t
 from pentra.models import Finding, Severity
 from pentra.reporting.comparison import compare as compare_scans
 from pentra.reporting.exporters.html_exporter import HtmlExporter
 from pentra.reporting.report_builder import Report, ReportBuilder, ReportSummary
+
+
+#: Severity → çeviri anahtarı eşleştirmesi
+_SEVERITY_KEY = {
+    Severity.CRITICAL: "severity.critical",
+    Severity.HIGH: "severity.high",
+    Severity.MEDIUM: "severity.medium",
+    Severity.LOW: "severity.low",
+    Severity.INFO: "severity.info",
+}
 
 
 class ReportPage(QWizardPage):
@@ -36,8 +47,6 @@ class ReportPage(QWizardPage):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setTitle("Tarama Raporu")
-        self.setSubTitle("Bulgular aşağıdadır. Raporu masaüstüne kaydetmek için butonu kullanın.")
         self.setFinalPage(True)
 
         self._report: Report | None = None
@@ -46,7 +55,7 @@ class ReportPage(QWizardPage):
 
         layout = QVBoxLayout(self)
 
-        # Risk skoru + karşılaştırma banner — initializePage'de doldurulur
+        # Risk skoru + karşılaştırma banner
         self._risk_banner = QFrame()
         self._risk_banner.setStyleSheet(
             "QFrame { background: #f5f7fa; border-radius: 8px; padding: 12px; }",
@@ -72,10 +81,10 @@ class ReportPage(QWizardPage):
         scroll.setWidget(self._findings_container)
         layout.addWidget(scroll, stretch=1)
 
-        # Aksiyon butonları — HTML raporu kaydet (varsayılan masaüstü / farklı yer)
+        # Aksiyon butonları
         buttons = QHBoxLayout()
 
-        self._btn_save = QPushButton("💾  Raporu Masaüstüne Kaydet")
+        self._btn_save = QPushButton()
         self._btn_save.setStyleSheet(
             "QPushButton { padding: 10px 20px; background: #2196f3; color: white; "
             "border: none; border-radius: 6px; font-size: 14px; } "
@@ -84,7 +93,7 @@ class ReportPage(QWizardPage):
         self._btn_save.clicked.connect(self._on_save_clicked)
         buttons.addWidget(self._btn_save)
 
-        self._btn_save_as = QPushButton("📁  Farklı Yere Kaydet...")
+        self._btn_save_as = QPushButton()
         self._btn_save_as.clicked.connect(self._on_save_as_clicked)
         buttons.addWidget(self._btn_save_as)
 
@@ -94,6 +103,24 @@ class ReportPage(QWizardPage):
         self._save_status = QLabel("")
         self._save_status.setStyleSheet("QLabel { color: #4caf50; font-weight: bold; padding: 4px; }")
         layout.addWidget(self._save_status)
+
+        self.retranslate_ui()
+        Translator.instance().languageChanged.connect(lambda _l: self.retranslate_ui())
+
+    # -----------------------------------------------------------------
+    # Çeviri
+    # -----------------------------------------------------------------
+    def retranslate_ui(self) -> None:
+        self.setTitle(t("report.title"))
+        self.setSubTitle(t("report.subtitle"))
+        self._btn_save.setText(t("report.btn_save"))
+        self._btn_save_as.setText(t("report.btn_save_as"))
+
+        # Rapor zaten oluşturulmuşsa tüm içeriği yeniden çiz
+        if self._report is not None:
+            self._populate_risk_banner(self._report)
+            self._populate_summary(self._report.summary)
+            self._populate_findings(self._report.findings)
 
     # -----------------------------------------------------------------
     # QWizardPage entegrasyonu
@@ -105,10 +132,10 @@ class ReportPage(QWizardPage):
         ctx = wizard.context
 
         if ctx.target is None or ctx.depth is None or ctx.scan_started_at is None:
-            self._show_error_state("Tarama bilgileri eksik")
+            self._show_error_state(t("report.error_missing"))
             return
 
-        # 1) Önce risk skoru için bir kez build et (comparison olmadan)
+        # 1) Önce risk skoru için bir kez build et
         preliminary = self._builder.build(
             target=ctx.target,
             depth=ctx.depth,
@@ -130,10 +157,9 @@ class ReportPage(QWizardPage):
                         current_risk_score=preliminary.risk.score,
                     )
             except Exception:  # noqa: BLE001
-                # Geçmiş sorgusu başarısız olsa bile rapor çalışmaya devam
                 pass
 
-        # 3) Nihai Report — comparison ile
+        # 3) Nihai Report
         self._report = self._builder.build(
             target=ctx.target,
             depth=ctx.depth,
@@ -143,7 +169,7 @@ class ReportPage(QWizardPage):
             comparison=comparison,
         )
 
-        # 4) Geçmişe kaydet (bir sonraki tarama için karşılaştırma bazı)
+        # 4) Geçmişe kaydet
         if history is not None:
             try:
                 history.record(self._report)
@@ -155,7 +181,6 @@ class ReportPage(QWizardPage):
         self._populate_findings(self._report.findings)
 
     def validatePage(self) -> bool:  # noqa: N802
-        """Bitir butonuna basıldığında token'ı iptal et (orchestrator cleanup)."""
         wizard = self.wizard()
         if isinstance(wizard, PentraWizard) and wizard.context.prepared_scan is not None:
             wizard.orchestrator.cleanup(wizard.context.prepared_scan)
@@ -166,22 +191,21 @@ class ReportPage(QWizardPage):
     # -----------------------------------------------------------------
     def _populate_risk_banner(self, report: Report) -> None:
         """Risk skoru + karşılaştırma bilgisi — GUI üst banner."""
-        # Önceki widget'ları temizle
         while self._risk_banner_layout.count():
             item = self._risk_banner_layout.takeAt(0)
             w = item.widget() if item else None
             if w is not None:
                 w.deleteLater()
 
-        # Risk skoru satırı
         risk_row = QHBoxLayout()
 
         risk_label = QLabel(
-            f"<div style='font-size: 11px; color: #666;'>GENEL RİSK</div>"
-            f"<div style='font-size: 28px; font-weight: 700; color: {report.risk.color};'>"
-            f"{report.risk.score_display}/10 &nbsp;"
-            f"<span style='font-size: 14px; text-transform: uppercase;'>{report.risk.label}</span>"
-            f"</div>",
+            t(
+                "report.risk.header_html",
+                color=report.risk.color,
+                score=report.risk.score_display,
+                label=report.risk.label,
+            ),
         )
         risk_label.setTextFormat(Qt.TextFormat.RichText)
         risk_row.addWidget(risk_label)
@@ -190,9 +214,9 @@ class ReportPage(QWizardPage):
         if report.comparison is not None:
             cmp = report.comparison
             trend_icon = {
-                "improved": "📉 İyileşme",
-                "worsened": "📈 Kötüleşme",
-                "stable": "➡️ Durağan",
+                "improved": t("report.trend.improved"),
+                "worsened": t("report.trend.worsened"),
+                "stable": t("report.trend.stable"),
             }.get(cmp.risk_trend, "")
             trend_color = {
                 "improved": "#388e3c",
@@ -204,16 +228,19 @@ class ReportPage(QWizardPage):
                 f"{cmp.risk_delta:+.1f}" if abs(cmp.risk_delta) >= 0.1 else "0.0"
             )
             cmp_label = QLabel(
-                f"<div style='font-size: 11px; color: #666; text-align: right;'>ÖNCEKİ TARAMAYLA</div>"
-                f"<div style='font-size: 14px; color: {trend_color}; font-weight: 600; text-align: right;'>"
-                f"{trend_icon} ({delta_text})</div>",
+                t(
+                    "report.risk.vs_previous_html",
+                    color=trend_color,
+                    trend=trend_icon,
+                    delta=delta_text,
+                ),
             )
             cmp_label.setTextFormat(Qt.TextFormat.RichText)
             risk_row.addWidget(cmp_label)
 
         self._risk_banner_layout.addLayout(risk_row)
 
-        # Yönetici özeti satırı
+        # Yönetici özeti satırı — şu an Türkçe (Batch 4'te çevirilecek)
         summary_label = QLabel(report.risk.summary_tr)
         summary_label.setTextFormat(Qt.TextFormat.RichText)
         summary_label.setWordWrap(True)
@@ -222,15 +249,15 @@ class ReportPage(QWizardPage):
         )
         self._risk_banner_layout.addWidget(summary_label)
 
-        # Karşılaştırma kartları (önceki tarama varsa)
+        # Karşılaştırma kartları
         if report.comparison is not None:
             cmp = report.comparison
             cmp_row = QHBoxLayout()
             cmp_row.setContentsMargins(0, 10, 0, 0)
             for count, label, color, bg in (
-                (cmp.new_count, "Yeni Risk", "#d32f2f", "#ffebee"),
-                (cmp.resolved_count, "Çözülmüş", "#388e3c", "#e8f5e9"),
-                (cmp.unchanged_count, "Değişmemiş", "#455a64", "#eceff1"),
+                (cmp.new_count, t("report.comparison.new"), "#d32f2f", "#ffebee"),
+                (cmp.resolved_count, t("report.comparison.resolved"), "#388e3c", "#e8f5e9"),
+                (cmp.unchanged_count, t("report.comparison.unchanged"), "#455a64", "#eceff1"),
             ):
                 card = QFrame()
                 card.setStyleSheet(
@@ -250,7 +277,6 @@ class ReportPage(QWizardPage):
             self._risk_banner_layout.addLayout(cmp_row)
 
     def _populate_summary(self, summary: ReportSummary) -> None:
-        # Eski widget'ları temizle
         while self._summary_layout.count():
             item = self._summary_layout.takeAt(0)
             w = item.widget() if item else None
@@ -258,11 +284,11 @@ class ReportPage(QWizardPage):
                 w.deleteLater()
 
         cards = [
-            ("Kritik", summary.critical, "#8b0000"),
-            ("Yüksek", summary.high, "#d32f2f"),
-            ("Orta", summary.medium, "#ef6c00"),
-            ("Düşük", summary.low, "#fbc02d"),
-            ("Bilgi", summary.info, "#0288d1"),
+            (t("severity.critical"), summary.critical, "#8b0000"),
+            (t("severity.high"), summary.high, "#d32f2f"),
+            (t("severity.medium"), summary.medium, "#ef6c00"),
+            (t("severity.low"), summary.low, "#fbc02d"),
+            (t("severity.info"), summary.info, "#0288d1"),
         ]
         for label, count, color in cards:
             card = QFrame()
@@ -282,7 +308,6 @@ class ReportPage(QWizardPage):
             self._summary_layout.addWidget(card)
 
     def _populate_findings(self, findings: list[Finding]) -> None:
-        # Temizle
         while self._findings_layout.count():
             item = self._findings_layout.takeAt(0)
             w = item.widget() if item else None
@@ -290,13 +315,7 @@ class ReportPage(QWizardPage):
                 w.deleteLater()
 
         if not findings:
-            empty = QLabel(
-                "<div style='text-align: center; padding: 32px; color: #666;'>"
-                "<p style='font-size: 16px;'>✅ <b>Herhangi bir bulgu tespit edilmedi.</b></p>"
-                "<p>Seçtiğiniz derinlikte görünür bir sorun bulunamadı. Daha kapsamlı tarama için "
-                "sonraki sürümde Standart/Derin seçeneği aktif olacak.</p>"
-                "</div>",
-            )
+            empty = QLabel(t("report.empty_html"))
             empty.setTextFormat(Qt.TextFormat.RichText)
             empty.setWordWrap(True)
             self._findings_layout.addWidget(empty)
@@ -306,7 +325,7 @@ class ReportPage(QWizardPage):
             self._findings_layout.addWidget(_build_finding_card(f))
 
     def _show_error_state(self, message: str) -> None:
-        lbl = QLabel(f"<p style='color: #d32f2f;'><b>Hata:</b> {message}</p>")
+        lbl = QLabel(t("report.error_label_html", message=message))
         lbl.setTextFormat(Qt.TextFormat.RichText)
         self._findings_layout.addWidget(lbl)
 
@@ -315,7 +334,8 @@ class ReportPage(QWizardPage):
     # -----------------------------------------------------------------
     def _timestamped_path(self) -> Path:
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        return get_desktop_dir() / f"Pentra_Rapor_{ts}.html"
+        prefix = t("report.file_prefix")
+        return get_desktop_dir() / f"{prefix}_{ts}.html"
 
     def _on_save_clicked(self) -> None:
         if self._report is None:
@@ -327,9 +347,9 @@ class ReportPage(QWizardPage):
             return
         selected, _ = QFileDialog.getSaveFileName(
             self,
-            "Raporu Kaydet",
+            t("report.dialog.save.title"),
             str(self._timestamped_path()),
-            "HTML dosyaları (*.html);;Tüm dosyalar (*)",
+            t("report.dialog.save.filter_html"),
         )
         if selected:
             self._do_save(Path(selected))
@@ -340,9 +360,13 @@ class ReportPage(QWizardPage):
         try:
             written = self._html_exporter.export(self._report, path)
         except OSError as e:
-            QMessageBox.warning(self, "Kayıt Başarısız", f"Rapor yazılamadı: {e}")
+            QMessageBox.warning(
+                self,
+                t("report.dialog.save_failed.title"),
+                t("report.dialog.save_failed.body", error=str(e)),
+            )
             return
-        self._save_status.setText(f"✅ Kaydedildi: {written}")
+        self._save_status.setText(t("report.saved_status", path=str(written)))
         self._store_saved_path(written)
 
     def _store_saved_path(self, written: Path) -> None:
@@ -363,13 +387,7 @@ def _build_finding_card(finding: Finding) -> QWidget:
         Severity.INFO: "#0288d1",
     }.get(finding.severity, "#666")
 
-    label_tr = {
-        Severity.CRITICAL: "Kritik",
-        Severity.HIGH: "Yüksek",
-        Severity.MEDIUM: "Orta",
-        Severity.LOW: "Düşük",
-        Severity.INFO: "Bilgi",
-    }.get(finding.severity, finding.severity.value)
+    badge_label = t(_SEVERITY_KEY.get(finding.severity, "severity.info"))
 
     card = QFrame()
     card.setStyleSheet(
@@ -380,7 +398,7 @@ def _build_finding_card(finding: Finding) -> QWidget:
 
     # Başlık satırı
     header = QHBoxLayout()
-    badge = QLabel(label_tr)
+    badge = QLabel(badge_label)
     badge.setStyleSheet(
         f"QLabel {{ background: {color}; color: white; padding: 2px 8px; "
         f"border-radius: 10px; font-size: 11px; font-weight: bold; }}",
@@ -403,7 +421,9 @@ def _build_finding_card(finding: Finding) -> QWidget:
 
     # Onarım
     if finding.remediation:
-        rem = QLabel(f"<b>🔧 Öneri:</b> {finding.remediation}")
+        rem = QLabel(
+            t("report.finding.remediation_html", text=finding.remediation),
+        )
         rem.setTextFormat(Qt.TextFormat.RichText)
         rem.setWordWrap(True)
         rem.setStyleSheet(

@@ -1,11 +1,4 @@
-"""SQL Injection probe — error-based tespit.
-
-Tek karakter (`'`) veya bozuk payload gönderilir; yanıtta bilinen SQL hata
-mesajı pattern'leri aranır. Zafiyet kanıtı = hata pattern'i + HTTP 200/500.
-
-**Seviye 2 kuralı**: `DROP TABLE`, `UNION SELECT`, veri çekme yok — sadece
-sintaks hatasıyla tetiklenen veritabanı hata mesajı aranır.
-"""
+"""SQL Injection probe — error-based tespit."""
 
 from __future__ import annotations
 
@@ -15,63 +8,55 @@ from urllib.parse import urlencode
 import requests
 
 from pentra.core.web_probes.base import WebProbeBase
+from pentra.i18n import t
 from pentra.models import Finding, Severity
 
-# Yaygın kullanıcı girdisi parametreleri — SQL injection'a açık olma ihtimali yüksek
 _PARAMS_TO_TEST: tuple[str, ...] = (
     "id", "user", "username", "email", "search", "q", "query",
     "name", "category", "cat", "product", "item", "pid", "uid",
 )
 
-# Bozuk payload'lar — DB hata mesajı tetiklemek için
 _SYNTAX_BREAKING_PAYLOADS: tuple[str, ...] = (
-    "'",           # Klasik tek tırnak
-    "\"",          # Çift tırnak
-    "\\'",         # Escape denemesi
-    "' --",        # Tek tırnak + yorum
-    "1'\"`",       # Karışık tırnaklar
+    "'",
+    "\"",
+    "\\'",
+    "' --",
+    "1'\"`",
 )
 
-# DB hata pattern'leri — compile edilmiş regex listesi
-# Her eşleşme bir DBMS'ye işaret eder
+# (regex, DBMS i18n key)
 _SQL_ERROR_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
-    # MySQL
-    (re.compile(r"You have an error in your SQL syntax", re.I), "MySQL"),
-    (re.compile(r"mysql_fetch_(array|assoc|row|object)", re.I), "MySQL (PHP)"),
-    (re.compile(r"mysql_num_rows", re.I), "MySQL (PHP)"),
-    (re.compile(r"Warning.*mysql_", re.I), "MySQL (PHP warning)"),
-    (re.compile(r"MySqlException", re.I), "MySQL (.NET)"),
+    (re.compile(r"You have an error in your SQL syntax", re.I), "label.web.sql_injection.mysql"),
+    (re.compile(r"mysql_fetch_(array|assoc|row|object)", re.I), "label.web.sql_injection.mysql_php"),
+    (re.compile(r"mysql_num_rows", re.I), "label.web.sql_injection.mysql_php"),
+    (re.compile(r"Warning.*mysql_", re.I), "label.web.sql_injection.mysql_php_warning"),
+    (re.compile(r"MySqlException", re.I), "label.web.sql_injection.mysql_dotnet"),
 
-    # PostgreSQL
-    (re.compile(r"PostgreSQL.*ERROR", re.I), "PostgreSQL"),
-    (re.compile(r"pg_query\(\)", re.I), "PostgreSQL (PHP)"),
-    (re.compile(r"PSQLException", re.I), "PostgreSQL (JDBC)"),
+    (re.compile(r"PostgreSQL.*ERROR", re.I), "label.web.sql_injection.postgresql"),
+    (re.compile(r"pg_query\(\)", re.I), "label.web.sql_injection.postgresql_php"),
+    (re.compile(r"PSQLException", re.I), "label.web.sql_injection.postgresql_jdbc"),
 
-    # Microsoft SQL Server
-    (re.compile(r"Microsoft OLE DB Provider for SQL Server", re.I), "MSSQL"),
-    (re.compile(r"Unclosed quotation mark after", re.I), "MSSQL"),
-    (re.compile(r"\[SQL Server\].*Driver", re.I), "MSSQL (ODBC)"),
-    (re.compile(r"System\.Data\.SqlClient\.SqlException", re.I), "MSSQL (.NET)"),
+    (re.compile(r"Microsoft OLE DB Provider for SQL Server", re.I), "label.web.sql_injection.mssql"),
+    (re.compile(r"Unclosed quotation mark after", re.I), "label.web.sql_injection.mssql"),
+    (re.compile(r"\[SQL Server\].*Driver", re.I), "label.web.sql_injection.mssql_odbc"),
+    (re.compile(r"System\.Data\.SqlClient\.SqlException", re.I), "label.web.sql_injection.mssql_dotnet"),
 
-    # Oracle
-    (re.compile(r"ORA-[0-9]{4,5}", re.I), "Oracle"),
-    (re.compile(r"Oracle error", re.I), "Oracle"),
-    (re.compile(r"OracleException", re.I), "Oracle (.NET)"),
+    (re.compile(r"ORA-[0-9]{4,5}", re.I), "label.web.sql_injection.oracle"),
+    (re.compile(r"Oracle error", re.I), "label.web.sql_injection.oracle"),
+    (re.compile(r"OracleException", re.I), "label.web.sql_injection.oracle_dotnet"),
 
-    # SQLite
-    (re.compile(r"SQLite.*Exception", re.I), "SQLite"),
-    (re.compile(r"sqlite3\.OperationalError", re.I), "SQLite (Python)"),
-    (re.compile(r"near \".*\": syntax error", re.I), "SQLite"),
+    (re.compile(r"SQLite.*Exception", re.I), "label.web.sql_injection.sqlite"),
+    (re.compile(r"sqlite3\.OperationalError", re.I), "label.web.sql_injection.sqlite_python"),
+    (re.compile(r"near \".*\": syntax error", re.I), "label.web.sql_injection.sqlite"),
 
-    # Generic
-    (re.compile(r"SQLSTATE\[\d+\]", re.I), "Generic (SQLSTATE)"),
-    (re.compile(r"ODBC.*Driver.*error", re.I), "Generic ODBC"),
+    (re.compile(r"SQLSTATE\[\d+\]", re.I), "label.web.sql_injection.generic_sqlstate"),
+    (re.compile(r"ODBC.*Driver.*error", re.I), "label.web.sql_injection.generic_odbc"),
 )
 
 
 class SqlInjectionProbe(WebProbeBase):
     name: str = "sql_injection"
-    description: str = "SQL Injection (error-based) tespit"
+    description_key: str = "probe.web.sql_injection.description"
     timeout: float = 8.0
 
     def probe(self, url: str, session: requests.Session) -> list[Finding]:
@@ -100,25 +85,17 @@ class SqlInjectionProbe(WebProbeBase):
                     Finding(
                         scanner_name="web_scanner",
                         severity=Severity.CRITICAL,
-                        title=f"SQL Injection: `{param}` parametresi ({dbms})",
-                        description=(
-                            f"`{param}` parametresine `{payload}` gönderildiğinde yanıt "
-                            f"gövdesinde {dbms} veritabanı hata mesajı tespit edildi "
-                            f"(`{matched_pattern}`). Bu, parametrenin SQL sorgusuna "
-                            f"parametreli (prepared statement) değil, düz string olarak "
-                            f"yapıştırıldığını gösterir. Saldırgan bu parametreyi kullanarak "
-                            f"kimlik doğrulama atlama, veritabanı içeriği okuma veya "
-                            f"(yetkiye göre) değiştirme saldırısı yapabilir."
+                        title=t(
+                            "finding.web.sql_injection.title",
+                            param=param, dbms=dbms,
+                        ),
+                        description=t(
+                            "finding.web.sql_injection.desc",
+                            param=param, payload=payload, dbms=dbms,
+                            matched_pattern=matched_pattern,
                         ),
                         target=full_url,
-                        remediation=(
-                            "Bu parametreyi veritabanı sorgusunda **parametreli sorgu "
-                            "(prepared statement / parameterized query)** ile kullanın. "
-                            "String concatenation yerine `?` placeholder + bind değişkeni. "
-                            "ORM kullanıyorsanız raw SQL yerine ORM metodlarını tercih edin. "
-                            "Acil geçici çözüm: WAF (Cloudflare, ModSecurity) ekleyin, "
-                            "ama bu sadece geçici — kod seviyesinde parametrik sorgu şart."
-                        ),
+                        remediation=t("finding.web.sql_injection.remediation"),
                         evidence=self._build_evidence(
                             request_method="GET",
                             request_path=full_url,
@@ -126,31 +103,33 @@ class SqlInjectionProbe(WebProbeBase):
                             response_snippet=self._extract_error_context(
                                 response.text, matched_pattern,
                             ),
-                            why_vulnerable=f"{dbms} hata mesajı yanıta düştü",
+                            why_vulnerable=f"{dbms} error pattern matched",
                             extra={"payload": payload, "param": param, "dbms": dbms},
                         ),
                     ),
                 )
                 reported_params.add(param)
-                break  # Bir probe yeterli kanıt; diğer payload'ları atla
+                break
 
         return findings
 
     # -----------------------------------------------------------------
     @staticmethod
     def _match_sql_error(body: str) -> tuple[str | None, str]:
-        """Yanıt gövdesinde SQL hata pattern'i var mı bak."""
-        # İlk 16KB'de ara — tam body'yi işlemek gereksiz
+        """Yanıt gövdesinde SQL hata pattern'i var mı bak.
+
+        Returns:
+            (matched_text, translated_dbms_label) ya da (None, "")
+        """
         snippet = body[:16384]
-        for pattern, dbms in _SQL_ERROR_PATTERNS:
+        for pattern, dbms_key in _SQL_ERROR_PATTERNS:
             match = pattern.search(snippet)
             if match:
-                return match.group(0), dbms
+                return match.group(0), t(dbms_key)
         return None, ""
 
     @staticmethod
     def _extract_error_context(body: str, matched_text: str) -> str:
-        """Eşleşen hatayı saran ~150 karakterlik bağlam döndürür (kanıt için)."""
         idx = body.find(matched_text)
         if idx == -1:
             return body[:200]

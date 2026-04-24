@@ -1,6 +1,7 @@
 """Ekran 3 — Derinlik Seçimi.
 
-MVP: sadece Hızlı aktif. Standart ve Derin "yakında".
+Üç seçenek aktif: Hızlı (top 100 port), Standart (top 1000 + CVE),
+Derin (tüm 65k port + NSE safe + OS detection).
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from pentra.gui.wizard import PentraWizard
+from pentra.i18n import Translator, t
 from pentra.models import ScanDepth
 
 
@@ -24,79 +26,73 @@ class DepthSelectPage(QWizardPage):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setTitle("Tarama Derinliği")
-        self.setSubTitle("Ne kadar derinleşmeli? Daha derin = daha uzun ama daha kapsamlı.")
 
         layout = QVBoxLayout(self)
 
         self._group = QButtonGroup(self)
 
-        # --- Hızlı (aktif) ---
-        self._rb_quick = QRadioButton("🟢  Hızlı  —  yaklaşık 1-2 dk")
+        # --- Hızlı ---
+        self._rb_quick = QRadioButton()
         self._rb_quick.setChecked(True)
         self._rb_quick.setStyleSheet("QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }")
         self._group.addButton(self._rb_quick, 0)
         layout.addWidget(self._rb_quick)
 
-        desc_quick = QLabel(
-            "<div style='margin-left: 24px; margin-bottom: 8px;'>"
-            "<b>Yapılanlar:</b> En yaygın 100 portu tarar, açık olanları ve üzerinde çalışan servisin adını tespit eder.<br>"
-            "<b>Yapılmayanlar:</b> Servis versiyonu, zafiyet taraması, OS tespiti.<br>"
-            "<span style='color: #555;'><i>Genel sağlık kontrolü için ideal.</i></span>"
-            "</div>",
-        )
-        desc_quick.setWordWrap(True)
-        desc_quick.setTextFormat(Qt.TextFormat.RichText)
-        layout.addWidget(desc_quick)
+        self._desc_quick = QLabel()
+        self._desc_quick.setWordWrap(True)
+        self._desc_quick.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(self._desc_quick)
 
         line1 = QFrame()
         line1.setFrameShape(QFrame.Shape.HLine)
         line1.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(line1)
 
-        # --- Standart (aktif — Faz 4) ---
-        self._rb_standard = QRadioButton("🟡  Standart  —  yaklaşık 5-15 dk")
+        # --- Standart ---
+        self._rb_standard = QRadioButton()
         self._rb_standard.setStyleSheet("QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }")
         self._group.addButton(self._rb_standard)
         layout.addWidget(self._rb_standard)
 
-        desc_std = QLabel(
-            "<div style='margin-left: 24px; margin-bottom: 8px;'>"
-            "<b>Yapılanlar:</b> Top 1000 port + tam servis versiyonu tespiti + "
-            "bilinen CVE eşleştirme (NVD veritabanından).<br>"
-            "<b>Yapılmayanlar:</b> Derinlemesine exploit script'leri, OS tespiti.<br>"
-            "<span style='color: #555;'><i>Önerilen: gerçek sistem denetimi için ideal.</i></span>"
-            "</div>",
-        )
-        desc_std.setWordWrap(True)
-        desc_std.setTextFormat(Qt.TextFormat.RichText)
-        layout.addWidget(desc_std)
+        self._desc_std = QLabel()
+        self._desc_std.setWordWrap(True)
+        self._desc_std.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(self._desc_std)
 
         line2 = QFrame()
         line2.setFrameShape(QFrame.Shape.HLine)
         line2.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(line2)
 
-        # --- Derin (yakında) ---
-        self._rb_deep = QRadioButton("🔴  Derin  —  yaklaşık 1-2 saat   (yakında)")
-        self._rb_deep.setEnabled(False)
-        self._rb_deep.setStyleSheet("QRadioButton { font-size: 14px; padding: 6px; color: #888; }")
+        # --- Derin ---
+        self._rb_deep = QRadioButton()
+        self._rb_deep.setStyleSheet("QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }")
         self._group.addButton(self._rb_deep)
         layout.addWidget(self._rb_deep)
 
-        desc_deep = QLabel(
-            "<div style='margin-left: 24px; color: #888;'>"
-            "<b>Yapılanlar:</b> Tüm portlar (1-65535), servis versiyonu, OS tespiti, "
-            "varsayılan zafiyet script'leri, zayıf kimlik kontrolü.<br>"
-            "<b>Yapılmayanlar:</b> Exploit yürütme (hiçbir sürümde yapmayız).<br>"
-            "<i>Sonraki sürümde aktif olacak.</i>"
-            "</div>",
-        )
-        desc_deep.setWordWrap(True)
-        desc_deep.setTextFormat(Qt.TextFormat.RichText)
-        layout.addWidget(desc_deep)
+        self._desc_deep = QLabel()
+        self._desc_deep.setWordWrap(True)
+        self._desc_deep.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(self._desc_deep)
 
         layout.addStretch()
+
+        self.retranslate_ui()
+        Translator.instance().languageChanged.connect(lambda _l: self.retranslate_ui())
+
+    # -----------------------------------------------------------------
+    def retranslate_ui(self) -> None:
+        self.setTitle(t("depth.title"))
+        self.setSubTitle(t("depth.subtitle"))
+
+        self._rb_quick.setText(t("depth.quick.label"))
+        self._desc_quick.setText(t("depth.quick.desc_html"))
+
+        self._rb_standard.setText(t("depth.standard.label"))
+        self._desc_std.setText(t("depth.standard.desc_html"))
+
+        self._rb_deep.setText(t("depth.deep.label"))
+        self._desc_deep.setText(t("depth.deep.desc_html"))
 
     # -----------------------------------------------------------------
     def validatePage(self) -> bool:  # noqa: N802

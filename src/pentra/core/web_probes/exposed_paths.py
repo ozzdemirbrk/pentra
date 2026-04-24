@@ -10,8 +10,7 @@
        `text/html` dönüyorsa büyük ihtimalle HTML anasayfa — sahte pozitif.
 
     3. **Spesifik içerik validator'ı**: Her path için yalnızca gerçek dosyanın
-       üreteceği içerik pattern'i aranır (`.env` → çoklu `KEY=VALUE`, SQL dump →
-       `CREATE TABLE`, git config → `[core]` başta vs.).
+       üreteceği içerik pattern'i aranır.
 """
 
 from __future__ import annotations
@@ -25,23 +24,19 @@ from urllib.parse import urljoin
 import requests
 
 from pentra.core.web_probes.base import WebProbeBase
+from pentra.i18n import t
 from pentra.models import Finding, Severity
 
 
-# ---------------------------------------------------------------------
-# Content validator'lar — her biri (is_real, evidence_snippet) döndürür
-# ---------------------------------------------------------------------
 Validator = Callable[[requests.Response], tuple[bool, str]]
 
 
 def _is_html(response: requests.Response) -> bool:
-    """Content-Type'ı HTML mi kontrol et."""
     ctype = response.headers.get("Content-Type", "").lower()
     return "html" in ctype
 
 
 def _env_validator(response: requests.Response) -> tuple[bool, str]:
-    """Gerçek .env: HTML değil + en az 2 `KEY=VALUE` satırı."""
     if _is_html(response):
         return False, ""
     lines = response.text[:4096].splitlines()
@@ -55,7 +50,6 @@ def _env_validator(response: requests.Response) -> tuple[bool, str]:
 
 
 def _git_config_validator(response: requests.Response) -> tuple[bool, str]:
-    """git/config: içerik `[core]` veya `[remote` ile başlamalı."""
     if _is_html(response):
         return False, ""
     stripped = response.text.lstrip()[:200]
@@ -65,7 +59,6 @@ def _git_config_validator(response: requests.Response) -> tuple[bool, str]:
 
 
 def _git_head_validator(response: requests.Response) -> tuple[bool, str]:
-    """git/HEAD: genelde tek satır `ref: refs/heads/main`."""
     if _is_html(response):
         return False, ""
     text = response.text.strip()
@@ -75,7 +68,6 @@ def _git_head_validator(response: requests.Response) -> tuple[bool, str]:
 
 
 def _sql_dump_validator(response: requests.Response) -> tuple[bool, str]:
-    """SQL dump: HTML değil + CREATE TABLE / INSERT INTO / DROP TABLE anahtar kelimeleri."""
     if _is_html(response):
         return False, ""
     upper = response.text[:8192].upper()
@@ -88,7 +80,6 @@ def _sql_dump_validator(response: requests.Response) -> tuple[bool, str]:
 
 
 def _wp_config_validator(response: requests.Response) -> tuple[bool, str]:
-    """WordPress wp-config.php yedeği: <?php + DB_NAME/DB_PASSWORD sabitleri."""
     if _is_html(response):
         return False, ""
     text = response.text[:4096]
@@ -100,7 +91,6 @@ def _wp_config_validator(response: requests.Response) -> tuple[bool, str]:
 
 
 def _config_json_validator(response: requests.Response) -> tuple[bool, str]:
-    """config.json: gerçek JSON (HTML değil) + object yapısı."""
     if _is_html(response):
         return False, ""
     text = response.text[:4096].lstrip()
@@ -110,7 +100,6 @@ def _config_json_validator(response: requests.Response) -> tuple[bool, str]:
 
 
 def _config_yml_validator(response: requests.Response) -> tuple[bool, str]:
-    """config.yml: HTML değil + YAML-vari `key: value` satırları."""
     if _is_html(response):
         return False, ""
     lines = response.text[:4096].splitlines()
@@ -121,7 +110,6 @@ def _config_yml_validator(response: requests.Response) -> tuple[bool, str]:
 
 
 def _htaccess_validator(response: requests.Response) -> tuple[bool, str]:
-    """.htaccess: HTML değil + Apache direktif anahtar kelimeleri."""
     if _is_html(response):
         return False, ""
     upper = response.text[:4096].upper()
@@ -132,42 +120,34 @@ def _htaccess_validator(response: requests.Response) -> tuple[bool, str]:
 
 
 def _ds_store_validator(response: requests.Response) -> tuple[bool, str]:
-    """.DS_Store: binary — başında `Bud1` magic string'i vardır."""
     if _is_html(response):
         return False, ""
-    # .DS_Store büyük ihtimalle binary olarak okunur; ilk bayt kontrolü
     content = response.content[:16] if response.content else b""
     if b"Bud1" in content or b"\x00\x00\x00\x01Bud1" in content:
-        return True, "[.DS_Store binary, Bud1 magic tespit edildi]"
+        return True, "[.DS_Store binary, Bud1 magic detected]"
     return False, ""
 
 
 def _phpinfo_validator(response: requests.Response) -> tuple[bool, str]:
-    """phpinfo.php: özel başlık + tablo yapısı."""
-    # phpinfo'nun kendisi HTML dönecektir — soft 404 baseline'ı farklı korumalı
     text = response.text[:4096]
     if "phpinfo()" in text or re.search(r"<title>phpinfo\(\)", text, re.I):
-        return True, "phpinfo() çıktısı tespit edildi"
-    if re.search(r"PHP Version \d+\.\d+\.\d+", text):
-        return True, re.search(r"PHP Version \d+\.\d+\.\d+", text).group(0)
+        return True, "phpinfo() output detected"
+    match = re.search(r"PHP Version \d+\.\d+\.\d+", text)
+    if match:
+        return True, match.group(0)
     return False, ""
 
 
 def _server_status_validator(response: requests.Response) -> tuple[bool, str]:
-    """Apache server-status: "Apache Server Status" başlığı."""
     text = response.text[:4096]
     if "Apache Server Status" in text:
-        return True, "Apache Server Status sayfası tespit edildi"
+        return True, "Apache Server Status page"
     if "Server uptime:" in text and "Server Version:" in text:
-        return True, "server-status çıktısı tespit edildi"
+        return True, "server-status output"
     return False, ""
 
 
 def _admin_validator(response: requests.Response) -> tuple[bool, str]:
-    """/admin: HTML bekleniyor ama login formu/admin ipucu olmalı.
-
-    Soft-404 baseline'ı farklı olmalı. Bu validator giriş ipucu arar.
-    """
     text = response.text[:8192].lower()
     hints = (
         "admin panel", "admin login", "dashboard",
@@ -176,141 +156,50 @@ def _admin_validator(response: requests.Response) -> tuple[bool, str]:
     )
     for hint in hints:
         if hint in text:
-            return True, f"Panel ipucu: `{hint}`"
-    # Giriş formu var mı
+            return True, f"Panel hint: `{hint}`"
     if re.search(r'<form[^>]*action=[^>]*(login|admin|auth)', text):
-        return True, "Login formu tespit edildi"
+        return True, "Login form detected"
     return False, ""
 
 
 def _phpmyadmin_validator(response: requests.Response) -> tuple[bool, str]:
-    """phpMyAdmin'in kendine özgü string'leri."""
     text = response.text[:8192]
     hints = ("phpMyAdmin", "pma_username", "pmahomme", "pma_password")
     for h in hints:
         if h in text:
-            return True, f"phpMyAdmin imzası: `{h}`"
+            return True, f"phpMyAdmin signature: `{h}`"
     return False, ""
 
 
 # ---------------------------------------------------------------------
-# Path kayıtları
+# Path kayıtları — i18n anahtarları
 # ---------------------------------------------------------------------
 @dataclasses.dataclass(frozen=True)
 class _PathCheck:
     path: str
     severity: Severity
-    title: str
-    description: str
+    #: i18n key prefix. title/desc/remediation = `{key_prefix}.title` vs.
+    key_prefix: str
     validator: Validator
-    remediation: str
 
 
 _SENSITIVE_PATHS: tuple[_PathCheck, ...] = (
-    _PathCheck(
-        "/.env", Severity.CRITICAL, ".env dosyası public erişilebilir",
-        "`.env` dosyası web kökünden erişilebilir. Bu dosyada genellikle veritabanı "
-        "parolaları, API anahtarları, secret key'ler bulunur.",
-        _env_validator,
-        "`.env` dosyası kesinlikle web kökünde olmamalı — uygulamanın bir üst dizininde tutun. "
-        "Sunucuda erişimi engelleyin ve dosyadaki tüm parolaları/anahtarları DEĞİŞTİRİN.",
-    ),
-    _PathCheck(
-        "/.git/config", Severity.HIGH, ".git deposu public erişilebilir",
-        "`.git/config` dosyası public. Saldırgan tüm kaynak kodunu ve gizli "
-        "dosya geçmişini çıkarabilir (`git-dumper` ile).",
-        _git_config_validator,
-        "Web dizinindeki `.git/` klasörünü tamamen kaldırın. Deploy sürecinde `.git`'i hariç tutun. "
-        "Nginx: `location ~ /\\.git { deny all; }`",
-    ),
-    _PathCheck(
-        "/.git/HEAD", Severity.HIGH, ".git/HEAD public",
-        "`.git/HEAD` public — kaynak kodu çıkarma saldırısına açık.",
-        _git_head_validator,
-        "Web dizinindeki `.git/` klasörünü tamamen kaldırın.",
-    ),
-    _PathCheck(
-        "/backup.sql", Severity.CRITICAL, "Veritabanı yedeği public (backup.sql)",
-        "`/backup.sql` erişilebilir. Tüm DB şeması + veriler sızabilir.",
-        _sql_dump_validator,
-        "Yedek dosyalarını asla web dizininde tutmayın. Hemen silin, DB parolalarını değiştirin.",
-    ),
-    _PathCheck(
-        "/database.sql", Severity.CRITICAL, "Veritabanı yedeği public (database.sql)",
-        "`/database.sql` erişilebilir. DB içeriği sızabilir.",
-        _sql_dump_validator,
-        "Yedek dosyalarını asla web dizininde tutmayın. Hemen silin, DB parolalarını değiştirin.",
-    ),
-    _PathCheck(
-        "/dump.sql", Severity.CRITICAL, "Veritabanı dump'ı public (dump.sql)",
-        "`/dump.sql` erişilebilir. DB içeriği sızabilir.",
-        _sql_dump_validator,
-        "Yedek dosyalarını silin, DB parolalarını değiştirin.",
-    ),
-    _PathCheck(
-        "/wp-config.php.bak", Severity.CRITICAL, "WordPress yapılandırma yedeği (.bak) sızmış",
-        "`wp-config.php.bak` erişilebilir. DB parolası ve secret key'ler içerir.",
-        _wp_config_validator,
-        "Yedekleri silin ve WordPress DB parolası + secret key'leri değiştirin.",
-    ),
-    _PathCheck(
-        "/wp-config.php.save", Severity.CRITICAL, "WordPress yapılandırma yedeği (.save) sızmış",
-        "`wp-config.php.save` erişilebilir.",
-        _wp_config_validator,
-        "Yedekleri silin ve WordPress DB parolası + secret key'leri değiştirin.",
-    ),
-    _PathCheck(
-        "/config.json", Severity.HIGH, "config.json public",
-        "Uygulama yapılandırması dışarıya sızıyor — sırlar içerebilir.",
-        _config_json_validator,
-        "Yapılandırma dosyalarını web dizininde tutmayın.",
-    ),
-    _PathCheck(
-        "/config.yml", Severity.HIGH, "config.yml public",
-        "Uygulama yapılandırması dışarıya sızıyor — sırlar içerebilir.",
-        _config_yml_validator,
-        "Yapılandırma dosyalarını web dizininde tutmayın.",
-    ),
-    _PathCheck(
-        "/.htaccess", Severity.MEDIUM, ".htaccess dosyası erişilebilir",
-        "`.htaccess` Apache yapılandırması normalde okunamamalı.",
-        _htaccess_validator,
-        "Sunucu yapılandırmasını düzeltin — `.htaccess` dışa erişilemez olmalı.",
-    ),
-    _PathCheck(
-        "/.DS_Store", Severity.LOW, ".DS_Store sızmış (macOS meta veri)",
-        "`.DS_Store` dosyası klasör içindeki dosya listesini içerir — gizli dosya "
-        "adlarını saldırgana verir.",
-        _ds_store_validator,
-        "`.DS_Store` dosyasını deploy'dan hariç tutun (`.gitignore`: `**/.DS_Store`).",
-    ),
-    _PathCheck(
-        "/server-status", Severity.MEDIUM, "Apache server-status public",
-        "`/server-status` sayfası aktif bağlantıları, istekleri, vhosts bilgisini dışa açar.",
-        _server_status_validator,
-        "Apache `mod_status` modülünü kapatın veya sadece localhost'a izin verin.",
-    ),
-    _PathCheck(
-        "/phpinfo.php", Severity.HIGH, "phpinfo.php public",
-        "`phpinfo.php` erişilebilir. PHP yapılandırması, yollar, environment değişkenleri sızıyor.",
-        _phpinfo_validator,
-        "`phpinfo.php`'yi silin — geliştirme araçları production'da olmamalı.",
-    ),
-    _PathCheck(
-        "/admin", Severity.INFO, "Admin paneli tespit edildi",
-        "`/admin` yolu gerçek bir admin paneline işaret ediyor. Bu tek başına zafiyet değil "
-        "ama saldırgan odağı olur; güçlü kimlik doğrulama + IP kısıtlaması önerilir.",
-        _admin_validator,
-        "Admin paneline sadece VPN veya belirli IP'ler üzerinden erişime izin verin. "
-        "Güçlü parola + MFA zorunlu.",
-    ),
-    _PathCheck(
-        "/phpmyadmin", Severity.LOW, "phpMyAdmin public",
-        "`/phpmyadmin` erişilebilir ve phpMyAdmin imzası tespit edildi. "
-        "Brute-force + zafiyet denemesinin ilk hedefi olur.",
-        _phpmyadmin_validator,
-        "phpMyAdmin'i kaldırın veya VPN arkasına taşıyın.",
-    ),
+    _PathCheck("/.env", Severity.CRITICAL, "finding.web.exposed_env", _env_validator),
+    _PathCheck("/.git/config", Severity.HIGH, "finding.web.exposed_git_config", _git_config_validator),
+    _PathCheck("/.git/HEAD", Severity.HIGH, "finding.web.exposed_git_head", _git_head_validator),
+    _PathCheck("/backup.sql", Severity.CRITICAL, "finding.web.exposed_backup_sql", _sql_dump_validator),
+    _PathCheck("/database.sql", Severity.CRITICAL, "finding.web.exposed_database_sql", _sql_dump_validator),
+    _PathCheck("/dump.sql", Severity.CRITICAL, "finding.web.exposed_dump_sql", _sql_dump_validator),
+    _PathCheck("/wp-config.php.bak", Severity.CRITICAL, "finding.web.exposed_wp_config_bak", _wp_config_validator),
+    _PathCheck("/wp-config.php.save", Severity.CRITICAL, "finding.web.exposed_wp_config_save", _wp_config_validator),
+    _PathCheck("/config.json", Severity.HIGH, "finding.web.exposed_config_json", _config_json_validator),
+    _PathCheck("/config.yml", Severity.HIGH, "finding.web.exposed_config_yml", _config_yml_validator),
+    _PathCheck("/.htaccess", Severity.MEDIUM, "finding.web.exposed_htaccess", _htaccess_validator),
+    _PathCheck("/.DS_Store", Severity.LOW, "finding.web.exposed_ds_store", _ds_store_validator),
+    _PathCheck("/server-status", Severity.MEDIUM, "finding.web.exposed_server_status", _server_status_validator),
+    _PathCheck("/phpinfo.php", Severity.HIGH, "finding.web.exposed_phpinfo", _phpinfo_validator),
+    _PathCheck("/admin", Severity.INFO, "finding.web.exposed_admin", _admin_validator),
+    _PathCheck("/phpmyadmin", Severity.LOW, "finding.web.exposed_phpmyadmin", _phpmyadmin_validator),
 )
 
 
@@ -319,15 +208,12 @@ _SENSITIVE_PATHS: tuple[_PathCheck, ...] = (
 # ---------------------------------------------------------------------
 @dataclasses.dataclass(frozen=True)
 class _Baseline:
-    """Rastgele yol denemesinden elde edilen "bulunamadı yanıtı" imzası."""
-
     status: int
     length: int
-    snippet: str  # ilk 500 karakter
+    snippet: str
 
 
 def _capture_baseline(base_url: str, session: requests.Session, timeout: float) -> _Baseline | None:
-    """Sunucu 404 davranışını öğrenmek için rastgele yol dener."""
     random_path = f"/pentra-nonexistent-{secrets.token_hex(8)}"
     full = urljoin(base_url.rstrip("/") + "/", random_path.lstrip("/"))
     try:
@@ -342,17 +228,13 @@ def _capture_baseline(base_url: str, session: requests.Session, timeout: float) 
 
 
 def _looks_like_baseline(response: requests.Response, baseline: _Baseline) -> bool:
-    """Yanıt baseline'a benziyor mu — aynı soft-404 sayfası mı."""
-    # Status farklı ise farklı yanıt
     if response.status_code != baseline.status:
         return False
-    # Boyut %10 içinde ise aynı sayfa kabul et
     actual_length = len(response.content or b"")
     if baseline.length > 0:
         diff_ratio = abs(actual_length - baseline.length) / baseline.length
         if diff_ratio < 0.1:
             return True
-    # Snippet neredeyse aynı ise aynı sayfa
     snippet = response.text[:500] if response.text else ""
     if snippet and baseline.snippet and snippet == baseline.snippet:
         return True
@@ -364,7 +246,7 @@ def _looks_like_baseline(response: requests.Response, baseline: _Baseline) -> bo
 # ---------------------------------------------------------------------
 class ExposedPathsProbe(WebProbeBase):
     name: str = "exposed_paths"
-    description: str = "Hassas dosya/klasörlerin public erişim kontrolü"
+    description_key: str = "probe.web.exposed_paths.description"
 
     def probe(self, url: str, session: requests.Session) -> list[Finding]:
         findings: list[Finding] = []
@@ -384,15 +266,12 @@ class ExposedPathsProbe(WebProbeBase):
             except requests.RequestException:
                 continue
 
-            # 404 / 403 / 301 / 302 → dosya yok veya erişim kapalı, atla
             if response.status_code not in (200, 204):
                 continue
 
-            # Soft-404 filtresi
             if baseline is not None and _looks_like_baseline(response, baseline):
                 continue
 
-            # Spesifik content validator
             is_real, evidence_snippet = check.validator(response)
             if not is_real:
                 continue
@@ -401,18 +280,16 @@ class ExposedPathsProbe(WebProbeBase):
                 Finding(
                     scanner_name="web_scanner",
                     severity=check.severity,
-                    title=check.title,
-                    description=check.description,
+                    title=t(f"{check.key_prefix}.title"),
+                    description=t(f"{check.key_prefix}.desc"),
                     target=full_url,
-                    remediation=check.remediation,
+                    remediation=t(f"{check.key_prefix}.remediation"),
                     evidence=self._build_evidence(
                         request_method="GET",
                         request_path=full_url,
                         response_status=response.status_code,
                         response_snippet=evidence_snippet[:200],
-                        why_vulnerable=(
-                            "Content validator eşleşti — gerçek dosya imzası tespit edildi"
-                        ),
+                        why_vulnerable=t("evidence.web.exposed_paths.validator_match"),
                         extra={"content_type": response.headers.get("Content-Type", "")},
                     ),
                 ),
@@ -424,7 +301,6 @@ class ExposedPathsProbe(WebProbeBase):
             sec_response = session.get(
                 security_url, timeout=self.timeout, allow_redirects=False,
             )
-            # Soft-404 durumunda da "yok" olarak kabul et
             is_missing = (
                 sec_response.status_code == 404
                 or (baseline is not None and _looks_like_baseline(sec_response, baseline))
@@ -434,23 +310,15 @@ class ExposedPathsProbe(WebProbeBase):
                     Finding(
                         scanner_name="web_scanner",
                         severity=Severity.INFO,
-                        title="security.txt yok",
-                        description=(
-                            "`/.well-known/security.txt` dosyası yok. Güvenlik "
-                            "araştırmacılarının size zafiyet bildirebilmesi için "
-                            "bu dosyayı yayınlayın."
-                        ),
+                        title=t("finding.web.security_txt_missing.title"),
+                        description=t("finding.web.security_txt_missing.desc"),
                         target=security_url,
-                        remediation=(
-                            "`/.well-known/security.txt` dosyası oluşturun. "
-                            "İçerik örneği: `Contact: mailto:security@example.com`, "
-                            "`Expires: 2027-01-01T00:00:00Z`. Detay: https://securitytxt.org"
-                        ),
+                        remediation=t("finding.web.security_txt_missing.remediation"),
                         evidence=self._build_evidence(
                             request_method="GET",
                             request_path=security_url,
                             response_status=sec_response.status_code,
-                            why_vulnerable="Dosya yok veya erişilemiyor",
+                            why_vulnerable=t("evidence.web.exposed_paths.not_found"),
                         ),
                     ),
                 )

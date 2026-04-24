@@ -19,6 +19,7 @@ from abc import ABC, abstractmethod
 
 import requests
 
+from pentra.i18n import t
 from pentra.models import Finding
 
 
@@ -27,10 +28,17 @@ class WebProbeBase(ABC):
 
     # Alt sınıf zorunlu olarak üzerine yazar
     name: str = ""
-    description: str = ""
+
+    #: UI'da gösterilen açıklama için i18n anahtarı
+    description_key: str = ""
 
     # Varsayılan HTTP timeout (saniye) — probe'lar override edebilir
     timeout: float = 10.0
+
+    @property
+    def description(self) -> str:
+        """Aktif dile çevrilmiş, insan-okunur açıklama."""
+        return t(self.description_key) if self.description_key else ""
 
     @abstractmethod
     def probe(self, url: str, session: requests.Session) -> list[Finding]:

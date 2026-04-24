@@ -14,6 +14,7 @@ from __future__ import annotations
 import socket
 
 from pentra.core.service_probes.base import ServiceProbeBase
+from pentra.i18n import t
 from pentra.models import Finding, Severity
 
 # RESP protokolü: *1\r\n$4\r\nPING\r\n  (tek elemanlı array)
@@ -33,45 +34,31 @@ _AUTH_REQUIRED_MARKERS: tuple[bytes, ...] = (
 class RedisAuthProbe(ServiceProbeBase):
     default_ports: tuple[int, ...] = (6379,)
     name: str = "redis_auth"
-    description: str = "Redis parola gerektirmeden erişim kontrolü"
+    description_key: str = "probe.service.redis.description"
 
     def probe(self, host: str, port: int) -> list[Finding]:
         try:
             with socket.create_connection((host, port), timeout=self.timeout) as sock:
                 sock.sendall(_PING_COMMAND)
-                response = sock.recv(256)  # PING yanıtı kısa — 256 bayt yeter
+                response = sock.recv(256)
         except (OSError, socket.timeout):
-            # Bağlantı başarısız → probe uygulanamadı (Redis olmayabilir)
             return []
 
-        # Parola gerektirmiyor — kanıt bulundu
         if response.startswith(_EXPECTED_OPEN):
             return [
                 Finding(
                     scanner_name="network_scanner",
                     severity=Severity.CRITICAL,
-                    title=f"Redis parolasız erişilebilir — port {port}",
-                    description=(
-                        "Redis sunucusuna **parola olmadan** bağlanılabildi (PING → PONG). "
-                        "Bu yapılandırmada saldırgan tüm anahtarları okuyabilir, silebilir, "
-                        "`CONFIG SET dir /home/redis/.ssh` + `SAVE` ile SSH anahtar dosyaları "
-                        "yazarak sunucuyu ele geçirebilir (`CVE-2022-0543` benzeri). "
-                        "Gerçek dünyada en yaygın bulut sızıntı sebeplerinden biri."
-                    ),
+                    title=t("finding.redis.auth_open.title", port=port),
+                    description=t("finding.redis.auth_open.desc"),
                     target=f"{host}:{port}",
-                    remediation=(
-                        "ACİL: Redis config'inde (`/etc/redis/redis.conf`) `requirepass <güçlü_parola>` "
-                        "ve `bind 127.0.0.1` ayarlayın. Eğer uzaktan erişim gerekiyorsa güvenlik "
-                        "duvarıyla sadece belirli IP'lere izin verin. TLS tercihen etkin (`tls-port`). "
-                        "Redis 6+ için ACL (`aclfile`) kullanın."
-                    ),
+                    remediation=t("finding.redis.auth_open.remediation"),
                     evidence=self._evidence(
                         host=host, port=port,
-                        why_vulnerable="PING → +PONG yanıtı (auth gerekmeden)",
+                        why_vulnerable=t("finding.redis.auth_open.evidence"),
                         response_snippet=response.decode("latin-1"),
                     ),
                 ),
             ]
 
-        # Parola isteği veya protected mode yanıtı → güvenli
         return []

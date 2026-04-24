@@ -1,14 +1,4 @@
-"""Reflected XSS probe — benign payload'un yanıta kaçışsız yansımasını tespit eder.
-
-Her parametre için özgün bir "canary" token içeren payload gönderilir.
-Yanıt gövdesinde bu token:
-    - `<tag>TOKEN</tag>` şeklinde kaçışsız geri geliyorsa → XSS zafiyeti
-    - `&lt;tag&gt;TOKEN&lt;/tag&gt;` şeklinde escape edilmişse → güvenli
-    - Hiç görünmüyorsa → parametre yanıta yansımıyor, test başarısız
-
-**Seviye 2 kuralı**: Payload benign (sadece yorum içeren script tag'i + canary).
-Gerçek cookie çalma, DOM manipülasyonu, session kaçırma YOKTUR.
-"""
+"""Reflected XSS probe — benign payload'un yanıta kaçışsız yansımasını tespit eder."""
 
 from __future__ import annotations
 
@@ -18,9 +8,9 @@ from urllib.parse import urlencode
 import requests
 
 from pentra.core.web_probes.base import WebProbeBase
+from pentra.i18n import t
 from pentra.models import Finding, Severity
 
-# Yanıta yansıma ihtimali yüksek parametreler
 _PARAMS_TO_TEST: tuple[str, ...] = (
     "q", "query", "search", "s", "keyword", "term",
     "name", "user", "username", "email", "message",
@@ -28,33 +18,23 @@ _PARAMS_TO_TEST: tuple[str, ...] = (
     "return", "returnTo", "redirect", "next", "url",
 )
 
-# Pattern generator: her test için benzersiz canary token
-# Amaç: response'ta canary görmezsek "echo yok" diyebilelim
+
 def _make_canary() -> str:
     return "pentra" + secrets.token_hex(4)
 
 
-# Test edilecek kaçış kontekstleri — her biri farklı sanitizer hatasını yakalar
 def _build_payloads(canary: str) -> tuple[tuple[str, str], ...]:
-    """Her payload için (payload, reflection_check) döndürür.
-
-    reflection_check: response'ta bu string varsa kaçışsız yansımış demektir.
-    """
     return (
-        # Klasik: <script> tag reflection
         (f"<script>/*{canary}*/</script>", f"<script>/*{canary}*/</script>"),
-        # HTML tag reflection (daha az yaygın filtrelenir)
         (f"<xss{canary}>", f"<xss{canary}>"),
-        # Attribute break — class/value içinde
         (f"\"><xss{canary}>", f"><xss{canary}>"),
-        # JavaScript context — tek tırnak kırma
         (f"';//{canary}", f"';//{canary}"),
     )
 
 
 class XssProbe(WebProbeBase):
     name: str = "xss_reflected"
-    description: str = "Yansıtılmış (Reflected) XSS tespit"
+    description_key: str = "probe.web.xss.description"
     timeout: float = 8.0
 
     def probe(self, url: str, session: requests.Session) -> list[Finding]:
@@ -62,35 +42,19 @@ class XssProbe(WebProbeBase):
         reported_params: set[str] = set()
 
         # --- Echo-fallback tespiti ---
-        # Bazı siteler (SPA, dev server, debug endpoint) GELEN HER parametreyi
-        # yanıtta yansıtır. Bu durumda XSS probe'u 20+ false positive verir.
-        # Önce rastgele (asla XSS olmayacak) bir parametre adı deneyip yansıyıp
-        # yansımadığına bakarız. Yansıyorsa site echo-fallback yapıyor demektir,
-        # probe'u atlayıp "genel echo davranışı" diye bilgilendirme döndürürüz.
         if self._site_echoes_random_param(url, session):
             return [
                 Finding(
                     scanner_name="web_scanner",
                     severity=Severity.INFO,
-                    title="Site tüm parametreleri yansıtıyor — XSS testi atlandı",
-                    description=(
-                        "Bu site rastgele isimli bir parametreye bile yanıtta içeriği "
-                        "yansıtarak cevap veriyor (SPA fallback, dev server echo, debug "
-                        "endpoint vb.). Tipik yanıtlı XSS testleri bu tür sitelerde "
-                        "false positive üretir. **Bu site üretim sistemi ise** geliştirici "
-                        "ekibiyle input echoing davranışını inceleyin — HTML kaçışı "
-                        "uygulanmıyorsa gerçek XSS zafiyeti var demektir."
-                    ),
+                    title=t("finding.web.xss_echo_fallback.title"),
+                    description=t("finding.web.xss_echo_fallback.desc"),
                     target=url,
-                    remediation=(
-                        "Geliştirici için: her yanıtta kullanıcı girdisini render etmeden "
-                        "önce HTML escape uygulayın. Framework kullanıyorsanız "
-                        "(React/Vue/Jinja2) autoescape'in aktif olduğundan emin olun."
-                    ),
+                    remediation=t("finding.web.xss_echo_fallback.remediation"),
                     evidence=self._build_evidence(
                         request_method="GET",
                         request_path=url,
-                        why_vulnerable="Echo-fallback tespit edildi — rastgele canary yansıdı",
+                        why_vulnerable="echo-fallback detected",
                     ),
                 ),
             ]
@@ -115,32 +79,16 @@ class XssProbe(WebProbeBase):
                 if not self._is_reflected_unescaped(response.text, reflection_marker):
                     continue
 
-                # Kanıtlı — yansıma var + kaçış yok
                 findings.append(
                     Finding(
                         scanner_name="web_scanner",
                         severity=Severity.HIGH,
-                        title=f"Reflected XSS: `{param}` parametresi",
-                        description=(
-                            f"`{param}` parametresine gönderilen HTML/JS payload yanıta "
-                            f"kaçışsız (unescaped) olarak geri döndü. Bu, saldırganın "
-                            f"özel hazırlanmış bir link oluşturup kullanıcıya tıklattığında "
-                            f"kullanıcının tarayıcısında JavaScript çalıştırabileceği "
-                            f"anlamına gelir (session çerezi çalma, phishing, DOM manipülasyonu). "
-                            f"Tetikleyici payload: `{payload}`"
+                        title=t("finding.web.xss.title", param=param),
+                        description=t(
+                            "finding.web.xss.desc", param=param, payload=payload,
                         ),
                         target=full_url,
-                        remediation=(
-                            "Kullanıcı girdisini HTML'e yazmadan önce **context-aware "
-                            "escaping** uygulayın: HTML body → `html_escape`, "
-                            "attribute → `attr_escape`, JS string → `js_escape`. "
-                            "Modern framework'lerde (React, Vue, Jinja2 autoescape) "
-                            "bu varsayılan olarak açıktır — `{{ variable }}` otomatik "
-                            "escape eder, `{{ variable | safe }}` tehlikelidir. "
-                            "Ek savunma olarak CSP header'ı ekleyin: "
-                            "`Content-Security-Policy: default-src 'self'; "
-                            "script-src 'self'`"
-                        ),
+                        remediation=t("finding.web.xss.remediation"),
                         evidence=self._build_evidence(
                             request_method="GET",
                             request_path=full_url,
@@ -149,50 +97,39 @@ class XssProbe(WebProbeBase):
                                 response.text, reflection_marker,
                             ),
                             why_vulnerable=(
-                                f"Payload `{reflection_marker}` yanıtta kaçışsız bulundu"
+                                f"Payload `{reflection_marker}` reflected unescaped"
                             ),
                             extra={"payload": payload, "param": param, "canary": canary},
                         ),
                     ),
                 )
                 reported_params.add(param)
-                break  # Bir kanıt yeter
+                break
 
-        # --- Threshold kontrolü (son savunma) ---
-        # Gerçek XSS sitelerinde 1-5 param etkilenir. Test edilen param'ların
-        # %50'sinden fazlası "vulnerable" görünüyorsa bu echo-fallback tipik
-        # davranışıdır — baseline testi yakalayamamış olabilir. Tek INFO ile değiştir.
+        # --- Threshold kontrolü ---
         threshold = max(1, int(len(_PARAMS_TO_TEST) * 0.5))
         if len(findings) >= threshold:
             return [
                 Finding(
                     scanner_name="web_scanner",
                     severity=Severity.INFO,
-                    title=(
-                        f"Site {len(findings)} parametrenin çoğunda yansıma gösteriyor "
-                        "— XSS testi güvenilir değil"
+                    title=t(
+                        "finding.web.xss_threshold_exceeded.title",
+                        reflected_count=len(findings),
                     ),
-                    description=(
-                        f"Test edilen {len(_PARAMS_TO_TEST)} parametrenin {len(findings)}'i "
-                        f"'yansıyor' olarak tespit edildi. Gerçek dünyada bu kadar çok "
-                        f"parametrenin hepsinde XSS olması nadirdir — büyük ihtimalle site "
-                        f"her parametre girdisini cevabına geri yansıtıyor (SPA fallback, "
-                        f"debug endpoint, dev server echo). Tipik yanıtlı XSS testleri bu "
-                        f"tür sitelerde false positive üretir. Geliştirici ekibiyle "
-                        f"görüşüp HTML escape davranışını doğrulayın."
+                    description=t(
+                        "finding.web.xss_threshold_exceeded.desc",
+                        reflected_count=len(findings),
+                        tested_count=len(_PARAMS_TO_TEST),
                     ),
                     target=url,
-                    remediation=(
-                        "Geliştirici için: Kullanıcı girdisini HTML'e yazmadan önce "
-                        "context-aware escaping uygulayın. Framework (React/Vue/Jinja2) "
-                        "autoescape varsayılan olarak açık olmalı."
-                    ),
+                    remediation=t("finding.web.xss_threshold_exceeded.remediation"),
                     evidence=self._build_evidence(
                         request_method="GET",
                         request_path=url,
                         why_vulnerable=(
-                            f"{len(findings)}/{len(_PARAMS_TO_TEST)} param yansıyor — "
-                            f"threshold %50 aşıldı"
+                            f"{len(findings)}/{len(_PARAMS_TO_TEST)} params reflected "
+                            f"— 50% threshold exceeded"
                         ),
                     ),
                 ),
@@ -203,17 +140,9 @@ class XssProbe(WebProbeBase):
     def _site_echoes_random_param(
         self, url: str, session: requests.Session,
     ) -> bool:
-        """Rastgele param + XSS probe'larının kullandığı AYNI payload'larla test.
-
-        Amaç: echo-fallback tespitinin aynı filtre davranışına takılmasını
-        önlemek. Eğer sunucu XSS payload'larına tepki veriyor ama
-        `<xxx>` gibi özel olmayan marker'a farklı davranıyorsa yalnızca
-        `<xxx>` ile test yaparak kaçabilirdik. Şimdi tüm payload tiplerini
-        rastgele param adıyla dener — biri yansıyorsa echo-fallback.
-        """
+        """Rastgele param ile echo-fallback tespiti."""
         probe_param = f"pentra{secrets.token_hex(3)}"
         canary = _make_canary()
-        # XSS probe'unun kullandığı tüm context'lerle aynı marker'lar
         test_payloads = [
             f"<script>/*{canary}*/</script>",
             f"<xss{canary}>",
@@ -237,17 +166,10 @@ class XssProbe(WebProbeBase):
     # -----------------------------------------------------------------
     @staticmethod
     def _is_reflected_unescaped(body: str, marker: str) -> bool:
-        """Payload yanıtta tam ve escape edilmemiş halde var mı."""
-        if marker not in body:
-            return False
-        # Aynı karakterler escape edilmiş olarak DA geçiyorsa bu bir tesadüf —
-        # yine de unescaped form varsa zafiyet sayılır
-        # (çoğu durumda escape varsa unescaped form hiç olmaz)
-        return True
+        return marker in body
 
     @staticmethod
     def _extract_context(body: str, marker: str) -> str:
-        """Yansımayı saran ~150 karakterlik bağlam."""
         idx = body.find(marker)
         if idx == -1:
             return body[:200]

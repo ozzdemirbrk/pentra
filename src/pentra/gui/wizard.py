@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QWizard
 
+from pentra.i18n import Translator, t
 from pentra.models import Finding, ScanDepth, Target
 
 if TYPE_CHECKING:
@@ -77,21 +78,27 @@ class PentraWizard(QWizard):
         #: Tarama geçmişi — None ise geçmiş kaydı yapılmaz (test/dev senaryosu için)
         self.scan_history: "ScanHistory | None" = scan_history
 
-        self.setWindowTitle("Pentra — Güvenlik Taraması")
         self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
         self.setOption(QWizard.WizardOption.NoBackButtonOnStartPage, True)
         self.setOption(QWizard.WizardOption.IndependentPages, False)
         self.setMinimumSize(720, 560)
 
-        # Türkçe buton etiketleri
-        self.setButtonText(QWizard.WizardButton.NextButton, "İleri >")
-        self.setButtonText(QWizard.WizardButton.BackButton, "< Geri")
-        self.setButtonText(QWizard.WizardButton.CancelButton, "İptal")
-        self.setButtonText(QWizard.WizardButton.FinishButton, "Bitir")
-        # "Commit" butonu — tarama bitince gösterilen "raporu aç" butonu
-        self.setButtonText(QWizard.WizardButton.CommitButton, "📊 Raporla")
+        # Pencere başlığı + buton metinleri i18n üzerinden gelir.
+        self._retranslate_chrome()
+        Translator.instance().languageChanged.connect(
+            lambda _l: self._retranslate_chrome(),
+        )
 
         # Sayfa eklenmesi app.py'dan yapılır (bağımlılıkları enjekte etmek için)
+
+    def _retranslate_chrome(self) -> None:
+        """Pencere başlığı + wizard buton metinlerini aktif dilden yükler."""
+        self.setWindowTitle(t("app.window_title"))
+        self.setButtonText(QWizard.WizardButton.NextButton, t("wizard.button.next"))
+        self.setButtonText(QWizard.WizardButton.BackButton, t("wizard.button.back"))
+        self.setButtonText(QWizard.WizardButton.CancelButton, t("wizard.button.cancel"))
+        self.setButtonText(QWizard.WizardButton.FinishButton, t("wizard.button.finish"))
+        self.setButtonText(QWizard.WizardButton.CommitButton, t("wizard.button.commit"))
 
     # Debugging/testing yardımcısı
     def set_scan_started_now(self) -> None:

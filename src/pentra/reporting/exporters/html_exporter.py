@@ -7,7 +7,8 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from pentra.knowledge.remediations_tr import get_guide
+from pentra.i18n import Translator, t
+from pentra.knowledge.remediations import get_guide
 from pentra.reporting.logo import get_logo_data_uri
 
 from pentra.reporting.report_builder import Report
@@ -20,17 +21,19 @@ _TEMPLATE_NAME: str = "basic_report.html.j2"
 # Filtreler
 # ---------------------------------------------------------------------
 def _tr_datetime(value: datetime) -> str:
-    """TR formatında tarih+saat (2026-04-21 14:30)."""
+    """YYYY-MM-DD HH:MM biçimi — her iki dilde aynı."""
     return value.strftime("%Y-%m-%d %H:%M")
 
 
-_SEVERITY_TR: dict[str, str] = {
-    "critical": "Kritik",
-    "high": "Yüksek",
-    "medium": "Orta",
-    "low": "Düşük",
-    "info": "Bilgi",
-}
+def _severity_label(value: str) -> str:
+    """severity.value ('critical', 'high', ...) → aktif dilde etiket."""
+    key = f"severity.{value}"
+    label = t(key)
+    # Anahtar bulunamazsa orijinal değer kapitalize edilip döner
+    if label == key:
+        return value.capitalize()
+    return label
+
 
 _SEVERITY_COLOR: dict[str, str] = {
     "critical": "#8b0000",
@@ -41,12 +44,17 @@ _SEVERITY_COLOR: dict[str, str] = {
 }
 
 
-def _severity_label(value: str) -> str:
-    return _SEVERITY_TR.get(value, value.capitalize())
-
-
 def _severity_color(value: str) -> str:
     return _SEVERITY_COLOR.get(value, "#666")
+
+
+def _depth_label(value: str) -> str:
+    """ScanDepth.value ('quick'/'standard'/'deep') → aktif dilde etiket."""
+    key = f"depth.value.{value}"
+    label = t(key)
+    if label == key:
+        return value.capitalize()
+    return label
 
 
 # ---------------------------------------------------------------------
@@ -57,8 +65,7 @@ class HtmlExporter:
 
     def __init__(self, template_dir: Path | None = None) -> None:
         self._template_dir = template_dir if template_dir is not None else _TEMPLATE_DIR
-        # Autoescape'i template adında ".html" geçen her şey için aç.
-        # (select_autoescape sadece son uzantıya bakar — ".html.j2" kaçar.)
+
         def _needs_autoescape(name: str | None) -> bool:
             return bool(name) and (".html" in name or ".xml" in name)
 
@@ -71,9 +78,11 @@ class HtmlExporter:
         self._env.filters["tr_datetime"] = _tr_datetime
         self._env.filters["severity_label"] = _severity_label
         self._env.filters["severity_color"] = _severity_color
-        # Detaylı onarım rehberi arama — her finding için template'den çağrılır
+        self._env.filters["depth_label"] = _depth_label
+
+        # i18n — `{{ t('key', arg=value) }}` olarak template'te çağrılır
+        self._env.globals["t"] = t
         self._env.globals["get_remediation_guide"] = get_guide
-        # Logo data URI bir kez yüklenir, template'te `{{ logo_data_uri }}` kullanır
         self._env.globals["logo_data_uri"] = get_logo_data_uri()
 
     def render(self, report: Report) -> str:
@@ -81,6 +90,7 @@ class HtmlExporter:
         return template.render(
             report=report,
             generated_at=datetime.now(),
+            current_lang=Translator.instance().current_language,
         )
 
     def export(self, report: Report, output_path: Path) -> Path:

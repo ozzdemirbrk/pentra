@@ -23,6 +23,7 @@ from pentra.core.service_probes.mysql_probe import MysqlDefaultCredsProbe
 from pentra.core.service_probes.postgresql_probe import PostgresDefaultCredsProbe
 from pentra.core.service_probes.redis_probe import RedisAuthProbe
 from pentra.core.service_probes.ssh_probe import SshDefaultCredsProbe
+from pentra.i18n import t
 from pentra.models import Finding, ScanDepth, Severity, Target, TargetType
 
 # Port → Service probe eşlemesi. Açık port bulunduğunda ilgili probe çalışır.
@@ -46,7 +47,6 @@ def _default_service_probes() -> dict[int, ServiceProbeBase]:
     return registry
 
 # python-nmap'in nmap.exe'yi arayacağı yollar — Windows + Unix.
-# Installer PATH'e eklemeyi unutmuş/kullanıcı yeni terminal açmamış olsa da çalışır.
 _NMAP_SEARCH_PATHS: tuple[str, ...] = (
     "nmap",
     r"C:\Program Files (x86)\Nmap\nmap.exe",
@@ -56,21 +56,21 @@ _NMAP_SEARCH_PATHS: tuple[str, ...] = (
     "/opt/local/bin/nmap",
 )
 
-# Bilgi amaçlı riskli port haritası (çok temel, CVE eşleşmesi Faz 5'te zenginleşir)
+# Port → (severity, i18n anahtarı) — anahtar çalıştırma zamanında çevrilir
 _RISKY_PORTS: dict[int, tuple[Severity, str]] = {
-    21: (Severity.LOW, "FTP — şifrelenmemiş dosya transferi, anonim erişim olabilir"),
-    23: (Severity.MEDIUM, "Telnet — parola düz metin gönderilir, SSH kullanın"),
-    25: (Severity.LOW, "SMTP — yanlış yapılandırılırsa open relay olabilir"),
-    135: (Severity.LOW, "Windows RPC — dışarıya kapalı olmalı"),
-    139: (Severity.LOW, "NetBIOS — paylaşım bilgisi sızdırabilir"),
-    445: (Severity.MEDIUM, "SMB — EternalBlue gibi ciddi zaafiyet geçmişi var"),
-    1433: (Severity.MEDIUM, "MSSQL — dışarıya açıksa saldırı yüzeyini artırır"),
-    3306: (Severity.MEDIUM, "MySQL — dışarıya açıksa risk"),
-    3389: (Severity.HIGH, "RDP — yaygın brute-force hedefi, güçlü parola + MFA şart"),
-    5432: (Severity.MEDIUM, "PostgreSQL — dışarıya açıksa risk"),
-    5900: (Severity.HIGH, "VNC — zayıf parola şifreleme, dışarıya açılmamalı"),
-    6379: (Severity.HIGH, "Redis — varsayılan auth yok, erişim kısıtlanmalı"),
-    27017: (Severity.HIGH, "MongoDB — geçmişte auth'suz yayınlarla büyük sızıntılar"),
+    21: (Severity.LOW, "note.network.port.ftp"),
+    23: (Severity.MEDIUM, "note.network.port.telnet"),
+    25: (Severity.LOW, "note.network.port.smtp"),
+    135: (Severity.LOW, "note.network.port.rpc"),
+    139: (Severity.LOW, "note.network.port.netbios"),
+    445: (Severity.MEDIUM, "note.network.port.smb"),
+    1433: (Severity.MEDIUM, "note.network.port.mssql"),
+    3306: (Severity.MEDIUM, "note.network.port.mysql"),
+    3389: (Severity.HIGH, "note.network.port.rdp"),
+    5432: (Severity.MEDIUM, "note.network.port.postgres"),
+    5900: (Severity.HIGH, "note.network.port.vnc"),
+    6379: (Severity.HIGH, "note.network.port.redis"),
+    27017: (Severity.HIGH, "note.network.port.mongodb"),
 }
 
 
@@ -79,7 +79,6 @@ class NetworkScanner(ScannerBase):
 
     def __init__(self, *args, service_probes=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        # Port → ServiceProbeBase eşlemesi; None ise varsayılan (Redis/ES/Mongo)
         self._service_probes: dict[int, ServiceProbeBase] = (
             service_probes if service_probes is not None else _default_service_probes()
         )
@@ -92,52 +91,41 @@ class NetworkScanner(ScannerBase):
     # ScannerBase._do_scan implementasyonu
     # -----------------------------------------------------------------
     def _do_scan(self, target: Target, depth: ScanDepth) -> None:
-        # Lazy import — test ortamı mock'layabilsin diye
         try:
             import nmap  # type: ignore[import-not-found]
         except ImportError as e:
-            self._emit_error(
-                f"python-nmap kütüphanesi yüklü değil: {e}. "
-                f"pip install python-nmap ile kurun.",
-            )
+            self._emit_error(t("error.network.nmap_missing", error=str(e)))
             return
 
         arguments = self._build_nmap_args(depth, target)
-        self._emit_progress(5, f"Nmap argümanları: {arguments}")
+        self._emit_progress(5, t("progress.network.nmap_args", arguments=arguments))
 
         try:
             scanner = nmap.PortScanner(nmap_search_path=_NMAP_SEARCH_PATHS)
         except nmap.PortScannerError as e:
-            self._emit_error(
-                f"Nmap kurulu değil veya bulunamadı: {e}. "
-                f"https://nmap.org/download.html adresinden kurun.",
-            )
+            self._emit_error(t("error.network.nmap_not_found", error=str(e)))
             return
 
         if not self._throttle(packets=1):
             return  # iptal edildi
 
-        # CIDR ağlarında kullanıcı ne kadar bekleyeceğini bilsin
         network_warning = _estimate_scan_time(target, depth)
         if network_warning:
             self._emit_progress(10, network_warning)
         else:
-            self._emit_progress(10, f"{target.value} taranıyor...")
+            self._emit_progress(10, t("progress.network.scanning", target=target.value))
 
         try:
             scanner.scan(hosts=target.value, arguments=arguments)
         except nmap.PortScannerError as e:
-            self._emit_error(f"Tarama başarısız: {e}")
+            self._emit_error(t("error.network.scan_failed", error=str(e)))
             return
 
-        self._emit_progress(60, "Sonuçlar işleniyor...")
+        self._emit_progress(60, t("progress.network.processing_results"))
 
         hosts = scanner.all_hosts()
         if not hosts:
-            self._emit_progress(
-                100,
-                "Hedef yanıt vermedi — firewall kapalı olabilir veya cihaz erişilemez",
-            )
+            self._emit_progress(100, t("progress.network.no_response"))
             return
 
         findings = self._extract_findings(scanner, target, hosts)
@@ -146,12 +134,11 @@ class NetworkScanner(ScannerBase):
             if self._cancelled:
                 return
 
-        # Service probe aşaması — açık DB portlarında auth kontrolü
         self._run_service_probes(hosts, scanner)
 
         self._emit_progress(
             100,
-            f"Tarama tamamlandı — {len(findings)} bulgu",
+            t("progress.network.scan_complete", count=len(findings)),
         )
 
     # -----------------------------------------------------------------
@@ -174,13 +161,21 @@ class NetworkScanner(ScannerBase):
                     if probe is None:
                         continue
 
-                    self._emit_progress(95, f"Servis probe: {probe.name} → {host}:{port}")
+                    self._emit_progress(
+                        95,
+                        t(
+                            "progress.network.service_probe",
+                            probe=probe.name, host=host, port=port,
+                        ),
+                    )
                     if not self._throttle(1):
                         return
                     try:
                         probe_findings = probe.probe(host, port)
                     except Exception as e:  # noqa: BLE001
-                        self._emit_error(f"{probe.name} hatası: {e}")
+                        self._emit_error(
+                            t("error.network.probe_error", probe=probe.name, error=str(e)),
+                        )
                         continue
                     for pf in probe_findings:
                         self._emit_finding(pf)
@@ -192,12 +187,7 @@ class NetworkScanner(ScannerBase):
     # -----------------------------------------------------------------
     @staticmethod
     def _build_nmap_args(depth: ScanDepth, target: Target | None = None) -> str:
-        """Derinliğe göre nmap argümanlarını oluşturur.
-
-        LOCAL_NETWORK / IP_RANGE için `-Pn` KULLANILMAZ — nmap'in kendi
-        host discovery'sine (ARP/ICMP) izin veririz, yoksa 254 host'un her
-        biri canlı sayılıp her birinde 100 port denenir (dakikalarca).
-        """
+        """Derinliğe göre nmap argümanlarını oluşturur."""
         is_network_scan = (
             target is not None
             and target.target_type in (TargetType.LOCAL_NETWORK, TargetType.IP_RANGE)
@@ -210,11 +200,14 @@ class NetworkScanner(ScannerBase):
             case ScanDepth.STANDARD:
                 return f"-sT -sV --open -T4 {host_discovery}".strip()
             case ScanDepth.DEEP:
-                return f"-sT -sV -O --script=default --open -T4 {host_discovery}".strip()
+                # Tüm portlar + versiyon + güvenli NSE script'leri + OS tespiti.
+                # -O yönetici/Npcap ister; haksa atlar, diğer sonuçlar çalışır.
+                # --script=safe destructive olmayan vuln/discovery script'leri içerir.
+                return f"-sT -sV -O --script=safe --open -T4 -p- {host_discovery}".strip()
 
     def _extract_findings(
         self,
-        scanner: object,  # nmap.PortScanner; tip checker için object
+        scanner: object,
         target: Target,
         hosts: list[str],
     ) -> list[Finding]:
@@ -239,25 +232,33 @@ class NetworkScanner(ScannerBase):
                     version: str = port_info.get("version", "")
                     product: str = port_info.get("product", "")
 
-                    severity, extra_note = _RISKY_PORTS.get(
-                        port, (Severity.INFO, ""),
+                    severity, note_key = _RISKY_PORTS.get(port, (Severity.INFO, ""))
+                    extra_note = (
+                        " " + t(note_key) if note_key else ""
                     )
 
-                    title = f"Açık port: {port}/{proto} ({service})"
-                    description_parts = [
-                        f"{host} üzerinde {port} numaralı TCP portu açık.",
-                        f"Servis adı: {service}.",
-                    ]
-                    if product or version:
-                        description_parts.append(
-                            f"Yazılım: {product} {version}".strip(),
+                    version_part = (
+                        t(
+                            "finding.network.open_port.version_part",
+                            product=product,
+                            version=version,
                         )
-                    if extra_note:
-                        description_parts.append(extra_note)
+                        if (product or version)
+                        else ""
+                    )
+
+                    title = t(
+                        "finding.network.open_port.title",
+                        port=port, proto=proto, service=service,
+                    )
+                    description = t(
+                        "finding.network.open_port.desc",
+                        host=host, port=port, service=service,
+                        version_part=version_part, extra_note=extra_note,
+                    )
 
                     remediation = _build_remediation(port, service)
 
-                    # CVE eşleştirme — mapper varsa ve versiyon biliniyorsa
                     cve_ids: tuple[str, ...] = ()
                     cve_details: list[dict[str, object]] = []
                     if self._cve_mapper is not None and (product or service) and version:
@@ -276,12 +277,10 @@ class NetworkScanner(ScannerBase):
                                 }
                                 for c in cves[:5]
                             ]
-                            # CVE varsa severity'yi yükselt
                             severity = self._escalate_severity_by_cves(
                                 severity, cves,
                             )
                         except Exception:  # noqa: BLE001
-                            # CVE lookup başarısız olsa bile tarama devam
                             pass
 
                     findings.append(
@@ -289,7 +288,7 @@ class NetworkScanner(ScannerBase):
                             scanner_name=self.scanner_name,
                             severity=severity,
                             title=title,
-                            description=" ".join(description_parts),
+                            description=description,
                             target=f"{host}:{port}",
                             cve_ids=cve_ids,
                             remediation=remediation,
@@ -304,9 +303,11 @@ class NetworkScanner(ScannerBase):
                         ),
                     )
 
-                    # İlerleme yayını: portlar arasında yüzdeyi güncelle
                     percent = 60 + int(40 * (idx + 1) / max(port_count, 1))
-                    self._emit_progress(percent, f"{host}:{port} işlendi")
+                    self._emit_progress(
+                        percent,
+                        t("progress.network.port_processed", host=host, port=port),
+                    )
 
         return findings
 
@@ -318,7 +319,6 @@ class NetworkScanner(ScannerBase):
         """CVE'lerin en kritik CVSS'i port base severity'sinden yüksekse yükselt."""
         if not cves:
             return base
-        # Maksimum CVSS skoru
         max_cvss = max((c.cvss_score or 0.0) for c in cves)
         cvss_tier: Severity
         if max_cvss >= 9.0:
@@ -332,7 +332,6 @@ class NetworkScanner(ScannerBase):
         else:
             return base
 
-        # Base ile CVSS tier'ın maksimumunu al
         order = {
             Severity.INFO: 0, Severity.LOW: 1, Severity.MEDIUM: 2,
             Severity.HIGH: 3, Severity.CRITICAL: 4,
@@ -341,10 +340,7 @@ class NetworkScanner(ScannerBase):
 
 
 def _estimate_scan_time(target: Target, depth: ScanDepth) -> str:
-    """CIDR hedefler için kullanıcıya süre tahmini mesajı döndürür.
-
-    Geri dönüş: kullanıcıya gösterilecek Türkçe metin (boşsa standart mesaj).
-    """
+    """CIDR hedefler için kullanıcıya süre tahmini mesajı döndürür."""
     if target.target_type not in (TargetType.LOCAL_NETWORK, TargetType.IP_RANGE):
         return ""
 
@@ -357,38 +353,31 @@ def _estimate_scan_time(target: Target, depth: ScanDepth) -> str:
     if host_count <= 1:
         return ""
 
-    # Kaba tahmin: Quick modunda aktif host başı ~3 sn, ping sweep ~0.5 sn/host
-    # /24 için tipik olarak 5-20 aktif host → 1-2 dk
     if host_count <= 256:
-        minutes_est = "1-3 dakika"
+        minutes_est = t("label.network.time.short")
     elif host_count <= 4096:
-        minutes_est = "5-15 dakika"
+        minutes_est = t("label.network.time.medium")
     else:
-        minutes_est = "15+ dakika"
+        minutes_est = t("label.network.time.long")
 
     depth_text = {
-        ScanDepth.QUICK: "Hızlı",
-        ScanDepth.STANDARD: "Standart",
-        ScanDepth.DEEP: "Derin",
+        ScanDepth.QUICK: t("label.network.depth.quick"),
+        ScanDepth.STANDARD: t("label.network.depth.standard"),
+        ScanDepth.DEEP: t("label.network.depth.deep"),
     }.get(depth, "")
 
-    return (
-        f"{network} ağı ({host_count} adres) {depth_text} derinlikte taranıyor. "
-        f"Önce aktif cihazlar tespit edilecek, sonra onların portları. "
-        f"Tahmini süre: ~{minutes_est}. Nmap çalışırken alt log güncellenmez — sabırlı olun."
+    return t(
+        "progress.network.time_estimate",
+        network=str(network),
+        host_count=host_count,
+        depth_text=depth_text,
+        minutes_est=minutes_est,
     )
 
 
 def _build_remediation(port: int, service: str) -> str:
-    """Her port için basit Türkçe onarım önerisi. Faz 5'te genişleyecek."""
-    del service  # şimdilik sadece port bazlı, ileride servise göre zenginleşir
+    """Port için onarım önerisi — i18n üzerinden."""
+    del service  # şimdilik sadece port bazlı
     if port in _RISKY_PORTS:
-        return (
-            f"Bu port gerçekten gerekli değilse kapatın. Gerekliyse güvenlik "
-            f"duvarıyla yalnızca güvendiğiniz IP aralıklarına izin verin ve "
-            f"servis yazılımının güncel sürümde olduğundan emin olun."
-        )
-    return (
-        "Gerekli değilse portu kapatın. Güvenlik duvarında yalnızca "
-        "belirli IP'lere izin verecek şekilde kısıtlayın."
-    )
+        return t("finding.network.open_port.remediation")
+    return t("finding.network.generic_port.remediation")

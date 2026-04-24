@@ -59,6 +59,18 @@ dmypy.json
 !.claude/commands/
 
 # ----------------------------------------------------
+# Geliştirme notları — public repo'da bulunmaz
+# ----------------------------------------------------
+CLAUDE.md
+memory.md
+memory-bank/
+
+# Pentra_Rapor_*.{en,tr} de kullanıcı raporlarıdır
+Pentra_Report_*.pdf
+Pentra_Report_*.html
+Pentra_Report_*.md
+
+# ----------------------------------------------------
 # İşletim sistemi
 # ----------------------------------------------------
 Thumbs.db
@@ -72,6 +84,7 @@ $RECYCLE.BIN/
 *.spec
 build/
 dist/
+pyinstaller_build/
 
 # ----------------------------------------------------
 # Pentra'ya özel — hassas çıktılar kesinlikle commit EDİLMEZ

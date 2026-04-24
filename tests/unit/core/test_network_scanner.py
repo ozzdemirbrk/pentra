@@ -64,7 +64,10 @@ class TestBuildNmapArgs:
     def test_deep_args(self) -> None:
         args = NetworkScanner._build_nmap_args(ScanDepth.DEEP)
         assert "-O" in args
-        assert "--script=default" in args
+        # Derin tarama güvenli NSE script'leri + tüm portlar kapsamalı
+        assert "--script=safe" in args
+        assert "-p-" in args
+        assert "-sV" in args
 
 
 # =====================================================================
