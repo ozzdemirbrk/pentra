@@ -43,4 +43,17 @@ jobs:
         run: black --check src tests
 
       - name: Run tests
-        run: pytest -q
+        env:
+          # Qt headless mode — CI runners have no display
+          QT_QPA_PLATFORM: offscreen
+        run: pytest -v --tb=short
+
+      - name: Upload pytest log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-log-py${{ matrix.python-version }}
+          path: |
+            .pytest_cache/
+            htmlcov/
+          retention-days: 7
