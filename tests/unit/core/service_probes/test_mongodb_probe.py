@@ -90,6 +90,7 @@ class TestMongoDbMissingDep:
     def test_pymongo_not_installed_returns_empty(self) -> None:
         """pymongo ImportError → probe silently returns empty."""
         import sys
+
         probe = MongoDbAuthProbe()
         # Remove the pymongo mock; import must fail
         with patch.dict(sys.modules, {"pymongo": None}):

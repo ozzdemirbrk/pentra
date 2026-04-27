@@ -23,7 +23,7 @@ def get_local_ip() -> str | None:
         sock.connect(("8.8.8.8", 80))
         ip = sock.getsockname()[0]
         return str(ip)
-    except (OSError, socket.timeout):
+    except (TimeoutError, OSError):
         return None
     finally:
         sock.close()

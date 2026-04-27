@@ -15,6 +15,7 @@ from typing import Final
 APP_NAME: Final[str] = "Pentra"
 ORG_NAME: Final[str] = "Pentra"
 
+
 # ---------------------------------------------------------------------
 # Path constants (Windows)
 # ---------------------------------------------------------------------

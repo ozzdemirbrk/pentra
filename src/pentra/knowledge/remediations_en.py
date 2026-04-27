@@ -14,12 +14,9 @@ used instead.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
-from pentra.models import Finding
-
 # Reuse shared dataclass definitions from the TR module (single source of truth)
 from pentra.knowledge.remediations_tr import FixStep, RemediationGuide, _TitleMatcher
+from pentra.models import Finding
 
 # =====================================================================
 # Guides
@@ -40,7 +37,7 @@ _CSP_GUIDE = RemediationGuide(
             "Start with Report-Only first, monitor errors, then enforce:",
             code=(
                 "add_header Content-Security-Policy-Report-Only "
-                '"default-src \'self\'; '
+                "\"default-src 'self'; "
                 "script-src 'self'; "
                 "style-src 'self' 'unsafe-inline'; "
                 "img-src 'self' data:; "
@@ -51,9 +48,9 @@ _CSP_GUIDE = RemediationGuide(
             "Apache",
             "Add to `httpd.conf` or `.htaccess`:",
             code=(
-                'Header always set Content-Security-Policy-Report-Only '
-                '"default-src \'self\'; script-src \'self\'; '
-                'style-src \'self\' \'unsafe-inline\'"'
+                "Header always set Content-Security-Policy-Report-Only "
+                "\"default-src 'self'; script-src 'self'; "
+                "style-src 'self' 'unsafe-inline'\""
             ),
         ),
         FixStep(
@@ -61,7 +58,7 @@ _CSP_GUIDE = RemediationGuide(
             "Add under `<system.webServer><httpProtocol><customHeaders>`:",
             code=(
                 '<add name="Content-Security-Policy" value="default-src \'self\'; '
-                'script-src \'self\'; style-src \'self\' \'unsafe-inline\'" />'
+                "script-src 'self'; style-src 'self' 'unsafe-inline'\" />"
             ),
         ),
         FixStep(
@@ -78,7 +75,10 @@ _CSP_GUIDE = RemediationGuide(
     ),
     references=(
         ("MDN CSP", "https://developer.mozilla.org/docs/Web/HTTP/CSP"),
-        ("OWASP CSP Cheat Sheet", "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html"),
+        (
+            "OWASP CSP Cheat Sheet",
+            "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html",
+        ),
         ("CSP Evaluator", "https://csp-evaluator.withgoogle.com/"),
     ),
 )
@@ -98,7 +98,7 @@ _HSTS_GUIDE = RemediationGuide(
             "Nginx",
             "Only in the HTTPS server block, for includeSubDomains + preload:",
             code=(
-                'add_header Strict-Transport-Security '
+                "add_header Strict-Transport-Security "
                 '"max-age=31536000; includeSubDomains; preload" always;'
             ),
         ),
@@ -106,7 +106,7 @@ _HSTS_GUIDE = RemediationGuide(
             "Apache",
             "Inside `<VirtualHost *:443>` in `httpd.conf`:",
             code=(
-                'Header always set Strict-Transport-Security '
+                "Header always set Strict-Transport-Security "
                 '"max-age=31536000; includeSubDomains; preload"'
             ),
         ),
@@ -131,7 +131,10 @@ _HSTS_GUIDE = RemediationGuide(
         "https://hstspreload.org"
     ),
     references=(
-        ("MDN HSTS", "https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security"),
+        (
+            "MDN HSTS",
+            "https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security",
+        ),
         ("HSTS Preload", "https://hstspreload.org/"),
     ),
 )
@@ -173,7 +176,10 @@ _XFO_GUIDE = RemediationGuide(
         "`X-Frame-Options: SAMEORIGIN`."
     ),
     references=(
-        ("MDN X-Frame-Options", "https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Frame-Options"),
+        (
+            "MDN X-Frame-Options",
+            "https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Frame-Options",
+        ),
         ("OWASP Clickjacking", "https://owasp.org/www-community/attacks/Clickjacking"),
     ),
 )
@@ -190,15 +196,21 @@ _XCTO_GUIDE = RemediationGuide(
     fix_steps=(
         FixStep("Nginx", "", code='add_header X-Content-Type-Options "nosniff" always;'),
         FixStep("Apache", "", code='Header always set X-Content-Type-Options "nosniff"'),
-        FixStep("IIS (web.config)", "", code='<add name="X-Content-Type-Options" value="nosniff" />'),
         FixStep(
-            "Django", "Added via middleware (default in 3.0+):",
-            code='SECURE_CONTENT_TYPE_NOSNIFF = True',
+            "IIS (web.config)", "", code='<add name="X-Content-Type-Options" value="nosniff" />'
+        ),
+        FixStep(
+            "Django",
+            "Added via middleware (default in 3.0+):",
+            code="SECURE_CONTENT_TYPE_NOSNIFF = True",
         ),
     ),
     verification="`curl -I https://yoursite.com | grep -i x-content-type` → should show `nosniff`.",
     references=(
-        ("MDN X-Content-Type-Options", "https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options"),
+        (
+            "MDN X-Content-Type-Options",
+            "https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options",
+        ),
     ),
 )
 
@@ -219,15 +231,22 @@ _REFERRER_GUIDE = RemediationGuide(
             code='add_header Referrer-Policy "strict-origin-when-cross-origin" always;',
         ),
         FixStep(
-            "Apache", "",
+            "Apache",
+            "",
             code='Header always set Referrer-Policy "strict-origin-when-cross-origin"',
         ),
-        FixStep("IIS (web.config)", "",
-            code='<add name="Referrer-Policy" value="strict-origin-when-cross-origin" />'),
+        FixStep(
+            "IIS (web.config)",
+            "",
+            code='<add name="Referrer-Policy" value="strict-origin-when-cross-origin" />',
+        ),
     ),
     verification="`curl -I https://yoursite.com | grep -i referrer-policy`",
     references=(
-        ("MDN Referrer-Policy", "https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy"),
+        (
+            "MDN Referrer-Policy",
+            "https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy",
+        ),
     ),
 )
 
@@ -255,7 +274,7 @@ _SERVER_LEAK_GUIDE = RemediationGuide(
         FixStep(
             "IIS",
             "Remove the Server header in `web.config` via the URL Rewrite module. "
-            "Or use `<security><requestFiltering removeServerHeader=\"true\" />`:",
+            'Or use `<security><requestFiltering removeServerHeader="true" />`:',
             code='<system.webServer>\n  <security>\n    <requestFiltering removeServerHeader="true" />\n  </security>\n</system.webServer>',
         ),
         FixStep(
@@ -266,7 +285,10 @@ _SERVER_LEAK_GUIDE = RemediationGuide(
     ),
     verification="`curl -I https://yoursite.com | grep -i '^server:'` should show only minimal information like `Server: nginx`, with no version number.",
     references=(
-        ("Nginx server_tokens", "https://nginx.org/en/docs/http/ngx_http_core_module.html#server_tokens"),
+        (
+            "Nginx server_tokens",
+            "https://nginx.org/en/docs/http/ngx_http_core_module.html#server_tokens",
+        ),
         ("Apache ServerTokens", "https://httpd.apache.org/docs/2.4/mod/core.html#servertokens"),
     ),
 )
@@ -284,23 +306,23 @@ _HTTP_ONLY_GUIDE = RemediationGuide(
             "Obtaining a certificate (Let's Encrypt — Free)",
             "Automatic installation via `certbot` + 90-day automatic renewal:",
             code="sudo apt install certbot python3-certbot-nginx\n"
-                 "sudo certbot --nginx -d yoursite.com -d www.yoursite.com",
+            "sudo certbot --nginx -d yoursite.com -d www.yoursite.com",
         ),
         FixStep(
             "Nginx — 301 redirect from HTTP to HTTPS",
             "",
             code="server {\n"
-                 "    listen 80;\n"
-                 "    server_name yoursite.com www.yoursite.com;\n"
-                 '    return 301 https://$server_name$request_uri;\n'
-                 "}",
+            "    listen 80;\n"
+            "    server_name yoursite.com www.yoursite.com;\n"
+            "    return 301 https://$server_name$request_uri;\n"
+            "}",
         ),
         FixStep(
             "Apache — redirect via mod_rewrite",
             "In `.htaccess` or a VirtualHost:",
             code="RewriteEngine On\n"
-                 "RewriteCond %{HTTPS} !=on\n"
-                 "RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R=301,L]",
+            "RewriteCond %{HTTPS} !=on\n"
+            "RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R=301,L]",
         ),
         FixStep(
             "Cloudflare — One Click",
@@ -335,9 +357,9 @@ _SECURITY_TXT_GUIDE = RemediationGuide(
             "Content",
             "Publish the following as `/.well-known/security.txt`:",
             code="Contact: mailto:security@yoursite.com\n"
-                 "Expires: 2027-01-01T00:00:00Z\n"
-                 "Preferred-Languages: en, tr\n"
-                 "Canonical: https://yoursite.com/.well-known/security.txt",
+            "Expires: 2027-01-01T00:00:00Z\n"
+            "Preferred-Languages: en, tr\n"
+            "Canonical: https://yoursite.com/.well-known/security.txt",
         ),
         FixStep(
             "Web Server Configuration",
@@ -358,7 +380,7 @@ _REDIS_OPEN_GUIDE = RemediationGuide(
     why_important=(
         "If Redis is open without auth, an attacker can read and delete all "
         "data. Worse: by combining `CONFIG SET dir /home/redis/.ssh` + "
-        "`CONFIG SET dbfilename authorized_keys` + `SET x \"ssh-rsa...\"` + "
+        '`CONFIG SET dbfilename authorized_keys` + `SET x "ssh-rsa..."` + '
         "`SAVE`, they can write an SSH key on the server and take full "
         "control. Since 2017, thousands of internet-exposed Redis instances "
         "have fallen victim to ransomware."
@@ -368,15 +390,15 @@ _REDIS_OPEN_GUIDE = RemediationGuide(
             "1. Strong password + localhost bind",
             "Edit `/etc/redis/redis.conf` and restart Redis:",
             code="# Access only from localhost\n"
-                 "bind 127.0.0.1 ::1\n"
-                 "# Strong password — 32+ characters, random\n"
-                 'requirepass "<64 character random string>"\n'
-                 "# Keep protected mode enabled\n"
-                 "protected-mode yes\n"
-                 "# Disable dangerous commands\n"
-                 'rename-command FLUSHDB ""\n'
-                 'rename-command FLUSHALL ""\n'
-                 'rename-command CONFIG ""',
+            "bind 127.0.0.1 ::1\n"
+            "# Strong password — 32+ characters, random\n"
+            'requirepass "<64 character random string>"\n'
+            "# Keep protected mode enabled\n"
+            "protected-mode yes\n"
+            "# Disable dangerous commands\n"
+            'rename-command FLUSHDB ""\n'
+            'rename-command FLUSHALL ""\n'
+            'rename-command CONFIG ""',
         ),
         FixStep(
             "2. Use ACL (Redis 6+)",
@@ -386,15 +408,14 @@ _REDIS_OPEN_GUIDE = RemediationGuide(
         FixStep(
             "3. Firewall",
             "If remote Redis is needed (cloud), only from application IPs:",
-            code="sudo ufw allow from <app_ip> to any port 6379\n"
-                 "sudo ufw deny 6379",
+            code="sudo ufw allow from <app_ip> to any port 6379\n" "sudo ufw deny 6379",
         ),
         FixStep(
             "4. TLS",
             "Redis 6+ supports TLS — mandatory in production:",
             code="tls-port 6380\n"
-                 "tls-cert-file /path/to/cert.pem\n"
-                 "tls-key-file /path/to/key.pem",
+            "tls-cert-file /path/to/cert.pem\n"
+            "tls-key-file /path/to/key.pem",
         ),
     ),
     verification=(
@@ -420,38 +441,38 @@ _MONGODB_OPEN_GUIDE = RemediationGuide(
         FixStep(
             "1. Admin user + enable auth",
             "Start MongoDB without `--auth`, create the admin, then restart with `--auth`:",
-            code='mongosh\n'
-                 'use admin\n'
-                 'db.createUser({\n'
-                 '  user: "admin",\n'
-                 '  pwd: "<strong-password>",\n'
-                 '  roles: [{ role: "root", db: "admin" }]\n'
-                 '})',
+            code="mongosh\n"
+            "use admin\n"
+            "db.createUser({\n"
+            '  user: "admin",\n'
+            '  pwd: "<strong-password>",\n'
+            '  roles: [{ role: "root", db: "admin" }]\n'
+            "})",
         ),
         FixStep(
             "2. Config file",
             "`/etc/mongod.conf`:",
             code="security:\n"
-                 "  authorization: enabled\n"
-                 "net:\n"
-                 "  bindIp: 127.0.0.1  # Only localhost\n"
-                 "  port: 27017",
+            "  authorization: enabled\n"
+            "net:\n"
+            "  bindIp: 127.0.0.1  # Only localhost\n"
+            "  port: 27017",
         ),
         FixStep(
             "3. Restart + test",
             "",
             code="sudo systemctl restart mongod\n"
-                 "mongosh  # connection without auth should now be rejected for most commands",
+            "mongosh  # connection without auth should now be rejected for most commands",
         ),
         FixStep(
             "4. Separate user per application",
             "The root user is for administration only. Minimum-privilege user per application:",
-            code='use mydatabase\n'
-                 'db.createUser({\n'
-                 '  user: "myapp",\n'
-                 '  pwd: "<app-password>",\n'
-                 '  roles: [{ role: "readWrite", db: "mydatabase" }]\n'
-                 '})',
+            code="use mydatabase\n"
+            "db.createUser({\n"
+            '  user: "myapp",\n'
+            '  pwd: "<app-password>",\n'
+            '  roles: [{ role: "readWrite", db: "mydatabase" }]\n'
+            "})",
         ),
     ),
     verification=(
@@ -459,7 +480,10 @@ _MONGODB_OPEN_GUIDE = RemediationGuide(
         "should return 'command listDatabases requires authentication'."
     ),
     references=(
-        ("MongoDB Security Checklist", "https://www.mongodb.com/docs/manual/administration/security-checklist/"),
+        (
+            "MongoDB Security Checklist",
+            "https://www.mongodb.com/docs/manual/administration/security-checklist/",
+        ),
     ),
 )
 
@@ -475,26 +499,22 @@ _ELASTICSEARCH_OPEN_GUIDE = RemediationGuide(
         FixStep(
             "1. Enable X-Pack Security (free in ES 6.8+)",
             "`elasticsearch.yml`:",
-            code="xpack.security.enabled: true\n"
-                 "xpack.security.transport.ssl.enabled: true",
+            code="xpack.security.enabled: true\n" "xpack.security.transport.ssl.enabled: true",
         ),
         FixStep(
             "2. Generate passwords",
             "",
-            code="cd /usr/share/elasticsearch\n"
-                 "bin/elasticsearch-setup-passwords auto",
+            code="cd /usr/share/elasticsearch\n" "bin/elasticsearch-setup-passwords auto",
         ),
         FixStep(
             "3. Bind to localhost (if remote access is not required)",
             "",
-            code="network.host: 127.0.0.1\n"
-                 "http.port: 9200",
+            code="network.host: 127.0.0.1\n" "http.port: 9200",
         ),
         FixStep(
             "4. Firewall",
             "",
-            code="sudo ufw deny 9200\n"
-                 "sudo ufw allow from <app_ip> to any port 9200",
+            code="sudo ufw deny 9200\n" "sudo ufw allow from <app_ip> to any port 9200",
         ),
     ),
     verification=(
@@ -503,7 +523,10 @@ _ELASTICSEARCH_OPEN_GUIDE = RemediationGuide(
         "`curl -u elastic:<password> http://<ip>:9200/` should return cluster info."
     ),
     references=(
-        ("Elastic Security", "https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html"),
+        (
+            "Elastic Security",
+            "https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html",
+        ),
     ),
 )
 
@@ -527,21 +550,20 @@ _MYSQL_DEFAULT_GUIDE = RemediationGuide(
             "2. Manual — change the root password",
             "",
             code="mysql -u root\n"
-                 "mysql> ALTER USER 'root'@'localhost' IDENTIFIED BY '<strong-password>';\n"
-                 "mysql> FLUSH PRIVILEGES;",
+            "mysql> ALTER USER 'root'@'localhost' IDENTIFIED BY '<strong-password>';\n"
+            "mysql> FLUSH PRIVILEGES;",
         ),
         FixStep(
             "3. Remove remote root",
             "Root account accessible only from localhost:",
             code="mysql> DROP USER IF EXISTS 'root'@'%';\n"
-                 "mysql> DROP USER IF EXISTS 'root'@'::';\n"
-                 "mysql> FLUSH PRIVILEGES;",
+            "mysql> DROP USER IF EXISTS 'root'@'::';\n"
+            "mysql> FLUSH PRIVILEGES;",
         ),
         FixStep(
             "4. Bind to localhost",
             "`/etc/mysql/my.cnf`:",
-            code="[mysqld]\n"
-                 "bind-address = 127.0.0.1",
+            code="[mysqld]\n" "bind-address = 127.0.0.1",
         ),
     ),
     verification=(
@@ -549,7 +571,10 @@ _MYSQL_DEFAULT_GUIDE = RemediationGuide(
         "`mysql -u root -p` should let you in when you enter the password."
     ),
     references=(
-        ("MySQL Security Guidelines", "https://dev.mysql.com/doc/refman/8.0/en/security-guidelines.html"),
+        (
+            "MySQL Security Guidelines",
+            "https://dev.mysql.com/doc/refman/8.0/en/security-guidelines.html",
+        ),
     ),
 )
 
@@ -573,24 +598,24 @@ _SSH_DEFAULT_GUIDE = RemediationGuide(
             "2. RECOMMENDED — Disable SSH password auth entirely, use keys only",
             "`/etc/ssh/sshd_config`:",
             code="PasswordAuthentication no\n"
-                 "PermitRootLogin no          # Root cannot log in at all\n"
-                 "PubkeyAuthentication yes\n"
-                 "ChallengeResponseAuthentication no",
+            "PermitRootLogin no          # Root cannot log in at all\n"
+            "PubkeyAuthentication yes\n"
+            "ChallengeResponseAuthentication no",
         ),
         FixStep(
             "3. SSH key generation (on the client)",
             "",
             code="# On Windows in PowerShell or Git Bash:\n"
-                 "ssh-keygen -t ed25519 -a 100 -C 'email@domain.com'\n"
-                 "# Copy the public key to the server:\n"
-                 "ssh-copy-id user@server.com",
+            "ssh-keygen -t ed25519 -a 100 -C 'email@domain.com'\n"
+            "# Copy the public key to the server:\n"
+            "ssh-copy-id user@server.com",
         ),
         FixStep(
             "4. Install fail2ban — brute-force protection",
             "",
             code="sudo apt install fail2ban\n"
-                 "sudo systemctl enable --now fail2ban\n"
-                 "# In /etc/fail2ban/jail.local the sshd jail is enabled by default",
+            "sudo systemctl enable --now fail2ban\n"
+            "# In /etc/fail2ban/jail.local the sshd jail is enabled by default",
         ),
         FixStep(
             "5. Change the SSH port (defense-in-depth)",
@@ -604,7 +629,10 @@ _SSH_DEFAULT_GUIDE = RemediationGuide(
         "(no password prompt). With a key you should be able to log in."
     ),
     references=(
-        ("DigitalOcean SSH Hardening", "https://www.digitalocean.com/community/tutorials/how-to-harden-openssh-on-ubuntu"),
+        (
+            "DigitalOcean SSH Hardening",
+            "https://www.digitalocean.com/community/tutorials/how-to-harden-openssh-on-ubuntu",
+        ),
         ("Mozilla OpenSSH Guidelines", "https://infosec.mozilla.org/guidelines/openssh"),
     ),
 )
@@ -638,7 +666,7 @@ _WIFI_OPEN_GUIDE = RemediationGuide(
             "entered once, so make it long. Example structure: combine 3-4 "
             "random words.",
             code="Acceptable: Rainy-Sunday-Cat-Water42!\n"
-                 "Very strong: correct-horse-battery-staple-99",
+            "Very strong: correct-horse-battery-staple-99",
         ),
         FixStep(
             "4. Set up a guest network",
@@ -660,7 +688,10 @@ _WIFI_OPEN_GUIDE = RemediationGuide(
     ),
     references=(
         ("EFF: Create a Strong Password", "https://ssd.eff.org/module/creating-new-password"),
-        ("CISA: Secure Wireless Networks", "https://www.cisa.gov/news-events/news/securing-wireless-networks"),
+        (
+            "CISA: Secure Wireless Networks",
+            "https://www.cisa.gov/news-events/news/securing-wireless-networks",
+        ),
     ),
 )
 
@@ -693,9 +724,7 @@ _WIFI_WEP_GUIDE = RemediationGuide(
         ),
     ),
     verification="Wi-Fi settings → security type should say 'WPA2' or 'WPA3', not 'WEP'.",
-    references=(
-        ("Aircrack-ng tutorial", "https://www.aircrack-ng.org/doku.php?id=tutorial"),
-    ),
+    references=(("Aircrack-ng tutorial", "https://www.aircrack-ng.org/doku.php?id=tutorial"),),
 )
 
 _WIFI_OLD_WPA_GUIDE = RemediationGuide(
@@ -721,7 +750,10 @@ _WIFI_OLD_WPA_GUIDE = RemediationGuide(
     ),
     verification="Wi-Fi settings → should say 'WPA2' or 'WPA3', not 'WPA' alone.",
     references=(
-        ("Cisco: WPA vs WPA2 vs WPA3", "https://www.cisco.com/c/en/us/products/wireless/what-is-wpa3.html"),
+        (
+            "Cisco: WPA vs WPA2 vs WPA3",
+            "https://www.cisco.com/c/en/us/products/wireless/what-is-wpa3.html",
+        ),
     ),
 )
 
@@ -739,15 +771,15 @@ _EXPOSED_ENV_GUIDE = RemediationGuide(
             "1. URGENT — Move the file out of the web root",
             "",
             code="# On the server:\n"
-                 "mv /var/www/html/.env /var/www/.env   # ONE level ABOVE the web root",
+            "mv /var/www/html/.env /var/www/.env   # ONE level ABOVE the web root",
         ),
         FixStep(
             "2. ROTATE all secrets (assume leaked)",
             "If .env was seen, assume the attacker has it. Reset all "
             "passwords, API keys, and secret keys:",
             code="# DB password\nALTER USER webapp WITH PASSWORD '<new-password>';\n"
-                 "# Laravel APP_KEY regenerate\nphp artisan key:generate\n"
-                 "# Rotate AWS credentials (from the IAM console)",
+            "# Laravel APP_KEY regenerate\nphp artisan key:generate\n"
+            "# Rotate AWS credentials (from the IAM console)",
         ),
         FixStep(
             "Nginx — block access as a backup",
@@ -757,16 +789,17 @@ _EXPOSED_ENV_GUIDE = RemediationGuide(
         FixStep(
             "Apache — with .htaccess",
             "",
-            code='<FilesMatch "^\\.env">\n'
-                 '    Require all denied\n'
-                 '</FilesMatch>',
+            code='<FilesMatch "^\\.env">\n' "    Require all denied\n" "</FilesMatch>",
         ),
     ),
     verification=(
         "`curl https://yoursite.com/.env` → should return 404 or 403, not the file content."
     ),
     references=(
-        ("OWASP: Sensitive Data Exposure", "https://owasp.org/www-project-top-ten/2017/A3_2017-Sensitive_Data_Exposure"),
+        (
+            "OWASP: Sensitive Data Exposure",
+            "https://owasp.org/www-project-top-ten/2017/A3_2017-Sensitive_Data_Exposure",
+        ),
         ("12-Factor App — Config", "https://12factor.net/config"),
     ),
 )
@@ -786,16 +819,15 @@ _SQL_INJECTION_GUIDE = RemediationGuide(
             "PRIMARY — Parameterized queries (prepared statements)",
             "ALWAYS use parameter binding INSTEAD of string concatenation:",
             code="# WRONG (vulnerable to SQLi)\n"
-                 "cursor.execute(f\"SELECT * FROM users WHERE id = {user_id}\")\n\n"
-                 "# CORRECT (parameterized)\n"
-                 'cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))',
+            'cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")\n\n'
+            "# CORRECT (parameterized)\n"
+            'cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))',
         ),
         FixStep(
             "Use an ORM",
             "SQLAlchemy, Django ORM, Prisma, etc. — prefer them over raw "
             "SQL. ORMs parameterize by default.",
-            code="# Django\n"
-                 "User.objects.filter(id=user_id)  # automatically safe",
+            code="# Django\n" "User.objects.filter(id=user_id)  # automatically safe",
         ),
         FixStep(
             "Input validation (defense in depth)",
@@ -840,21 +872,21 @@ _XSS_GUIDE = RemediationGuide(
             "Escape user input before writing it to HTML. Each context "
             "requires different escaping:",
             code="# HTML body → html.escape\n"
-                 "import html\n"
-                 "safe = html.escape(user_input)  # < → &lt;\n\n"
-                 "# Inside JS string → json.dumps\n"
-                 "import json\n"
-                 'safe_js = json.dumps(user_input)  # " → \\"',
+            "import html\n"
+            "safe = html.escape(user_input)  # < → &lt;\n\n"
+            "# Inside JS string → json.dumps\n"
+            "import json\n"
+            'safe_js = json.dumps(user_input)  # " → \\"',
         ),
         FixStep(
             "Use framework autoescape",
             "Modern frameworks autoescape by default:",
             code="{# Jinja2 — autoescape is on by default #}\n"
-                 "<p>{{ user_input }}</p>         {# safe #}\n"
-                 "<p>{{ user_input | safe }}</p>  {# DANGEROUS — disables escaping #}\n\n"
-                 "// React — JSX escapes by default\n"
-                 "<p>{userInput}</p>           // safe\n"
-                 "<p dangerouslySetInnerHTML=...>  // DANGEROUS",
+            "<p>{{ user_input }}</p>         {# safe #}\n"
+            "<p>{{ user_input | safe }}</p>  {# DANGEROUS — disables escaping #}\n\n"
+            "// React — JSX escapes by default\n"
+            "<p>{userInput}</p>           // safe\n"
+            "<p dangerouslySetInnerHTML=...>  // DANGEROUS",
         ),
         FixStep(
             "Content Security Policy (CSP)",
@@ -871,7 +903,10 @@ _XSS_GUIDE = RemediationGuide(
     verification="Re-run the probe — the payload should now come back escaped (&lt; &gt;).",
     references=(
         ("OWASP XSS", "https://owasp.org/www-community/attacks/xss/"),
-        ("OWASP XSS Prevention Cheat Sheet", "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"),
+        (
+            "OWASP XSS Prevention Cheat Sheet",
+            "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+        ),
     ),
 )
 
@@ -889,29 +924,27 @@ _PATH_TRAVERSAL_GUIDE = RemediationGuide(
             "Allowlist-based filename validation",
             "Specify allowed files and reject the rest:",
             code="ALLOWED = {'product-1.pdf', 'product-2.pdf', ...}\n"
-                 "if filename not in ALLOWED:\n"
-                 "    return 403",
+            "if filename not in ALLOWED:\n"
+            "    return 403",
         ),
         FixStep(
             "Normalize the path with realpath and verify it stays inside the root",
             "The most reliable check:",
             code="from pathlib import Path\n"
-                 "allowed_root = Path('/var/www/uploads').resolve()\n"
-                 "user_file = (allowed_root / filename).resolve()\n"
-                 "if not user_file.is_relative_to(allowed_root):\n"
-                 "    return 403   # path traversal attempt",
+            "allowed_root = Path('/var/www/uploads').resolve()\n"
+            "user_file = (allowed_root / filename).resolve()\n"
+            "if not user_file.is_relative_to(allowed_root):\n"
+            "    return 403   # path traversal attempt",
         ),
         FixStep(
             "Filter ../ and /../ characters (but insufficient alone!)",
             "Not sufficient by itself but an extra layer:",
-            code="if '..' in filename or '/' in filename or '\\\\' in filename:\n"
-                 "    return 400",
+            code="if '..' in filename or '/' in filename or '\\\\' in filename:\n" "    return 400",
         ),
         FixStep(
             "At the web server level",
             "Nginx — block sensitive directories:",
-            code="location ~ \\.\\.\\/ { return 400; }\n"
-                 "location /etc { deny all; }",
+            code="location ~ \\.\\.\\/ { return 400; }\n" "location /etc { deny all; }",
         ),
     ),
     verification="Re-run the probe: `?file=../../../etc/passwd` → should NOT return `/etc/passwd` content; 400/403 instead.",
@@ -933,23 +966,23 @@ _SSL_OLD_PROTOCOL_GUIDE = RemediationGuide(
             "Nginx — TLS 1.2 and 1.3 only",
             "",
             code="ssl_protocols TLSv1.2 TLSv1.3;\n"
-                 "ssl_prefer_server_ciphers off;  # for TLS 1.3\n"
-                 "ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:\n"
-                 "           ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;",
+            "ssl_prefer_server_ciphers off;  # for TLS 1.3\n"
+            "ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:\n"
+            "           ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;",
         ),
         FixStep(
             "Apache",
             "",
             code="SSLProtocol -all +TLSv1.2 +TLSv1.3\n"
-                 "SSLHonorCipherOrder on\n"
-                 "SSLCipherSuite HIGH:!aNULL:!MD5:!3DES",
+            "SSLHonorCipherOrder on\n"
+            "SSLCipherSuite HIGH:!aNULL:!MD5:!3DES",
         ),
         FixStep(
             "IIS (PowerShell)",
             "",
             code="# Disable SSLv3 and legacy TLS\n"
-                 'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\SSL 3.0\\Server" -Name Enabled -Value 0\n'
-                 'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server" -Name Enabled -Value 0',
+            'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\SSL 3.0\\Server" -Name Enabled -Value 0\n'
+            'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server" -Name Enabled -Value 0',
         ),
         FixStep(
             "Cloudflare",
@@ -980,15 +1013,15 @@ _SSL_CERT_PROBLEM_GUIDE = RemediationGuide(
             "Let's Encrypt (free, automatic renewal)",
             "",
             code="sudo apt install certbot python3-certbot-nginx\n"
-                 "sudo certbot --nginx -d yoursite.com -d www.yoursite.com\n"
-                 "# Automatic renewal via cron (certbot installs it by default)",
+            "sudo certbot --nginx -d yoursite.com -d www.yoursite.com\n"
+            "# Automatic renewal via cron (certbot installs it by default)",
         ),
         FixStep(
             "If the certificate chain is missing",
             "Usually caused by a missing 'intermediate certificate'. "
             "Get fullchain.pem from your CA and point ssl_certificate to it in Nginx:",
             code="ssl_certificate     /etc/letsencrypt/live/yoursite.com/fullchain.pem;\n"
-                 "ssl_certificate_key /etc/letsencrypt/live/yoursite.com/privkey.pem;",
+            "ssl_certificate_key /etc/letsencrypt/live/yoursite.com/privkey.pem;",
         ),
         FixStep(
             "Hostname mismatch",
@@ -1026,36 +1059,34 @@ _POSTGRES_DEFAULT_GUIDE = RemediationGuide(
             "1. Change the password",
             "",
             code="sudo -u postgres psql\n"
-                 "postgres=# ALTER USER postgres WITH PASSWORD '<long-random-password>';\n"
-                 "postgres=# \\q",
+            "postgres=# ALTER USER postgres WITH PASSWORD '<long-random-password>';\n"
+            "postgres=# \\q",
         ),
         FixStep(
             "2. Restrict remote connections — pg_hba.conf",
             "`/etc/postgresql/<ver>/main/pg_hba.conf`:",
             code="# Local: peer (unix socket auth)\n"
-                 "local   all   postgres   peer\n"
-                 "# Remote: scram-sha-256 password required (md5 is legacy, insecure)\n"
-                 "host    all   all        127.0.0.1/32   scram-sha-256",
+            "local   all   postgres   peer\n"
+            "# Remote: scram-sha-256 password required (md5 is legacy, insecure)\n"
+            "host    all   all        127.0.0.1/32   scram-sha-256",
         ),
         FixStep(
             "3. Configure listen_addresses",
             "`postgresql.conf`:",
-            code="listen_addresses = 'localhost'\n"
-                 "password_encryption = scram-sha-256",
+            code="listen_addresses = 'localhost'\n" "password_encryption = scram-sha-256",
         ),
         FixStep(
             "4. Firewall",
             "",
-            code="sudo ufw deny 5432\n"
-                 "sudo ufw allow from <app_ip> to any port 5432",
+            code="sudo ufw deny 5432\n" "sudo ufw allow from <app_ip> to any port 5432",
         ),
         FixStep(
             "5. Separate user per application",
             "The postgres superuser is only for administration. Minimum-privilege user for the app:",
             code="CREATE USER myapp WITH PASSWORD '<password>';\n"
-                 "GRANT CONNECT ON DATABASE mydb TO myapp;\n"
-                 "GRANT USAGE ON SCHEMA public TO myapp;\n"
-                 "GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO myapp;",
+            "GRANT CONNECT ON DATABASE mydb TO myapp;\n"
+            "GRANT USAGE ON SCHEMA public TO myapp;\n"
+            "GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO myapp;",
         ),
     ),
     verification=(
@@ -1082,21 +1113,17 @@ _EXPOSED_GIT_GUIDE = RemediationGuide(
             "Fix the deployment pipeline. Do not copy `.git` to production "
             "with the source code. Correct deploy: `git archive`, "
             "`rsync --exclude='.git'`, CI/CD pipelines (GitHub Actions, etc.).",
-            code="# Emergency fix — delete .git on the server\n"
-                 "sudo rm -rf /var/www/html/.git",
+            code="# Emergency fix — delete .git on the server\n" "sudo rm -rf /var/www/html/.git",
         ),
         FixStep(
             "Web server — block `.git/` access (backup defense)",
             "Nginx:",
-            code="location ~ /\\.git {\n"
-                 "    deny all;\n"
-                 "    return 404;\n"
-                 "}",
+            code="location ~ /\\.git {\n" "    deny all;\n" "    return 404;\n" "}",
         ),
         FixStep(
             "Apache (.htaccess)",
             "",
-            code='RedirectMatch 404 /\\.git(/|$)',
+            code="RedirectMatch 404 /\\.git(/|$)",
         ),
         FixStep(
             "Rotate leaked secrets from history",
@@ -1127,8 +1154,8 @@ _EXPOSED_SQL_DUMP_GUIDE = RemediationGuide(
             "reset all DB passwords and hashed user passwords (force users "
             "to reset their password).",
             code="sudo rm /var/www/html/backup.sql\n"
-                 "# Change DB passwords\n"
-                 "# Send a 'reset your password' email to users",
+            "# Change DB passwords\n"
+            "# Send a 'reset your password' email to users",
         ),
         FixStep(
             "Don't keep backups under the web root",
@@ -1136,22 +1163,25 @@ _EXPOSED_SQL_DUMP_GUIDE = RemediationGuide(
             "(`/var/backups/`) or external storage (encrypted S3 bucket, "
             "Backblaze B2).",
             code="# Correct backup directory\n"
-                 "/var/backups/db/  # not web-accessible\n"
-                 "# Automated backup script + rotation\n"
-                 "mysqldump mydb | gzip > /var/backups/db/$(date +%F).sql.gz",
+            "/var/backups/db/  # not web-accessible\n"
+            "# Automated backup script + rotation\n"
+            "mysqldump mydb | gzip > /var/backups/db/$(date +%F).sql.gz",
         ),
         FixStep(
             "Nginx — block .sql extensions",
             "",
-            code='location ~ \\.(sql|bak|old|backup)$ {\n'
-                 '    deny all;\n'
-                 '    return 404;\n'
-                 "}",
+            code="location ~ \\.(sql|bak|old|backup)$ {\n"
+            "    deny all;\n"
+            "    return 404;\n"
+            "}",
         ),
     ),
     verification="`curl -I https://yoursite.com/backup.sql` → 404.",
     references=(
-        ("OWASP Backup Files", "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/04-Review_Old_Backup_and_Unreferenced_Files_for_Sensitive_Information"),
+        (
+            "OWASP Backup Files",
+            "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/04-Review_Old_Backup_and_Unreferenced_Files_for_Sensitive_Information",
+        ),
     ),
 )
 
@@ -1168,28 +1198,28 @@ _EXPOSED_WP_CONFIG_GUIDE = RemediationGuide(
             "URGENT — Delete backups, rotate all passwords",
             "",
             code="rm /var/www/html/wp-config.php.bak\n"
-                 "rm /var/www/html/wp-config.php.save\n\n"
-                 "# Change the DB password (in MySQL)\n"
-                 "ALTER USER wp_user WITH PASSWORD '<new>';\n"
-                 "# Update wp-config.php (DB_PASSWORD)\n\n"
-                 "# Regenerate WordPress secret keys\n"
-                 "curl -s https://api.wordpress.org/secret-key/1.1/salt/\n"
-                 "# Paste the output into wp-config.php",
+            "rm /var/www/html/wp-config.php.save\n\n"
+            "# Change the DB password (in MySQL)\n"
+            "ALTER USER wp_user WITH PASSWORD '<new>';\n"
+            "# Update wp-config.php (DB_PASSWORD)\n\n"
+            "# Regenerate WordPress secret keys\n"
+            "curl -s https://api.wordpress.org/secret-key/1.1/salt/\n"
+            "# Paste the output into wp-config.php",
         ),
         FixStep(
             "Block editor backup files",
             "Nginx:",
-            code='location ~ \\.(bak|save|swp|orig|tmp)$ {\n'
-                 '    deny all;\n'
-                 '    return 404;\n'
-                 "}",
+            code="location ~ \\.(bak|save|swp|orig|tmp)$ {\n"
+            "    deny all;\n"
+            "    return 404;\n"
+            "}",
         ),
         FixStep(
             "Move wp-config.php one level above the web root",
             "WordPress supports this — safer:",
             code="# If WP is installed in /var/www/html/\n"
-                 "mv wp-config.php ../wp-config.php\n"
-                 "# WP automatically looks one directory up",
+            "mv wp-config.php ../wp-config.php\n"
+            "# WP automatically looks one directory up",
         ),
     ),
     verification="`curl -I https://yoursite.com/wp-config.php.bak` → 404.",
@@ -1210,9 +1240,7 @@ _EXPOSED_HTACCESS_GUIDE = RemediationGuide(
         FixStep(
             "Apache — directory protection rule",
             "Apache blocks .htaccess reads by default. If not blocked:",
-            code='<FilesMatch "^\\.ht">\n'
-                 '    Require all denied\n'
-                 '</FilesMatch>',
+            code='<FilesMatch "^\\.ht">\n' "    Require all denied\n" "</FilesMatch>",
         ),
         FixStep(
             "If possible, use httpd.conf instead of .htaccess",
@@ -1246,12 +1274,12 @@ _EXPOSED_DS_STORE_GUIDE = RemediationGuide(
             "Prevent them from entering Git (.gitignore)",
             "",
             code="echo '**/.DS_Store' >> .gitignore\n"
-                 "git rm --cached **/.DS_Store  # if already committed",
+            "git rm --cached **/.DS_Store  # if already committed",
         ),
         FixStep(
             "Web server block",
             "Nginx:",
-            code='location ~ \\.DS_Store$ { return 404; }',
+            code="location ~ \\.DS_Store$ { return 404; }",
         ),
         FixStep(
             "Prevent creation on network drives in macOS",
@@ -1260,9 +1288,7 @@ _EXPOSED_DS_STORE_GUIDE = RemediationGuide(
         ),
     ),
     verification="`curl -I https://yoursite.com/.DS_Store` → 404.",
-    references=(
-        ("Apple Tech Note", "https://support.apple.com/en-us/HT208209"),
-    ),
+    references=(("Apple Tech Note", "https://support.apple.com/en-us/HT208209"),),
 )
 
 _EXPOSED_SERVER_STATUS_GUIDE = RemediationGuide(
@@ -1278,26 +1304,23 @@ _EXPOSED_SERVER_STATUS_GUIDE = RemediationGuide(
             "Apache — disable or restrict /server-status",
             "In `httpd.conf` or the relevant VirtualHost:",
             code="# Fully disable\n"
-                 "<Location /server-status>\n"
-                 "    Require all denied\n"
-                 "</Location>\n\n"
-                 "# Or allow only localhost (for internal monitoring)\n"
-                 "<Location /server-status>\n"
-                 "    Require host localhost\n"
-                 "    Require ip 127.0.0.1\n"
-                 "</Location>",
+            "<Location /server-status>\n"
+            "    Require all denied\n"
+            "</Location>\n\n"
+            "# Or allow only localhost (for internal monitoring)\n"
+            "<Location /server-status>\n"
+            "    Require host localhost\n"
+            "    Require ip 127.0.0.1\n"
+            "</Location>",
         ),
         FixStep(
             "Remove the mod_status module entirely (if not needed)",
             "",
-            code="sudo a2dismod status\n"
-                 "sudo systemctl restart apache2",
+            code="sudo a2dismod status\n" "sudo systemctl restart apache2",
         ),
     ),
     verification="`curl -I https://yoursite.com/server-status` → 403 or 404.",
-    references=(
-        ("Apache mod_status", "https://httpd.apache.org/docs/2.4/mod/mod_status.html"),
-    ),
+    references=(("Apache mod_status", "https://httpd.apache.org/docs/2.4/mod/mod_status.html"),),
 )
 
 _EXPOSED_PHPINFO_GUIDE = RemediationGuide(
@@ -1313,8 +1336,8 @@ _EXPOSED_PHPINFO_GUIDE = RemediationGuide(
             "URGENT — Delete the file",
             "",
             code="find /var/www -name 'phpinfo.php' -delete\n"
-                 "find /var/www -name 'info.php' -delete\n"
-                 "find /var/www -name 'test.php' -delete",
+            "find /var/www -name 'info.php' -delete\n"
+            "find /var/www -name 'test.php' -delete",
         ),
         FixStep(
             "Assume environment variables are leaked",
@@ -1325,14 +1348,11 @@ _EXPOSED_PHPINFO_GUIDE = RemediationGuide(
         FixStep(
             "expose_php = Off (php.ini)",
             "Stop PHP from leaking its own version info in the HTTP header:",
-            code="; /etc/php/X.X/apache2/php.ini\n"
-                 "expose_php = Off",
+            code="; /etc/php/X.X/apache2/php.ini\n" "expose_php = Off",
         ),
     ),
     verification="`curl -I https://yoursite.com/phpinfo.php` → 404.",
-    references=(
-        ("PHP Security", "https://www.php.net/manual/en/security.php"),
-    ),
+    references=(("PHP Security", "https://www.php.net/manual/en/security.php"),),
 )
 
 _EXPOSED_ADMIN_GUIDE = RemediationGuide(
@@ -1348,12 +1368,12 @@ _EXPOSED_ADMIN_GUIDE = RemediationGuide(
             "Move behind VPN or an IP allowlist",
             "Access the admin panel only from the office IP or via VPN.",
             code="# Nginx — allow only specific IPs\n"
-                 "location /admin {\n"
-                 "    allow 203.0.113.0/24;   # Office IP\n"
-                 "    allow 127.0.0.1;        # Localhost\n"
-                 "    deny all;\n"
-                 "    proxy_pass http://backend;\n"
-                 "}",
+            "location /admin {\n"
+            "    allow 203.0.113.0/24;   # Office IP\n"
+            "    allow 127.0.0.1;        # Localhost\n"
+            "    deny all;\n"
+            "    proxy_pass http://backend;\n"
+            "}",
         ),
         FixStep(
             "Make the URL unpredictable",
@@ -1368,14 +1388,13 @@ _EXPOSED_ADMIN_GUIDE = RemediationGuide(
         ),
         FixStep(
             "Extra layer with HTTP Basic Auth",
-            "Require a password at the web server layer BEFORE the "
-            "application login:",
+            "Require a password at the web server layer BEFORE the " "application login:",
             code="# Nginx\n"
-                 "location /admin {\n"
-                 "    auth_basic 'Restricted';\n"
-                 "    auth_basic_user_file /etc/nginx/.htpasswd;\n"
-                 "    proxy_pass http://backend;\n"
-                 "}",
+            "location /admin {\n"
+            "    auth_basic 'Restricted';\n"
+            "    auth_basic_user_file /etc/nginx/.htpasswd;\n"
+            "    proxy_pass http://backend;\n"
+            "}",
         ),
     ),
     verification="From outside `curl -I https://yoursite.com/admin` → 403/401; from the VPN 200.",
@@ -1399,18 +1418,17 @@ _EXPOSED_PHPMYADMIN_GUIDE = RemediationGuide(
             "Modern alternatives: MySQL Workbench (desktop), Adminer "
             "(single file, lightweight), the `mysql` CLI directly. Evaluate "
             "whether phpMyAdmin is really necessary.",
-            code="sudo apt remove phpmyadmin\n"
-                 "sudo rm -rf /var/www/html/phpmyadmin",
+            code="sudo apt remove phpmyadmin\n" "sudo rm -rf /var/www/html/phpmyadmin",
         ),
         FixStep(
             "If required, move behind a VPN",
             "",
             code="# Nginx — only from the VPN subnet\n"
-                 "location /pma-xyz123 {\n"
-                 "    allow 10.8.0.0/24;   # VPN subnet\n"
-                 "    deny all;\n"
-                 "    alias /var/www/phpmyadmin;\n"
-                 "}",
+            "location /pma-xyz123 {\n"
+            "    allow 10.8.0.0/24;   # VPN subnet\n"
+            "    deny all;\n"
+            "    alias /var/www/phpmyadmin;\n"
+            "}",
         ),
         FixStep(
             "Change the path + HTTP Basic Auth + fail2ban",
@@ -1420,7 +1438,10 @@ _EXPOSED_PHPMYADMIN_GUIDE = RemediationGuide(
     ),
     verification="`curl -I https://yoursite.com/phpmyadmin` → 404 or auth required.",
     references=(
-        ("phpMyAdmin Security", "https://docs.phpmyadmin.net/en/latest/setup.html#securing-your-phpmyadmin-installation"),
+        (
+            "phpMyAdmin Security",
+            "https://docs.phpmyadmin.net/en/latest/setup.html#securing-your-phpmyadmin-installation",
+        ),
     ),
 )
 
@@ -1451,25 +1472,27 @@ _X_POWERED_BY_GUIDE = RemediationGuide(
         FixStep(
             "IIS — ASP.NET version headers",
             "`web.config`:",
-            code='<system.webServer>\n'
-                 '  <httpProtocol>\n'
-                 '    <customHeaders>\n'
-                 '      <remove name="X-Powered-By" />\n'
-                 '      <remove name="X-AspNet-Version" />\n'
-                 '      <remove name="X-AspNetMvc-Version" />\n'
-                 '    </customHeaders>\n'
-                 '  </httpProtocol>\n'
-                 '</system.webServer>',
+            code="<system.webServer>\n"
+            "  <httpProtocol>\n"
+            "    <customHeaders>\n"
+            '      <remove name="X-Powered-By" />\n'
+            '      <remove name="X-AspNet-Version" />\n'
+            '      <remove name="X-AspNetMvc-Version" />\n'
+            "    </customHeaders>\n"
+            "  </httpProtocol>\n"
+            "</system.webServer>",
         ),
         FixStep(
             "Cloudflare",
-            "Rules → Transform Rules → Modify Response Header → Remove → "
-            "`X-Powered-By`.",
+            "Rules → Transform Rules → Modify Response Header → Remove → " "`X-Powered-By`.",
         ),
     ),
     verification="`curl -I https://yoursite.com/ | grep -i powered` should not show the header.",
     references=(
-        ("OWASP Fingerprinting", "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/01-Information_Gathering/02-Fingerprint_Web_Server"),
+        (
+            "OWASP Fingerprinting",
+            "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/01-Information_Gathering/02-Fingerprint_Web_Server",
+        ),
     ),
 )
 
@@ -1495,14 +1518,14 @@ _PORT_RDP_GUIDE = RemediationGuide(
             "Windows Firewall — block port 3389",
             "",
             code="# PowerShell (admin)\n"
-                 "New-NetFirewallRule -DisplayName 'Block-RDP-Public' "
-                 "-Direction Inbound -Protocol TCP -LocalPort 3389 -Action Block",
+            "New-NetFirewallRule -DisplayName 'Block-RDP-Public' "
+            "-Direction Inbound -Protocol TCP -LocalPort 3389 -Action Block",
         ),
         FixStep(
             "Port change (not security, but noise reduction)",
             "A random port (e.g. 50189) instead of 3389. Registry:",
             code='Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp" '
-                 '-Name PortNumber -Value 50189',
+            "-Name PortNumber -Value 50189",
         ),
         FixStep(
             "Require NLA (Network Level Authentication)",
@@ -1537,19 +1560,18 @@ _PORT_SMB_GUIDE = RemediationGuide(
             "outside in the firewall, and allow only necessary subnets on "
             "the internal network.",
             code="# Windows Firewall\n"
-                 "New-NetFirewallRule -DisplayName 'Block-SMB-Public' "
-                 "-Direction Inbound -Protocol TCP -LocalPort 445 -Action Block",
+            "New-NetFirewallRule -DisplayName 'Block-SMB-Public' "
+            "-Direction Inbound -Protocol TCP -LocalPort 445 -Action Block",
         ),
         FixStep(
             "Fully disable SMBv1",
-            "SMBv1 (deprecated) is the most attack-prone version. "
-            "EternalBlue targets it.",
-            code='Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol',
+            "SMBv1 (deprecated) is the most attack-prone version. " "EternalBlue targets it.",
+            code="Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol",
         ),
         FixStep(
             "Require SMB signing",
             "",
-            code='Set-SmbServerConfiguration -RequireSecuritySignature $true',
+            code="Set-SmbServerConfiguration -RequireSecuritySignature $true",
         ),
         FixStep(
             "Consider SFTP/Nextcloud instead of SMB",
@@ -1559,7 +1581,10 @@ _PORT_SMB_GUIDE = RemediationGuide(
     ),
     verification="From outside telnet/Test-NetConnection to port 445 → should have no access.",
     references=(
-        ("Microsoft: Disable SMBv1", "https://learn.microsoft.com/windows-server/storage/file-server/troubleshoot/detect-enable-and-disable-smbv1-v2-v3"),
+        (
+            "Microsoft: Disable SMBv1",
+            "https://learn.microsoft.com/windows-server/storage/file-server/troubleshoot/detect-enable-and-disable-smbv1-v2-v3",
+        ),
     ),
 )
 
@@ -1577,37 +1602,32 @@ _PORT_FTP_GUIDE = RemediationGuide(
             "SFTP is modern, encrypted, and uses SSH's already-open port "
             "22. Clients like FileZilla and WinSCP support SFTP.",
             code="# Client connection example\n"
-                 "sftp user@server.com\n"
-                 "# Or select 'SFTP' protocol in PuTTY/FileZilla",
+            "sftp user@server.com\n"
+            "# Or select 'SFTP' protocol in PuTTY/FileZilla",
         ),
         FixStep(
             "FTPS (FTP over TLS) as an alternative",
-            "If compatibility with legacy FTP clients is required, use "
-            "FTPS (explicit TLS):",
+            "If compatibility with legacy FTP clients is required, use " "FTPS (explicit TLS):",
             code="# vsftpd.conf\n"
-                 "ssl_enable=YES\n"
-                 "force_local_data_ssl=YES\n"
-                 "force_local_logins_ssl=YES",
+            "ssl_enable=YES\n"
+            "force_local_data_ssl=YES\n"
+            "force_local_logins_ssl=YES",
         ),
         FixStep(
             "Remove the FTP service",
             "",
             code="sudo systemctl stop vsftpd\n"
-                 "sudo systemctl disable vsftpd\n"
-                 "sudo apt remove vsftpd",
+            "sudo systemctl disable vsftpd\n"
+            "sudo apt remove vsftpd",
         ),
         FixStep(
             "Disable anonymous FTP (if in use)",
             "",
-            code="# vsftpd.conf\n"
-                 "anonymous_enable=NO\n"
-                 "local_enable=YES",
+            code="# vsftpd.conf\n" "anonymous_enable=NO\n" "local_enable=YES",
         ),
     ),
     verification="`curl ftp://yoursite.com` → should not connect. `sftp user@yoursite.com` → should work.",
-    references=(
-        ("SFTP Hardening", "https://infosec.mozilla.org/guidelines/openssh"),
-    ),
+    references=(("SFTP Hardening", "https://infosec.mozilla.org/guidelines/openssh"),),
 )
 
 _PORT_TELNET_GUIDE = RemediationGuide(
@@ -1621,25 +1641,22 @@ _PORT_TELNET_GUIDE = RemediationGuide(
     fix_steps=(
         FixStep(
             "Switch to SSH — remove Telnet entirely",
-            "SSH has replaced Telnet since 1995. Modern, encrypted, "
-            "strong auth.",
+            "SSH has replaced Telnet since 1995. Modern, encrypted, " "strong auth.",
             code="# Linux\n"
-                 "sudo systemctl stop telnet\n"
-                 "sudo systemctl disable telnet\n"
-                 "sudo apt remove telnetd\n\n"
-                 "# Make sure SSH is open\n"
-                 "sudo systemctl enable --now ssh",
+            "sudo systemctl stop telnet\n"
+            "sudo systemctl disable telnet\n"
+            "sudo apt remove telnetd\n\n"
+            "# Make sure SSH is open\n"
+            "sudo systemctl enable --now ssh",
         ),
         FixStep(
             "Windows — disable even the Telnet client",
             "",
-            code='Disable-WindowsOptionalFeature -Online -FeatureName TelnetClient',
+            code="Disable-WindowsOptionalFeature -Online -FeatureName TelnetClient",
         ),
     ),
     verification="`telnet yoursite.com 23` → connection refused.",
-    references=(
-        ("RFC on deprecating Telnet", "https://www.rfc-editor.org/rfc/rfc4949.html"),
-    ),
+    references=(("RFC on deprecating Telnet", "https://www.rfc-editor.org/rfc/rfc4949.html"),),
 )
 
 _PORT_VNC_GUIDE = RemediationGuide(
@@ -1656,8 +1673,8 @@ _PORT_VNC_GUIDE = RemediationGuide(
             "Move behind a VPN or SSH tunnel",
             "VNC must not be exposed publicly. Connect via an SSH tunnel:",
             code="# On the client:\n"
-                 "ssh -L 5901:localhost:5900 user@server\n"
-                 "# The VNC client connects to localhost:5901 — encrypted",
+            "ssh -L 5901:localhost:5900 user@server\n"
+            "# The VNC client connects to localhost:5901 — encrypted",
         ),
         FixStep(
             "Use RDP (Windows) or NoMachine (Linux) instead of VNC",
@@ -1667,8 +1684,7 @@ _PORT_VNC_GUIDE = RemediationGuide(
         FixStep(
             "If not in use, stop the VNC service",
             "",
-            code="sudo systemctl stop vncserver\n"
-                 "sudo systemctl disable vncserver",
+            code="sudo systemctl stop vncserver\n" "sudo systemctl disable vncserver",
         ),
         FixStep(
             "If used — strong password + TLS",
@@ -1677,9 +1693,7 @@ _PORT_VNC_GUIDE = RemediationGuide(
         ),
     ),
     verification="From outside `telnet yoursite.com 5900` → no connection. Via SSH tunnel from inside it should work.",
-    references=(
-        ("VNC Security", "https://tigervnc.org/doc/vncserver.html"),
-    ),
+    references=(("VNC Security", "https://tigervnc.org/doc/vncserver.html"),),
 )
 
 _PORT_GENERIC_GUIDE = RemediationGuide(
@@ -1701,15 +1715,15 @@ _PORT_GENERIC_GUIDE = RemediationGuide(
             "Firewall — default deny, allow what is necessary",
             "",
             code="# Linux (ufw)\n"
-                 "sudo ufw default deny incoming\n"
-                 "sudo ufw allow from <app_ip> to any port <port>\n"
-                 "sudo ufw enable",
+            "sudo ufw default deny incoming\n"
+            "sudo ufw allow from <app_ip> to any port <port>\n"
+            "sudo ufw enable",
         ),
         FixStep(
             "Windows Firewall",
             "",
             code="New-NetFirewallRule -DisplayName 'Block-Port-X' "
-                 "-Direction Inbound -LocalPort <PORT> -Action Block",
+            "-Direction Inbound -LocalPort <PORT> -Action Block",
         ),
         FixStep(
             "Keep the service software up to date",
@@ -1739,51 +1753,60 @@ _PATTERN_MATCHERS: tuple[tuple[str, _TitleMatcher, RemediationGuide], ...] = (
     ("http_only", lambda t: "Served over HTTP" in t, _HTTP_ONLY_GUIDE),
     ("security_txt", lambda t: "security.txt missing" in t, _SECURITY_TXT_GUIDE),
     ("redis_open", lambda t: "Redis is accessible without a password" in t, _REDIS_OPEN_GUIDE),
-    ("mongodb_open", lambda t: "MongoDB is accessible without a password" in t, _MONGODB_OPEN_GUIDE),
-    ("elasticsearch_open", lambda t: "Elasticsearch is accessible without a password" in t, _ELASTICSEARCH_OPEN_GUIDE),
+    (
+        "mongodb_open",
+        lambda t: "MongoDB is accessible without a password" in t,
+        _MONGODB_OPEN_GUIDE,
+    ),
+    (
+        "elasticsearch_open",
+        lambda t: "Elasticsearch is accessible without a password" in t,
+        _ELASTICSEARCH_OPEN_GUIDE,
+    ),
     ("mysql_default", lambda t: "MySQL accepts default credentials" in t, _MYSQL_DEFAULT_GUIDE),
     ("ssh_default", lambda t: "SSH accepts default credentials" in t, _SSH_DEFAULT_GUIDE),
     ("env_exposed", lambda t: ".env file publicly accessible" in t, _EXPOSED_ENV_GUIDE),
     ("wifi_open", lambda t: "Unencrypted Wi-Fi network" in t, _WIFI_OPEN_GUIDE),
     ("wifi_wep", lambda t: "Wi-Fi network with WEP encryption" in t, _WIFI_WEP_GUIDE),
-    ("wifi_old_wpa", lambda t: "Wi-Fi network with legacy WPA encryption" in t, _WIFI_OLD_WPA_GUIDE),
-
+    (
+        "wifi_old_wpa",
+        lambda t: "Wi-Fi network with legacy WPA encryption" in t,
+        _WIFI_OLD_WPA_GUIDE,
+    ),
     # Web probes — Level 2 attack detection
     ("sql_injection", lambda t: "SQL Injection" in t, _SQL_INJECTION_GUIDE),
     ("xss_reflected", lambda t: "Reflected XSS" in t, _XSS_GUIDE),
     ("path_traversal", lambda t: "Path traversal" in t, _PATH_TRAVERSAL_GUIDE),
     ("ssl_old_protocol", lambda t: "Old TLS version supported" in t, _SSL_OLD_PROTOCOL_GUIDE),
     ("ssl_cert_problem", lambda t: "SSL certificate issue" in t, _SSL_CERT_PROBLEM_GUIDE),
-    ("x_powered_by_leak",
-     lambda t: ("Version leak: X-Powered-By" in t
-                or "Version leak: X-AspNet" in t),
-     _X_POWERED_BY_GUIDE),
-
+    (
+        "x_powered_by_leak",
+        lambda t: ("Version leak: X-Powered-By" in t or "Version leak: X-AspNet" in t),
+        _X_POWERED_BY_GUIDE,
+    ),
     # Exposed files
     ("exposed_git", lambda t: ".git repository" in t or ".git/HEAD" in t, _EXPOSED_GIT_GUIDE),
-    ("exposed_sql_dump",
-     lambda t: "Database backup" in t or "Database dump" in t,
-     _EXPOSED_SQL_DUMP_GUIDE),
-    ("exposed_wp_config",
-     lambda t: "WordPress configuration" in t,
-     _EXPOSED_WP_CONFIG_GUIDE),
+    (
+        "exposed_sql_dump",
+        lambda t: "Database backup" in t or "Database dump" in t,
+        _EXPOSED_SQL_DUMP_GUIDE,
+    ),
+    ("exposed_wp_config", lambda t: "WordPress configuration" in t, _EXPOSED_WP_CONFIG_GUIDE),
     ("exposed_htaccess", lambda t: ".htaccess file accessible" in t, _EXPOSED_HTACCESS_GUIDE),
     ("exposed_ds_store", lambda t: ".DS_Store leaked" in t, _EXPOSED_DS_STORE_GUIDE),
     ("exposed_server_status", lambda t: "server-status public" in t, _EXPOSED_SERVER_STATUS_GUIDE),
     ("exposed_phpinfo", lambda t: "phpinfo.php public" in t, _EXPOSED_PHPINFO_GUIDE),
     ("exposed_admin", lambda t: "Admin panel" in t, _EXPOSED_ADMIN_GUIDE),
     ("exposed_phpmyadmin", lambda t: "phpMyAdmin public" in t, _EXPOSED_PHPMYADMIN_GUIDE),
-
     # DB parity
-    ("postgres_default_creds",
-     lambda t: "PostgreSQL accepts default credentials" in t,
-     _POSTGRES_DEFAULT_GUIDE),
-
+    (
+        "postgres_default_creds",
+        lambda t: "PostgreSQL accepts default credentials" in t,
+        _POSTGRES_DEFAULT_GUIDE,
+    ),
     # Port-specific — order is critical: specific first, generic last
     ("port_rdp", lambda t: "Open port: 3389" in t, _PORT_RDP_GUIDE),
-    ("port_smb",
-     lambda t: "Open port: 445" in t or "Open port: 139" in t,
-     _PORT_SMB_GUIDE),
+    ("port_smb", lambda t: "Open port: 445" in t or "Open port: 139" in t, _PORT_SMB_GUIDE),
     ("port_ftp", lambda t: "Open port: 21" in t, _PORT_FTP_GUIDE),
     ("port_telnet", lambda t: "Open port: 23" in t, _PORT_TELNET_GUIDE),
     ("port_vnc", lambda t: "Open port: 5900" in t, _PORT_VNC_GUIDE),

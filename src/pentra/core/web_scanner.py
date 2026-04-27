@@ -23,10 +23,7 @@ from pentra.i18n import t
 from pentra.models import Finding, ScanDepth, Severity, Target
 
 # User-Agent — probes identifying themselves is an ethical norm
-_USER_AGENT = (
-    "Pentra/0.2 (+https://github.com/ozzdemirbrk/pentra; "
-    "security-assessment scanner)"
-)
+_USER_AGENT = "Pentra/0.2 (+https://github.com/ozzdemirbrk/pentra; " "security-assessment scanner)"
 
 
 class WebScanner(ScannerBase):
@@ -64,7 +61,9 @@ class WebScanner(ScannerBase):
                 percent,
                 t(
                     "progress.web.probe_running",
-                    index=idx + 1, total=total, probe=probe.description,
+                    index=idx + 1,
+                    total=total,
+                    probe=probe.description,
                 ),
             )
 
@@ -75,7 +74,8 @@ class WebScanner(ScannerBase):
                     percent,
                     t(
                         "progress.web.probe_network_error",
-                        probe=probe.name, error=str(e),
+                        probe=probe.name,
+                        error=str(e),
                     ),
                 )
                 continue
@@ -153,7 +153,8 @@ class WebScanner(ScannerBase):
             evidence=new_evidence,
             title=t(
                 "finding.web.title_with_cves",
-                title=finding.title, count=len(cves),
+                title=finding.title,
+                count=len(cves),
             ),
         )
 

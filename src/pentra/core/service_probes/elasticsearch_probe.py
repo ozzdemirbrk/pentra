@@ -45,7 +45,8 @@ class ElasticsearchAuthProbe(ServiceProbeBase):
                         target=f"{host}:{port}",
                         remediation=t("finding.elasticsearch.auth_open.remediation"),
                         evidence=self._evidence(
-                            host=host, port=port,
+                            host=host,
+                            port=port,
                             why_vulnerable=t("finding.elasticsearch.auth_open.evidence"),
                             response_snippet=body[:300],
                             extra={"scheme": scheme},

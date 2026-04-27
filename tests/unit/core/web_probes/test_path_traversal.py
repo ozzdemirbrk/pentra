@@ -24,7 +24,8 @@ class TestLeakDetection:
 
         # Pretend every response contains /etc/passwd content
         session.get.return_value = _response(
-            200, "root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin/nologin",
+            200,
+            "root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin/nologin",
         )
 
         findings = probe.probe("https://example.com", session)
@@ -38,7 +39,8 @@ class TestLeakDetection:
         probe = PathTraversalProbe()
         session = MagicMock(spec=requests.Session)
         session.get.return_value = _response(
-            200, "; for 16-bit app support\n[fonts]\n[mci extensions]",
+            200,
+            "; for 16-bit app support\n[fonts]\n[mci extensions]",
         )
         findings = probe.probe("https://example.com", session)
         assert any("Path traversal" in f.title for f in findings)

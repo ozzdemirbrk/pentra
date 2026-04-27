@@ -81,7 +81,10 @@ class UpdateChecker(QThread):
 
 
 def _is_newer(
-    remote: str, local: str, *, allow_prerelease: bool = False,
+    remote: str,
+    local: str,
+    *,
+    allow_prerelease: bool = False,
 ) -> bool:
     """Return True if remote > local.
 

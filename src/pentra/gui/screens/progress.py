@@ -6,7 +6,7 @@ UI updates through Scanner signals (progress_updated, finding_discovered, ...).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QColor
@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 
 from pentra.core.scan_orchestrator import ScanRequest
 from pentra.core.scanner_base import ScannerBase
-from pentra.gui.wizard import PageId, PentraWizard
+from pentra.gui.wizard import PentraWizard
 from pentra.i18n import Translator, t
 from pentra.models import (
     AuthorizationToken,
@@ -167,7 +167,7 @@ class ProgressPage(QWizardPage):
             return
 
         ctx.prepared_scan = prepared
-        ctx.scan_started_at = datetime.now(timezone.utc)
+        ctx.scan_started_at = datetime.now(UTC)
 
         self._append_event(t("progress.event_security_passed"), color="#4caf50")
         self._append_event(t("progress.event_target", value=ctx.target.value))
@@ -225,7 +225,7 @@ class ProgressPage(QWizardPage):
 
         wizard = self.wizard()
         if isinstance(wizard, PentraWizard):
-            wizard.context.scan_ended_at = datetime.now(timezone.utc)
+            wizard.context.scan_ended_at = datetime.now(UTC)
 
         self.completeChanged.emit()
 
@@ -238,7 +238,7 @@ class ProgressPage(QWizardPage):
         wizard = self.wizard()
         if isinstance(wizard, PentraWizard):
             wizard.context.scan_error = message
-            wizard.context.scan_ended_at = datetime.now(timezone.utc)
+            wizard.context.scan_ended_at = datetime.now(UTC)
 
         self.completeChanged.emit()
 

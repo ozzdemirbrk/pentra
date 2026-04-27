@@ -12,13 +12,25 @@ from pentra.i18n import t
 from pentra.models import Finding, Severity
 
 _PARAMS_TO_TEST: tuple[str, ...] = (
-    "id", "user", "username", "email", "search", "q", "query",
-    "name", "category", "cat", "product", "item", "pid", "uid",
+    "id",
+    "user",
+    "username",
+    "email",
+    "search",
+    "q",
+    "query",
+    "name",
+    "category",
+    "cat",
+    "product",
+    "item",
+    "pid",
+    "uid",
 )
 
 _SYNTAX_BREAKING_PAYLOADS: tuple[str, ...] = (
     "'",
-    "\"",
+    '"',
     "\\'",
     "' --",
     "1'\"`",
@@ -27,28 +39,32 @@ _SYNTAX_BREAKING_PAYLOADS: tuple[str, ...] = (
 # (regex, DBMS i18n key)
 _SQL_ERROR_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"You have an error in your SQL syntax", re.I), "label.web.sql_injection.mysql"),
-    (re.compile(r"mysql_fetch_(array|assoc|row|object)", re.I), "label.web.sql_injection.mysql_php"),
+    (
+        re.compile(r"mysql_fetch_(array|assoc|row|object)", re.I),
+        "label.web.sql_injection.mysql_php",
+    ),
     (re.compile(r"mysql_num_rows", re.I), "label.web.sql_injection.mysql_php"),
     (re.compile(r"Warning.*mysql_", re.I), "label.web.sql_injection.mysql_php_warning"),
     (re.compile(r"MySqlException", re.I), "label.web.sql_injection.mysql_dotnet"),
-
     (re.compile(r"PostgreSQL.*ERROR", re.I), "label.web.sql_injection.postgresql"),
     (re.compile(r"pg_query\(\)", re.I), "label.web.sql_injection.postgresql_php"),
     (re.compile(r"PSQLException", re.I), "label.web.sql_injection.postgresql_jdbc"),
-
-    (re.compile(r"Microsoft OLE DB Provider for SQL Server", re.I), "label.web.sql_injection.mssql"),
+    (
+        re.compile(r"Microsoft OLE DB Provider for SQL Server", re.I),
+        "label.web.sql_injection.mssql",
+    ),
     (re.compile(r"Unclosed quotation mark after", re.I), "label.web.sql_injection.mssql"),
     (re.compile(r"\[SQL Server\].*Driver", re.I), "label.web.sql_injection.mssql_odbc"),
-    (re.compile(r"System\.Data\.SqlClient\.SqlException", re.I), "label.web.sql_injection.mssql_dotnet"),
-
+    (
+        re.compile(r"System\.Data\.SqlClient\.SqlException", re.I),
+        "label.web.sql_injection.mssql_dotnet",
+    ),
     (re.compile(r"ORA-[0-9]{4,5}", re.I), "label.web.sql_injection.oracle"),
     (re.compile(r"Oracle error", re.I), "label.web.sql_injection.oracle"),
     (re.compile(r"OracleException", re.I), "label.web.sql_injection.oracle_dotnet"),
-
     (re.compile(r"SQLite.*Exception", re.I), "label.web.sql_injection.sqlite"),
     (re.compile(r"sqlite3\.OperationalError", re.I), "label.web.sql_injection.sqlite_python"),
     (re.compile(r"near \".*\": syntax error", re.I), "label.web.sql_injection.sqlite"),
-
     (re.compile(r"SQLSTATE\[\d+\]", re.I), "label.web.sql_injection.generic_sqlstate"),
     (re.compile(r"ODBC.*Driver.*error", re.I), "label.web.sql_injection.generic_odbc"),
 )
@@ -72,7 +88,9 @@ class SqlInjectionProbe(WebProbeBase):
 
                 try:
                     response = session.get(
-                        full_url, timeout=self.timeout, allow_redirects=False,
+                        full_url,
+                        timeout=self.timeout,
+                        allow_redirects=False,
                     )
                 except requests.RequestException:
                     continue
@@ -87,11 +105,14 @@ class SqlInjectionProbe(WebProbeBase):
                         severity=Severity.CRITICAL,
                         title=t(
                             "finding.web.sql_injection.title",
-                            param=param, dbms=dbms,
+                            param=param,
+                            dbms=dbms,
                         ),
                         description=t(
                             "finding.web.sql_injection.desc",
-                            param=param, payload=payload, dbms=dbms,
+                            param=param,
+                            payload=payload,
+                            dbms=dbms,
                             matched_pattern=matched_pattern,
                         ),
                         target=full_url,
@@ -101,7 +122,8 @@ class SqlInjectionProbe(WebProbeBase):
                             request_path=full_url,
                             response_status=response.status_code,
                             response_snippet=self._extract_error_context(
-                                response.text, matched_pattern,
+                                response.text,
+                                matched_pattern,
                             ),
                             why_vulnerable=f"{dbms} error pattern matched",
                             extra={"payload": payload, "param": param, "dbms": dbms},

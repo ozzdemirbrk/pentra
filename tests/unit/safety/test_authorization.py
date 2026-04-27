@@ -22,7 +22,6 @@ from pentra.safety.authorization import (
     hash_target,
 )
 
-
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
@@ -196,7 +195,9 @@ class TestVerify:
     def test_expired_token_fails(self) -> None:
         clock = {"now": 1000.0}
         mgr = AuthorizationManager(
-            secret=_SECRET, ttl_sec=60, time_func=lambda: clock["now"],
+            secret=_SECRET,
+            ttl_sec=60,
+            time_func=lambda: clock["now"],
         )
         target = _localhost_target()
         req = AuthorizationRequest(target, ScanDepth.QUICK, user_accepted_terms=True)
@@ -235,7 +236,9 @@ class TestVerify:
         mgr = AuthorizationManager(secret=_SECRET)
         bad_payload = base64.urlsafe_b64encode(b"not json").decode()
         token = AuthorizationToken(
-            token_id="fake", payload=bad_payload, signature="00" * 32,
+            token_id="fake",
+            payload=bad_payload,
+            signature="00" * 32,
         )
         assert mgr.verify(token, _localhost_target()) is False
 
@@ -245,7 +248,9 @@ class TestVerify:
             json.dumps({"token_id": "x"}).encode(),
         ).decode()
         token = AuthorizationToken(
-            token_id="x", payload=partial, signature="00" * 32,
+            token_id="x",
+            payload=partial,
+            signature="00" * 32,
         )
         assert mgr.verify(token, _localhost_target()) is False
 

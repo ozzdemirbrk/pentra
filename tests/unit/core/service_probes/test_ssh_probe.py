@@ -29,10 +29,13 @@ def paramiko_stub():
     fake_exceptions.SSHException = ssh_exc
     fake_exceptions.NoValidConnectionsError = no_conn
 
-    with patch.dict("sys.modules", {
-        "paramiko": fake_paramiko,
-        "paramiko.ssh_exception": fake_exceptions,
-    }):
+    with patch.dict(
+        "sys.modules",
+        {
+            "paramiko": fake_paramiko,
+            "paramiko.ssh_exception": fake_exceptions,
+        },
+    ):
         yield {
             "paramiko": fake_paramiko,
             "client_instance": fake_ssh_client_instance,
@@ -99,6 +102,7 @@ class TestSshProtected:
 class TestSshMissingDep:
     def test_paramiko_not_installed(self) -> None:
         import sys
+
         probe = SshDefaultCredsProbe()
         with patch.dict(sys.modules, {"paramiko": None}):
             findings = probe.probe("10.0.0.5", 22)

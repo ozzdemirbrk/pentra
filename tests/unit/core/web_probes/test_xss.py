@@ -20,13 +20,19 @@ def _resp(text: str) -> MagicMock:
 # A server where echo-fallback would NOT trigger: only reflects known params
 # (q, search etc.) — a random `pentraXXX` param is not reflected.
 _KNOWN_PARAMS: set[str] = {
-    "q", "query", "search", "s", "keyword", "term", "name",
+    "q",
+    "query",
+    "search",
+    "s",
+    "keyword",
+    "term",
+    "name",
 }
 
 
 def _selective_reflection_server() -> MagicMock:
     """A typical real server: reflects only well-known search/form parameters."""
-    from urllib.parse import urlparse, parse_qs
+    from urllib.parse import parse_qs, urlparse
 
     session = MagicMock(spec=requests.Session)
 
@@ -49,7 +55,7 @@ def _selective_reflection_server() -> MagicMock:
 
 def _echo_everything_server() -> MagicMock:
     """Echo-fallback server: reflects EVERY param (decoded) (SPA, dev server, debug)."""
-    from urllib.parse import urlparse, parse_qs
+    from urllib.parse import parse_qs, urlparse
 
     session = MagicMock(spec=requests.Session)
 
@@ -109,7 +115,7 @@ class TestRealXssDetection:
     def test_escaped_reflection_no_finding(self) -> None:
         """Site HTML-escapes input → no XSS."""
         from html import escape
-        from urllib.parse import urlparse, parse_qs
+        from urllib.parse import parse_qs, urlparse
 
         probe = XssProbe()
         session = MagicMock(spec=requests.Session)

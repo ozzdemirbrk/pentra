@@ -87,7 +87,7 @@ class TestEnvValidator:
 class TestGitConfigValidator:
     def test_real_git_config_flagged(self) -> None:
         probe = ExposedPathsProbe()
-        git_body = "[core]\n\trepositoryformatversion = 0\n[remote \"origin\"]\n"
+        git_body = '[core]\n\trepositoryformatversion = 0\n[remote "origin"]\n'
         session = _session_with_map(
             {"/.git/config": _response(200, git_body, content_type="text/plain")},
             default=_NOT_FOUND,

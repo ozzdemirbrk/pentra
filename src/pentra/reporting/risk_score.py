@@ -50,9 +50,7 @@ def _finding_raw_score(finding: Finding) -> float:
     """Return max CVSS when CVEs are present, otherwise the severity weight."""
     cves = finding.evidence.get("cves") if finding.evidence else None
     if cves:
-        cvss_values = [
-            float(c.get("cvss") or 0) for c in cves if c.get("cvss")
-        ]
+        cvss_values = [float(c.get("cvss") or 0) for c in cves if c.get("cvss")]
         if cvss_values:
             return max(cvss_values)
     return _SEVERITY_WEIGHT.get(finding.severity, 0.5)
@@ -67,7 +65,8 @@ def compute_risk_score(findings: Iterable[Finding]) -> float:
     max_single = max(_finding_raw_score(f) for f in findings_list)
 
     significant = [
-        f for f in findings_list
+        f
+        for f in findings_list
         if f.severity in (Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM)
     ]
     count_bonus = min(1.0, 0.35 * math.log(len(significant) + 1))
@@ -99,14 +98,16 @@ def _tone_key(score: float) -> str:
 
 
 def _build_summary_text(
-    score: float, label: str, findings: list[Finding],
+    score: float,
+    label: str,
+    findings: list[Finding],
 ) -> str:
     """1-2 sentence summary in the active language."""
     if not findings:
         return t("risk.summary.empty")
 
     # Count per severity
-    counts = {sev: 0 for sev in Severity}
+    counts = dict.fromkeys(Severity, 0)
     for f in findings:
         counts[f.severity] += 1
 
@@ -121,7 +122,8 @@ def _build_summary_text(
             parts.append(
                 t(
                     "risk.summary.level_template",
-                    count=counts[sev], label=t(word_key),
+                    count=counts[sev],
+                    label=t(word_key),
                 ),
             )
     if counts[Severity.INFO]:
@@ -149,7 +151,10 @@ def assess_risk(findings: Iterable[Finding]) -> RiskAssessment:
     label, color = risk_label_and_color(score)
     summary = _build_summary_text(score, label, findings_list)
     return RiskAssessment(
-        score=score, label=label, color=color, summary_tr=summary,
+        score=score,
+        label=label,
+        color=color,
+        summary_tr=summary,
     )
 
 

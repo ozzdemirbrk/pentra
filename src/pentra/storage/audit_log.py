@@ -23,7 +23,7 @@ import hashlib
 import json
 import threading
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -124,7 +124,8 @@ class AuditLog:
                     if missing:
                         violations.append(
                             IntegrityViolation(
-                                line_no, f"missing fields: {', '.join(sorted(missing))}",
+                                line_no,
+                                f"missing fields: {', '.join(sorted(missing))}",
                             ),
                         )
                         break
@@ -261,7 +262,7 @@ def make_event(
     """Convenience factory — uses current UTC when timestamp is omitted."""
     return AuditEvent(
         event_type=event_type,
-        timestamp=timestamp if timestamp is not None else datetime.now(timezone.utc),
+        timestamp=timestamp if timestamp is not None else datetime.now(UTC),
         target_fingerprint=target_fingerprint,
         details=details if details is not None else {},
     )

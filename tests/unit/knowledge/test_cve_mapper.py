@@ -22,22 +22,25 @@ def _fake_client_returning(
 
 
 class TestServiceNormalization:
-    @pytest.mark.parametrize("raw,canonical", [
-        ("microsoft-iis", "Microsoft IIS"),
-        ("ms-iis", "Microsoft IIS"),
-        ("iis", "Microsoft IIS"),
-        ("apache", "Apache"),
-        ("httpd", "Apache"),
-        ("nginx", "nginx"),
-        ("openssh", "OpenSSH"),
-        ("ssh", "OpenSSH"),
-        ("mysql", "MySQL"),
-        ("postgresql", "PostgreSQL"),
-        ("mongodb", "MongoDB"),
-        ("redis", "Redis"),
-        ("ms-wbt-server", "Remote Desktop"),
-        ("microsoft-ds", "SMB"),
-    ])
+    @pytest.mark.parametrize(
+        "raw,canonical",
+        [
+            ("microsoft-iis", "Microsoft IIS"),
+            ("ms-iis", "Microsoft IIS"),
+            ("iis", "Microsoft IIS"),
+            ("apache", "Apache"),
+            ("httpd", "Apache"),
+            ("nginx", "nginx"),
+            ("openssh", "OpenSSH"),
+            ("ssh", "OpenSSH"),
+            ("mysql", "MySQL"),
+            ("postgresql", "PostgreSQL"),
+            ("mongodb", "MongoDB"),
+            ("redis", "Redis"),
+            ("ms-wbt-server", "Remote Desktop"),
+            ("microsoft-ds", "SMB"),
+        ],
+    )
     def test_known_services(self, raw: str, canonical: str) -> None:
         client = _fake_client_returning([])
         mapper = CveMapper(client)
@@ -50,13 +53,16 @@ class TestServiceNormalization:
 
 
 class TestVersionShortening:
-    @pytest.mark.parametrize("raw,shortened", [
-        ("10.0", "10.0"),
-        ("10.0.17763.1", "10.0.17763"),  # first 3 segments
-        ("2.4.41", "2.4.41"),
-        ("1.18.0", "1.18.0"),
-        ("8", "8"),  # single number stays as-is
-    ])
+    @pytest.mark.parametrize(
+        "raw,shortened",
+        [
+            ("10.0", "10.0"),
+            ("10.0.17763.1", "10.0.17763"),  # first 3 segments
+            ("2.4.41", "2.4.41"),
+            ("1.18.0", "1.18.0"),
+            ("8", "8"),  # single number stays as-is
+        ],
+    )
     def test_versions(self, raw: str, shortened: str) -> None:
         client = _fake_client_returning([])
         mapper = CveMapper(client)
@@ -123,14 +129,17 @@ class TestLookup:
 
 
 class TestServerHeaderParsing:
-    @pytest.mark.parametrize("header,expected", [
-        ("Microsoft-IIS/10.0", ("Microsoft-IIS", "10.0")),
-        ("Apache/2.4.41", ("Apache", "2.4.41")),
-        ("Apache/2.4.41 (Ubuntu)", ("Apache", "2.4.41")),
-        ("nginx/1.18.0", ("nginx", "1.18.0")),
-        ("nginx", ("", "")),  # no version
-        ("", ("", "")),
-    ])
+    @pytest.mark.parametrize(
+        "header,expected",
+        [
+            ("Microsoft-IIS/10.0", ("Microsoft-IIS", "10.0")),
+            ("Apache/2.4.41", ("Apache", "2.4.41")),
+            ("Apache/2.4.41 (Ubuntu)", ("Apache", "2.4.41")),
+            ("nginx/1.18.0", ("nginx", "1.18.0")),
+            ("nginx", ("", "")),  # no version
+            ("", ("", "")),
+        ],
+    )
     def test_parse(self, header: str, expected: tuple[str, str]) -> None:
         assert _parse_server_header(header) == expected
 

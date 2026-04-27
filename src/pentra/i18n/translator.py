@@ -28,7 +28,7 @@ class Translator(QObject):
     DEFAULT_LANGUAGE: ClassVar[str] = "en"
     FALLBACK_LANGUAGE: ClassVar[str] = "en"
 
-    _instance: ClassVar["Translator | None"] = None
+    _instance: ClassVar[Translator | None] = None
 
     # -----------------------------------------------------------------
     # Singleton access
@@ -41,7 +41,7 @@ class Translator(QObject):
         self._current_language = self._resolve_initial_language()
 
     @classmethod
-    def instance(cls) -> "Translator":
+    def instance(cls) -> Translator:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance

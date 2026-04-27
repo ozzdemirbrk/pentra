@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import socket
 from unittest.mock import MagicMock, patch
 
 from pentra.core.service_probes.redis_probe import RedisAuthProbe
@@ -63,6 +62,6 @@ class TestRedisUnreachable:
 
     def test_timeout_no_finding(self) -> None:
         probe = RedisAuthProbe()
-        with patch("socket.create_connection", side_effect=socket.timeout("timeout")):
+        with patch("socket.create_connection", side_effect=TimeoutError("timeout")):
             findings = probe.probe("127.0.0.1", 6379)
         assert findings == []

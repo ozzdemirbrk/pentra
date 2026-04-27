@@ -39,16 +39,20 @@ class WifiNetwork:
 # netsh labels — supports Turkish/English Windows localization
 _SSID_RE = re.compile(r"^SSID\s+\d+\s*:\s*(?P<ssid>.*?)\s*$", re.I)
 _AUTH_RE = re.compile(
-    r"^\s*(?:Authentication|Kimlik\s*[Dd]o[ğg]rulama)\s*:\s*(?P<val>.+?)\s*$", re.I,
+    r"^\s*(?:Authentication|Kimlik\s*[Dd]o[ğg]rulama)\s*:\s*(?P<val>.+?)\s*$",
+    re.I,
 )
 _ENCR_RE = re.compile(
-    r"^\s*(?:Encryption|[SŞş]ifreleme)\s*:\s*(?P<val>.+?)\s*$", re.I,
+    r"^\s*(?:Encryption|[SŞş]ifreleme)\s*:\s*(?P<val>.+?)\s*$",
+    re.I,
 )
 _BSSID_RE = re.compile(
-    r"^\s*BSSID\s+\d+\s*:\s*(?P<mac>[0-9A-Fa-f:]{11,17})\s*$", re.I,
+    r"^\s*BSSID\s+\d+\s*:\s*(?P<mac>[0-9A-Fa-f:]{11,17})\s*$",
+    re.I,
 )
 _SIGNAL_RE = re.compile(
-    r"^\s*(?:Signal|Sinyal)\s*:\s*(?P<pct>\d+)\s*%?\s*$", re.I,
+    r"^\s*(?:Signal|Sinyal)\s*:\s*(?P<pct>\d+)\s*%?\s*$",
+    re.I,
 )
 
 
@@ -79,7 +83,8 @@ class WifiScanner(ScannerBase):
             return
 
         self._emit_progress(
-            70, t("progress.wifi.networks_detected", count=len(networks)),
+            70,
+            t("progress.wifi.networks_detected", count=len(networks)),
         )
 
         for idx, net in enumerate(networks):
@@ -99,7 +104,8 @@ class WifiScanner(ScannerBase):
             )
 
         self._emit_progress(
-            100, t("progress.wifi.scan_complete", count=len(networks)),
+            100,
+            t("progress.wifi.scan_complete", count=len(networks)),
         )
 
 
@@ -247,7 +253,9 @@ def _evaluate_network(net: WifiNetwork) -> Finding | None:
         )
 
     # --- Legacy WPA (TKIP) ---
-    if "wpa-" in auth_lower or ("wpa" in auth_lower and "wpa2" not in auth_lower and "wpa3" not in auth_lower):
+    if "wpa-" in auth_lower or (
+        "wpa" in auth_lower and "wpa2" not in auth_lower and "wpa3" not in auth_lower
+    ):
         return Finding(
             scanner_name="wifi_scanner",
             severity=Severity.MEDIUM,
@@ -265,11 +273,13 @@ def _evaluate_network(net: WifiNetwork) -> Finding | None:
             severity=Severity.INFO,
             title=t(
                 "finding.wifi.secure.title",
-                ssid=ssid_display, auth=net.authentication,
+                ssid=ssid_display,
+                auth=net.authentication,
             ),
             description=t(
                 "finding.wifi.secure.desc",
-                auth=net.authentication, encryption=net.encryption,
+                auth=net.authentication,
+                encryption=net.encryption,
             ),
             target=f"wifi://{ssid_display}",
             remediation=t("finding.wifi.secure.remediation"),

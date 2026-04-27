@@ -54,23 +54,29 @@ class TestGuessLocalCidr:
 
 
 class TestIsValidCidr:
-    @pytest.mark.parametrize("cidr", [
-        "192.168.1.0/24",
-        "10.0.0.0/8",
-        "172.16.0.0/12",
-        "192.168.1.1/32",
-        "0.0.0.0/0",
-    ])
+    @pytest.mark.parametrize(
+        "cidr",
+        [
+            "192.168.1.0/24",
+            "10.0.0.0/8",
+            "172.16.0.0/12",
+            "192.168.1.1/32",
+            "0.0.0.0/0",
+        ],
+    )
     def test_valid_cidrs(self, cidr: str) -> None:
         assert is_valid_cidr(cidr)
 
-    @pytest.mark.parametrize("cidr", [
-        "not-a-cidr",
-        "999.999.999.999/24",
-        "192.168.1.0/33",
-        "",
-        "192.168.1.0/",
-    ])
+    @pytest.mark.parametrize(
+        "cidr",
+        [
+            "not-a-cidr",
+            "999.999.999.999/24",
+            "192.168.1.0/33",
+            "",
+            "192.168.1.0/",
+        ],
+    )
     def test_invalid_cidrs(self, cidr: str) -> None:
         assert not is_valid_cidr(cidr)
 

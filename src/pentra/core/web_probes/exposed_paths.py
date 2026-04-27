@@ -29,7 +29,6 @@ from pentra.core.web_probes.base import WebProbeBase
 from pentra.i18n import t
 from pentra.models import Finding, Severity
 
-
 Validator = Callable[[requests.Response], tuple[bool, str]]
 
 
@@ -42,10 +41,7 @@ def _env_validator(response: requests.Response) -> tuple[bool, str]:
     if _is_html(response):
         return False, ""
     lines = response.text[:4096].splitlines()
-    env_like = [
-        line for line in lines
-        if re.match(r"^[A-Z_][A-Z_0-9]*\s*=", line)
-    ]
+    env_like = [line for line in lines if re.match(r"^[A-Z_][A-Z_0-9]*\s*=", line)]
     if len(env_like) >= 2:
         return True, "\n".join(env_like[:5])
     return False, ""
@@ -77,7 +73,7 @@ def _sql_dump_validator(response: requests.Response) -> tuple[bool, str]:
     for kw in keywords:
         if kw in upper:
             idx = upper.find(kw)
-            return True, response.text[max(0, idx - 20):idx + 200]
+            return True, response.text[max(0, idx - 20) : idx + 200]
     return False, ""
 
 
@@ -152,14 +148,19 @@ def _server_status_validator(response: requests.Response) -> tuple[bool, str]:
 def _admin_validator(response: requests.Response) -> tuple[bool, str]:
     text = response.text[:8192].lower()
     hints = (
-        "admin panel", "admin login", "dashboard",
-        "<title>admin", "adminlogin", "admin-password",
-        "login</title>", "<h1>login",
+        "admin panel",
+        "admin login",
+        "dashboard",
+        "<title>admin",
+        "adminlogin",
+        "admin-password",
+        "login</title>",
+        "<h1>login",
     )
     for hint in hints:
         if hint in text:
             return True, f"Panel hint: `{hint}`"
-    if re.search(r'<form[^>]*action=[^>]*(login|admin|auth)', text):
+    if re.search(r"<form[^>]*action=[^>]*(login|admin|auth)", text):
         return True, "Login form detected"
     return False, ""
 
@@ -187,21 +188,48 @@ class _PathCheck:
 
 _SENSITIVE_PATHS: tuple[_PathCheck, ...] = (
     _PathCheck("/.env", Severity.CRITICAL, "finding.web.exposed_env", _env_validator),
-    _PathCheck("/.git/config", Severity.HIGH, "finding.web.exposed_git_config", _git_config_validator),
+    _PathCheck(
+        "/.git/config", Severity.HIGH, "finding.web.exposed_git_config", _git_config_validator
+    ),
     _PathCheck("/.git/HEAD", Severity.HIGH, "finding.web.exposed_git_head", _git_head_validator),
-    _PathCheck("/backup.sql", Severity.CRITICAL, "finding.web.exposed_backup_sql", _sql_dump_validator),
-    _PathCheck("/database.sql", Severity.CRITICAL, "finding.web.exposed_database_sql", _sql_dump_validator),
+    _PathCheck(
+        "/backup.sql", Severity.CRITICAL, "finding.web.exposed_backup_sql", _sql_dump_validator
+    ),
+    _PathCheck(
+        "/database.sql", Severity.CRITICAL, "finding.web.exposed_database_sql", _sql_dump_validator
+    ),
     _PathCheck("/dump.sql", Severity.CRITICAL, "finding.web.exposed_dump_sql", _sql_dump_validator),
-    _PathCheck("/wp-config.php.bak", Severity.CRITICAL, "finding.web.exposed_wp_config_bak", _wp_config_validator),
-    _PathCheck("/wp-config.php.save", Severity.CRITICAL, "finding.web.exposed_wp_config_save", _wp_config_validator),
-    _PathCheck("/config.json", Severity.HIGH, "finding.web.exposed_config_json", _config_json_validator),
-    _PathCheck("/config.yml", Severity.HIGH, "finding.web.exposed_config_yml", _config_yml_validator),
+    _PathCheck(
+        "/wp-config.php.bak",
+        Severity.CRITICAL,
+        "finding.web.exposed_wp_config_bak",
+        _wp_config_validator,
+    ),
+    _PathCheck(
+        "/wp-config.php.save",
+        Severity.CRITICAL,
+        "finding.web.exposed_wp_config_save",
+        _wp_config_validator,
+    ),
+    _PathCheck(
+        "/config.json", Severity.HIGH, "finding.web.exposed_config_json", _config_json_validator
+    ),
+    _PathCheck(
+        "/config.yml", Severity.HIGH, "finding.web.exposed_config_yml", _config_yml_validator
+    ),
     _PathCheck("/.htaccess", Severity.MEDIUM, "finding.web.exposed_htaccess", _htaccess_validator),
     _PathCheck("/.DS_Store", Severity.LOW, "finding.web.exposed_ds_store", _ds_store_validator),
-    _PathCheck("/server-status", Severity.MEDIUM, "finding.web.exposed_server_status", _server_status_validator),
+    _PathCheck(
+        "/server-status",
+        Severity.MEDIUM,
+        "finding.web.exposed_server_status",
+        _server_status_validator,
+    ),
     _PathCheck("/phpinfo.php", Severity.HIGH, "finding.web.exposed_phpinfo", _phpinfo_validator),
     _PathCheck("/admin", Severity.INFO, "finding.web.exposed_admin", _admin_validator),
-    _PathCheck("/phpmyadmin", Severity.LOW, "finding.web.exposed_phpmyadmin", _phpmyadmin_validator),
+    _PathCheck(
+        "/phpmyadmin", Severity.LOW, "finding.web.exposed_phpmyadmin", _phpmyadmin_validator
+    ),
 )
 
 
@@ -263,7 +291,9 @@ class ExposedPathsProbe(WebProbeBase):
 
             try:
                 response = session.get(
-                    full_url, timeout=self.timeout, allow_redirects=False,
+                    full_url,
+                    timeout=self.timeout,
+                    allow_redirects=False,
                 )
             except requests.RequestException:
                 continue
@@ -301,11 +331,12 @@ class ExposedPathsProbe(WebProbeBase):
         security_url = urljoin(base + "/", ".well-known/security.txt")
         try:
             sec_response = session.get(
-                security_url, timeout=self.timeout, allow_redirects=False,
+                security_url,
+                timeout=self.timeout,
+                allow_redirects=False,
             )
-            is_missing = (
-                sec_response.status_code == 404
-                or (baseline is not None and _looks_like_baseline(sec_response, baseline))
+            is_missing = sec_response.status_code == 404 or (
+                baseline is not None and _looks_like_baseline(sec_response, baseline)
             )
             if is_missing:
                 findings.append(

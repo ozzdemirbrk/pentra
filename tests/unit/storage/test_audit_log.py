@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -32,7 +32,9 @@ def audit(log_path: Path) -> AuditLog:
 # =====================================================================
 class TestLogEvent:
     def test_fresh_log_starts_with_genesis_prev_hash(
-        self, audit: AuditLog, log_path: Path,
+        self,
+        audit: AuditLog,
+        log_path: Path,
     ) -> None:
         event = make_event("scan_requested", target_fingerprint="abc123", details={"x": 1})
         audit.log_event(event)
@@ -68,7 +70,7 @@ class TestLogEvent:
         assert nested.exists()
 
     def test_utc_timestamp_in_line(self, audit: AuditLog, log_path: Path) -> None:
-        ts = datetime(2026, 4, 21, 10, 0, 0, tzinfo=timezone.utc)
+        ts = datetime(2026, 4, 21, 10, 0, 0, tzinfo=UTC)
         audit.log_event(make_event("e", "fp", timestamp=ts))
         entry = json.loads(log_path.read_text().splitlines()[0])
         assert "2026-04-21T10:00:00" in entry["ts"]

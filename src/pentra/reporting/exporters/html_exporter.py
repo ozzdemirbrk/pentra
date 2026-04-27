@@ -10,7 +10,6 @@ from jinja2 import Environment, FileSystemLoader
 from pentra.i18n import Translator, t
 from pentra.knowledge.remediations import get_guide
 from pentra.reporting.logo import get_logo_data_uri
-
 from pentra.reporting.report_builder import Report
 
 _TEMPLATE_DIR: Path = Path(__file__).parent.parent / "templates"

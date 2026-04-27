@@ -31,7 +31,6 @@ from pentra.reporting.comparison import compare as compare_scans
 from pentra.reporting.exporters.html_exporter import HtmlExporter
 from pentra.reporting.report_builder import Report, ReportBuilder, ReportSummary
 
-
 #: Severity -> translation key mapping
 _SEVERITY_KEY = {
     Severity.CRITICAL: "severity.critical",
@@ -101,7 +100,9 @@ class ReportPage(QWizardPage):
         layout.addLayout(buttons)
 
         self._save_status = QLabel("")
-        self._save_status.setStyleSheet("QLabel { color: #4caf50; font-weight: bold; padding: 4px; }")
+        self._save_status.setStyleSheet(
+            "QLabel { color: #4caf50; font-weight: bold; padding: 4px; }"
+        )
         layout.addWidget(self._save_status)
 
         self.retranslate_ui()
@@ -224,9 +225,7 @@ class ReportPage(QWizardPage):
                 "stable": "#666",
             }.get(cmp.risk_trend, "#666")
 
-            delta_text = (
-                f"{cmp.risk_delta:+.1f}" if abs(cmp.risk_delta) >= 0.1 else "0.0"
-            )
+            delta_text = f"{cmp.risk_delta:+.1f}" if abs(cmp.risk_delta) >= 0.1 else "0.0"
             cmp_label = QLabel(
                 t(
                     "report.risk.vs_previous_html",
@@ -267,9 +266,13 @@ class ReportPage(QWizardPage):
                 cl = QVBoxLayout(card)
                 cl.setContentsMargins(6, 4, 6, 4)
                 num = QLabel(str(count))
-                num.setStyleSheet(f"QLabel {{ color: {color}; font-size: 20px; font-weight: 700; }}")
+                num.setStyleSheet(
+                    f"QLabel {{ color: {color}; font-size: 20px; font-weight: 700; }}"
+                )
                 txt = QLabel(label)
-                txt.setStyleSheet("QLabel { color: #555; font-size: 10px; text-transform: uppercase; }")
+                txt.setStyleSheet(
+                    "QLabel { color: #555; font-size: 10px; text-transform: uppercase; }"
+                )
                 cl.addWidget(num)
                 cl.addWidget(txt)
                 cmp_row.addWidget(card, stretch=1)

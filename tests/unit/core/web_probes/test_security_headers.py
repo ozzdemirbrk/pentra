@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
 import requests
 
 from pentra.core.web_probes.security_headers import SecurityHeadersProbe
@@ -36,13 +35,16 @@ class TestHttpsRequired:
 
     def test_https_url_not_flagged_for_http_risk(self) -> None:
         probe = SecurityHeadersProbe()
-        session = _mock_session(200, {
-            "Strict-Transport-Security": "max-age=31536000",
-            "Content-Security-Policy": "default-src 'self'",
-            "X-Frame-Options": "DENY",
-            "X-Content-Type-Options": "nosniff",
-            "Referrer-Policy": "strict-origin-when-cross-origin",
-        })
+        session = _mock_session(
+            200,
+            {
+                "Strict-Transport-Security": "max-age=31536000",
+                "Content-Security-Policy": "default-src 'self'",
+                "X-Frame-Options": "DENY",
+                "X-Content-Type-Options": "nosniff",
+                "Referrer-Policy": "strict-origin-when-cross-origin",
+            },
+        )
         findings = probe.probe("https://example.com", session)
         assert not any("HTTP üzerinden" in f.title for f in findings)
 
@@ -62,13 +64,16 @@ class TestMissingHeaders:
 
     def test_all_headers_present_no_missing_findings(self) -> None:
         probe = SecurityHeadersProbe()
-        session = _mock_session(200, {
-            "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-            "Content-Security-Policy": "default-src 'self'",
-            "X-Frame-Options": "DENY",
-            "X-Content-Type-Options": "nosniff",
-            "Referrer-Policy": "no-referrer",
-        })
+        session = _mock_session(
+            200,
+            {
+                "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+                "Content-Security-Policy": "default-src 'self'",
+                "X-Frame-Options": "DENY",
+                "X-Content-Type-Options": "nosniff",
+                "Referrer-Policy": "no-referrer",
+            },
+        )
         findings = probe.probe("https://example.com", session)
 
         missing_titles = {f.title for f in findings if "eksik" in f.title}
@@ -87,14 +92,17 @@ class TestMissingHeaders:
 class TestLeakyHeaders:
     def test_server_header_generates_info_finding(self) -> None:
         probe = SecurityHeadersProbe()
-        session = _mock_session(200, {
-            "Server": "Apache/2.4.41 (Ubuntu)",
-            "Strict-Transport-Security": "max-age=31536000",
-            "Content-Security-Policy": "default-src 'self'",
-            "X-Frame-Options": "DENY",
-            "X-Content-Type-Options": "nosniff",
-            "Referrer-Policy": "no-referrer",
-        })
+        session = _mock_session(
+            200,
+            {
+                "Server": "Apache/2.4.41 (Ubuntu)",
+                "Strict-Transport-Security": "max-age=31536000",
+                "Content-Security-Policy": "default-src 'self'",
+                "X-Frame-Options": "DENY",
+                "X-Content-Type-Options": "nosniff",
+                "Referrer-Policy": "no-referrer",
+            },
+        )
         findings = probe.probe("https://example.com", session)
 
         leak_findings = [f for f in findings if "Versiyon sızıntısı" in f.title]
@@ -104,14 +112,17 @@ class TestLeakyHeaders:
 
     def test_x_powered_by_generates_finding(self) -> None:
         probe = SecurityHeadersProbe()
-        session = _mock_session(200, {
-            "X-Powered-By": "PHP/7.4.3",
-            "Strict-Transport-Security": "max-age=31536000",
-            "Content-Security-Policy": "default-src 'self'",
-            "X-Frame-Options": "DENY",
-            "X-Content-Type-Options": "nosniff",
-            "Referrer-Policy": "no-referrer",
-        })
+        session = _mock_session(
+            200,
+            {
+                "X-Powered-By": "PHP/7.4.3",
+                "Strict-Transport-Security": "max-age=31536000",
+                "Content-Security-Policy": "default-src 'self'",
+                "X-Frame-Options": "DENY",
+                "X-Content-Type-Options": "nosniff",
+                "Referrer-Policy": "no-referrer",
+            },
+        )
         findings = probe.probe("https://example.com", session)
 
         assert any("X-Powered-By" in f.title for f in findings)

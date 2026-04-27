@@ -7,10 +7,14 @@ Exporters convert the Report object they receive into their target format.
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from pentra.models import Finding, ScanDepth, Severity, Target
 from pentra.reporting.risk_score import RiskAssessment, assess_risk, top_actions
+
+if TYPE_CHECKING:
+    from pentra.reporting.comparison import ScanComparison
 
 
 # ---------------------------------------------------------------------
@@ -28,8 +32,8 @@ class ReportSummary:
     info: int
 
     @classmethod
-    def from_findings(cls, findings: list[Finding]) -> "ReportSummary":
-        counts = {sev: 0 for sev in Severity}
+    def from_findings(cls, findings: list[Finding]) -> ReportSummary:
+        counts = dict.fromkeys(Severity, 0)
         for f in findings:
             counts[f.severity] += 1
         return cls(
@@ -57,7 +61,7 @@ class Report:
     #: Top N priority actions shown at the top of the report
     top_actions: list[Finding] = dataclasses.field(default_factory=list)
     #: Comparison with the previous scan (if any); None on first scan
-    comparison: "ScanComparison | None" = None
+    comparison: ScanComparison | None = None
 
     @property
     def duration_seconds(self) -> float:
@@ -90,10 +94,10 @@ class ReportBuilder:
         findings: list[Finding],
         started_at: datetime,
         ended_at: datetime | None = None,
-        comparison: "ScanComparison | None" = None,
+        comparison: ScanComparison | None = None,
     ) -> Report:
         if ended_at is None:
-            ended_at = datetime.now(timezone.utc)
+            ended_at = datetime.now(UTC)
 
         # Sort by severity (critical -> info) so critical items appear first
         severity_order = {

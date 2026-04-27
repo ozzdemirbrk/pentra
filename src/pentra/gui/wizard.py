@@ -7,7 +7,7 @@ Each page reads and writes it; page-specific state flows through this object.
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QWizard
@@ -38,7 +38,7 @@ class WizardContext:
     depth: ScanDepth | None = None
 
     # Screen 4 — Scan
-    prepared_scan: "PreparedScan | None" = None
+    prepared_scan: PreparedScan | None = None
     findings: list[Finding] = dataclasses.field(default_factory=list)
     scan_started_at: datetime | None = None
     scan_ended_at: datetime | None = None
@@ -67,8 +67,8 @@ class PentraWizard(QWizard):
 
     def __init__(
         self,
-        orchestrator: "ScanOrchestrator",
-        scan_history: "ScanHistory | None" = None,
+        orchestrator: ScanOrchestrator,
+        scan_history: ScanHistory | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -76,7 +76,7 @@ class PentraWizard(QWizard):
         self.context = WizardContext()
         self.orchestrator = orchestrator
         #: Scan history — when None, history isn't recorded (for test/dev scenarios)
-        self.scan_history: "ScanHistory | None" = scan_history
+        self.scan_history: ScanHistory | None = scan_history
 
         self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
         self.setOption(QWizard.WizardOption.NoBackButtonOnStartPage, True)
@@ -102,7 +102,7 @@ class PentraWizard(QWizard):
 
     # Debugging/testing helper
     def set_scan_started_now(self) -> None:
-        self.context.scan_started_at = datetime.now(timezone.utc)
+        self.context.scan_started_at = datetime.now(UTC)
 
     def set_scan_ended_now(self) -> None:
-        self.context.scan_ended_at = datetime.now(timezone.utc)
+        self.context.scan_ended_at = datetime.now(UTC)

@@ -7,7 +7,7 @@ and has no dependencies on them.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -134,7 +134,7 @@ class Finding:
     remediation: str | None = None  # Localized remediation suggestion
     evidence: dict[str, Any] = field(default_factory=dict)
     discovered_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
     )
 
 

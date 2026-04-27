@@ -57,7 +57,7 @@ class ScannerBase(QObject):
         rate_limiter: TokenBucket,
         audit_log: AuditLog,
         auth_manager: AuthorizationManager,
-        cve_mapper: "CveMapper | None" = None,
+        cve_mapper: CveMapper | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)

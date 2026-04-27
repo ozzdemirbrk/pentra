@@ -81,6 +81,7 @@ class TestMysqlProtected:
 class TestMysqlMissingDep:
     def test_pymysql_not_installed_returns_empty(self) -> None:
         import sys
+
         probe = MysqlDefaultCredsProbe()
         with patch.dict(sys.modules, {"pymysql": None}):
             findings = probe.probe("10.0.0.5", 3306)

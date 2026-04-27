@@ -11,8 +11,17 @@ from pentra.i18n import t
 from pentra.models import Finding, Severity
 
 _PARAMS_TO_TEST: tuple[str, ...] = (
-    "file", "page", "path", "doc", "folder", "root",
-    "include", "template", "load", "read", "download",
+    "file",
+    "page",
+    "path",
+    "doc",
+    "folder",
+    "root",
+    "include",
+    "template",
+    "load",
+    "read",
+    "download",
 )
 
 # (match_needle, i18n_key_for_description)
@@ -51,7 +60,9 @@ class PathTraversalProbe(WebProbeBase):
 
                 try:
                     response = session.get(
-                        full_url, timeout=self.timeout, allow_redirects=False,
+                        full_url,
+                        timeout=self.timeout,
+                        allow_redirects=False,
                     )
                 except requests.RequestException:
                     continue
@@ -64,7 +75,8 @@ class PathTraversalProbe(WebProbeBase):
                             scanner_name="web_scanner",
                             severity=Severity.CRITICAL,
                             title=t(
-                                "finding.web.path_traversal.title", param=param,
+                                "finding.web.path_traversal.title",
+                                param=param,
                             ),
                             description=t(
                                 "finding.web.path_traversal.desc",
@@ -75,7 +87,8 @@ class PathTraversalProbe(WebProbeBase):
                             ),
                             target=full_url,
                             remediation=t(
-                                "finding.web.path_traversal.remediation", param=param,
+                                "finding.web.path_traversal.remediation",
+                                param=param,
                             ),
                             evidence=self._build_evidence(
                                 request_method="GET",

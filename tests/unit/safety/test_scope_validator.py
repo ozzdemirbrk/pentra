@@ -22,8 +22,10 @@ from pentra.safety.scope_validator import ScopeValidator
 def _make_validator(resolver: Callable[[str], list[str]] | None = None) -> ScopeValidator:
     """ScopeValidator for tests — defaults to a fake resolver that does not call DNS."""
     if resolver is None:
+
         def _fail(_: str) -> list[str]:
             raise AssertionError("DNS resolver should not have been called in this test")
+
         resolver = _fail
     return ScopeValidator(dns_resolver=resolver)
 
@@ -70,7 +72,14 @@ class TestWifi:
 class TestSingleIpRFC1918:
     @pytest.mark.parametrize(
         "ip",
-        ["10.0.0.1", "10.255.255.254", "172.16.0.1", "172.31.255.254", "192.168.1.1", "192.168.255.254"],
+        [
+            "10.0.0.1",
+            "10.255.255.254",
+            "172.16.0.1",
+            "172.31.255.254",
+            "192.168.1.1",
+            "192.168.255.254",
+        ],
     )
     def test_rfc1918_allowed(self, ip: str) -> None:
         v = _make_validator()

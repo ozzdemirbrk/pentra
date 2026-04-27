@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from pentra.core.wifi_scanner import (
+    WifiNetwork,
     _evaluate_network,
     _parse_netsh_output,
-    WifiNetwork,
 )
 from pentra.models import Severity
-
 
 # ---------------------------------------------------------------------
 # Sample netsh outputs
@@ -147,7 +146,9 @@ class TestEvaluation:
 
     def test_wpa_old_is_medium(self) -> None:
         net = WifiNetwork(
-            ssid="LegacyAP", authentication="WPA-Personal", encryption="TKIP",
+            ssid="LegacyAP",
+            authentication="WPA-Personal",
+            encryption="TKIP",
         )
         f = _evaluate_network(net)
         assert f is not None
@@ -155,7 +156,9 @@ class TestEvaluation:
 
     def test_wpa2_is_info(self) -> None:
         net = WifiNetwork(
-            ssid="Home", authentication="WPA2-Personal", encryption="CCMP",
+            ssid="Home",
+            authentication="WPA2-Personal",
+            encryption="CCMP",
         )
         f = _evaluate_network(net)
         assert f is not None
@@ -163,7 +166,9 @@ class TestEvaluation:
 
     def test_wpa3_is_info(self) -> None:
         net = WifiNetwork(
-            ssid="Modern", authentication="WPA3-Personal", encryption="CCMP",
+            ssid="Modern",
+            authentication="WPA3-Personal",
+            encryption="CCMP",
         )
         f = _evaluate_network(net)
         assert f is not None

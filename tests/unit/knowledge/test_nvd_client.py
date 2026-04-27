@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 import requests
 
 from pentra.knowledge.nvd_client import Cve, NvdClient
@@ -55,9 +54,11 @@ class TestSearchCves:
     def test_parses_v31_score(self) -> None:
         client = NvdClient()
         mock_response = MagicMock()
-        mock_response.json.return_value = _nvd_response([
-            _vuln("CVE-2024-1234", "IIS 10.0 memory corruption", cvss_v31=8.8, severity="HIGH"),
-        ])
+        mock_response.json.return_value = _nvd_response(
+            [
+                _vuln("CVE-2024-1234", "IIS 10.0 memory corruption", cvss_v31=8.8, severity="HIGH"),
+            ]
+        )
         mock_response.raise_for_status.return_value = None
 
         with patch.object(client._session, "get", return_value=mock_response):
@@ -73,11 +74,13 @@ class TestSearchCves:
         """A CVE should be filtered out if any of the must_contain strings is missing."""
         client = NvdClient()
         mock_response = MagicMock()
-        mock_response.json.return_value = _nvd_response([
-            _vuln("CVE-A", "Microsoft IIS 10.0 bug", cvss_v31=7.5),
-            _vuln("CVE-B", "Completely unrelated Linux kernel bug", cvss_v31=9.1),
-            _vuln("CVE-C", "IIS earlier versions 8.x", cvss_v31=5.0),
-        ])
+        mock_response.json.return_value = _nvd_response(
+            [
+                _vuln("CVE-A", "Microsoft IIS 10.0 bug", cvss_v31=7.5),
+                _vuln("CVE-B", "Completely unrelated Linux kernel bug", cvss_v31=9.1),
+                _vuln("CVE-C", "IIS earlier versions 8.x", cvss_v31=5.0),
+            ]
+        )
         mock_response.raise_for_status.return_value = None
 
         with patch.object(client._session, "get", return_value=mock_response):
@@ -91,11 +94,13 @@ class TestSearchCves:
     def test_sorted_by_cvss_desc(self) -> None:
         client = NvdClient()
         mock_response = MagicMock()
-        mock_response.json.return_value = _nvd_response([
-            _vuln("CVE-LOW", "X bug", cvss_v31=3.0),
-            _vuln("CVE-CRIT", "X bug", cvss_v31=9.8),
-            _vuln("CVE-MED", "X bug", cvss_v31=6.5),
-        ])
+        mock_response.json.return_value = _nvd_response(
+            [
+                _vuln("CVE-LOW", "X bug", cvss_v31=3.0),
+                _vuln("CVE-CRIT", "X bug", cvss_v31=9.8),
+                _vuln("CVE-MED", "X bug", cvss_v31=6.5),
+            ]
+        )
         mock_response.raise_for_status.return_value = None
 
         with patch.object(client._session, "get", return_value=mock_response):
@@ -107,7 +112,8 @@ class TestSearchCves:
     def test_network_error_returns_empty(self) -> None:
         client = NvdClient()
         with patch.object(
-            client._session, "get",
+            client._session,
+            "get",
             side_effect=requests.ConnectionError("network down"),
         ):
             cves = client.search_cves("anything")
@@ -126,9 +132,11 @@ class TestSearchCves:
     def test_cache_hit_skips_network(self) -> None:
         client = NvdClient()
         mock_response = MagicMock()
-        mock_response.json.return_value = _nvd_response([
-            _vuln("CVE-1", "x", cvss_v31=5.0),
-        ])
+        mock_response.json.return_value = _nvd_response(
+            [
+                _vuln("CVE-1", "x", cvss_v31=5.0),
+            ]
+        )
         mock_response.raise_for_status.return_value = None
 
         with patch.object(client._session, "get", return_value=mock_response) as mock_get:

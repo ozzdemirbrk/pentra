@@ -41,7 +41,7 @@ class RedisAuthProbe(ServiceProbeBase):
             with socket.create_connection((host, port), timeout=self.timeout) as sock:
                 sock.sendall(_PING_COMMAND)
                 response = sock.recv(256)
-        except (OSError, socket.timeout):
+        except (TimeoutError, OSError):
             return []
 
         if response.startswith(_EXPECTED_OPEN):
@@ -54,7 +54,8 @@ class RedisAuthProbe(ServiceProbeBase):
                     target=f"{host}:{port}",
                     remediation=t("finding.redis.auth_open.remediation"),
                     evidence=self._evidence(
-                        host=host, port=port,
+                        host=host,
+                        port=port,
                         why_vulnerable=t("finding.redis.auth_open.evidence"),
                         response_snippet=response.decode("latin-1"),
                     ),

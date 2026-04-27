@@ -72,6 +72,7 @@ class TestPostgresProtected:
 class TestPostgresMissingDep:
     def test_psycopg2_not_installed(self) -> None:
         import sys
+
         probe = PostgresDefaultCredsProbe()
         with patch.dict(sys.modules, {"psycopg2": None}):
             findings = probe.probe("10.0.0.5", 5432)

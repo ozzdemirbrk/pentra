@@ -26,6 +26,7 @@ from pentra.core.service_probes.ssh_probe import SshDefaultCredsProbe
 from pentra.i18n import t
 from pentra.models import Finding, ScanDepth, Severity, Target, TargetType
 
+
 # Port -> Service probe mapping. When an open port is found, its probe runs.
 def _default_service_probes() -> dict[int, ServiceProbeBase]:
     """Registered probe for each port (port number -> probe instance)."""
@@ -45,6 +46,7 @@ def _default_service_probes() -> dict[int, ServiceProbeBase]:
         for port in probe_instance.default_ports:
             registry[port] = probe_instance
     return registry
+
 
 # Paths python-nmap searches for nmap.exe — Windows + Unix.
 _NMAP_SEARCH_PATHS: tuple[str, ...] = (
@@ -165,7 +167,9 @@ class NetworkScanner(ScannerBase):
                         95,
                         t(
                             "progress.network.service_probe",
-                            probe=probe.name, host=host, port=port,
+                            probe=probe.name,
+                            host=host,
+                            port=port,
                         ),
                     )
                     if not self._throttle(1):
@@ -188,9 +192,9 @@ class NetworkScanner(ScannerBase):
     @staticmethod
     def _build_nmap_args(depth: ScanDepth, target: Target | None = None) -> str:
         """Build nmap arguments based on depth."""
-        is_network_scan = (
-            target is not None
-            and target.target_type in (TargetType.LOCAL_NETWORK, TargetType.IP_RANGE)
+        is_network_scan = target is not None and target.target_type in (
+            TargetType.LOCAL_NETWORK,
+            TargetType.IP_RANGE,
         )
         host_discovery = "" if is_network_scan else "-Pn"
 
@@ -233,9 +237,7 @@ class NetworkScanner(ScannerBase):
                     product: str = port_info.get("product", "")
 
                     severity, note_key = _RISKY_PORTS.get(port, (Severity.INFO, ""))
-                    extra_note = (
-                        " " + t(note_key) if note_key else ""
-                    )
+                    extra_note = " " + t(note_key) if note_key else ""
 
                     version_part = (
                         t(
@@ -249,12 +251,17 @@ class NetworkScanner(ScannerBase):
 
                     title = t(
                         "finding.network.open_port.title",
-                        port=port, proto=proto, service=service,
+                        port=port,
+                        proto=proto,
+                        service=service,
                     )
                     description = t(
                         "finding.network.open_port.desc",
-                        host=host, port=port, service=service,
-                        version_part=version_part, extra_note=extra_note,
+                        host=host,
+                        port=port,
+                        service=service,
+                        version_part=version_part,
+                        extra_note=extra_note,
                     )
 
                     remediation = _build_remediation(port, service)
@@ -264,7 +271,8 @@ class NetworkScanner(ScannerBase):
                     if self._cve_mapper is not None and (product or service) and version:
                         try:
                             cves = self._cve_mapper.lookup(
-                                service=product or service, version=version,
+                                service=product or service,
+                                version=version,
                             )
                             cve_ids = tuple(c.cve_id for c in cves[:5])
                             cve_details = [
@@ -278,7 +286,8 @@ class NetworkScanner(ScannerBase):
                                 for c in cves[:5]
                             ]
                             severity = self._escalate_severity_by_cves(
-                                severity, cves,
+                                severity,
+                                cves,
                             )
                         except Exception:  # noqa: BLE001
                             pass
@@ -314,7 +323,7 @@ class NetworkScanner(ScannerBase):
     @staticmethod
     def _escalate_severity_by_cves(
         base: Severity,
-        cves: "list",
+        cves: list,
     ) -> Severity:
         """Escalate severity if the highest CVSS among CVEs exceeds the port base."""
         if not cves:
@@ -333,8 +342,11 @@ class NetworkScanner(ScannerBase):
             return base
 
         order = {
-            Severity.INFO: 0, Severity.LOW: 1, Severity.MEDIUM: 2,
-            Severity.HIGH: 3, Severity.CRITICAL: 4,
+            Severity.INFO: 0,
+            Severity.LOW: 1,
+            Severity.MEDIUM: 2,
+            Severity.HIGH: 3,
+            Severity.CRITICAL: 4,
         }
         return base if order[base] >= order[cvss_tier] else cvss_tier
 

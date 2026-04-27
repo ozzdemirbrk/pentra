@@ -66,11 +66,13 @@ class NvdClient:
         # Rate limiter — 50/30s with API key, 5/30s without
         if api_key:
             self._rate_limiter = TokenBucket(
-                capacity=50, refill_rate_per_sec=50.0 / 30.0,
+                capacity=50,
+                refill_rate_per_sec=50.0 / 30.0,
             )
         else:
             self._rate_limiter = TokenBucket(
-                capacity=5, refill_rate_per_sec=5.0 / 30.0,
+                capacity=5,
+                refill_rate_per_sec=5.0 / 30.0,
             )
 
         self._session = requests.Session()
@@ -97,7 +99,9 @@ class NvdClient:
         params = {"cpeName": cpe_name, "resultsPerPage": min(max_results, 200)}
         try:
             response = self._session.get(
-                _NVD_ENDPOINT, params=params, timeout=self._timeout,
+                _NVD_ENDPOINT,
+                params=params,
+                timeout=self._timeout,
             )
             response.raise_for_status()
             data = response.json()
@@ -146,7 +150,9 @@ class NvdClient:
 
         try:
             response = self._session.get(
-                _NVD_ENDPOINT, params=params, timeout=self._timeout,
+                _NVD_ENDPOINT,
+                params=params,
+                timeout=self._timeout,
             )
             response.raise_for_status()
         except requests.RequestException as e:

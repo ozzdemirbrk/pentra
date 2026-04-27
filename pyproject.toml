@@ -110,8 +110,22 @@ select = [
     "N",    # pep8-naming
 ]
 ignore = [
-    "E501",  # satır uzunluğu — black halleder
-    "S101",  # assert kullanımı — testlerde normal
+    "E501",   # line length — black handles it
+    "S101",   # assert usage — normal in tests
+    "S110",   # try/except/pass — used intentionally in scanner error swallowing
+    "S501",   # requests with verify=False — intentional in service probes (self-signed certs)
+    "S507",   # paramiko AutoAddPolicy — intentional for SSH probe (host key check is not the goal)
+    "S607",   # subprocess partial path — intentional for nmap/netsh PATH lookup
+    "S701",   # Jinja2 autoescape — handled via custom _needs_autoescape function
+    "SIM102", # collapsible nested if — readability preference
+    "SIM103", # needless bool — readability preference
+    "SIM105", # contextlib.suppress — try/except/pass is clearer in our cleanup paths
+    "SIM117", # multiple with statements — context-dependent readability
+    "UP042",  # replace-str-enum — StrEnum migration deferred (Python 3.11 compat)
+    "N815",   # mixed-case attribute — Qt signal naming (languageChanged etc.)
+    "N818",   # exception name suffix — kept short (AuthorizationDenied, InvalidToken)
+    "C416",   # unnecessary comprehension — readability preference
+    "E741",   # ambiguous variable name (l, O, I) — accepted in narrow scopes
 ]
 
 [tool.ruff.lint.per-file-ignores]

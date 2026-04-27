@@ -44,9 +44,11 @@ class MongoDbAuthProbe(ServiceProbeBase):
                     target=f"{host}:{port}",
                     remediation=t("finding.mongodb.auth_open.remediation"),
                     evidence=self._evidence(
-                        host=host, port=port,
+                        host=host,
+                        port=port,
                         why_vulnerable=t(
-                            "finding.mongodb.auth_open.evidence", count=db_count,
+                            "finding.mongodb.auth_open.evidence",
+                            count=db_count,
                         ),
                     ),
                 ),

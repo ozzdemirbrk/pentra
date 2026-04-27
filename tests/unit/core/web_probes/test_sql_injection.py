@@ -37,7 +37,8 @@ class TestErrorDetection:
         probe = SqlInjectionProbe()
         session = MagicMock(spec=requests.Session)
         session.get.return_value = _resp(
-            500, "PostgreSQL ERROR: syntax error at or near \"'\"",
+            500,
+            'PostgreSQL ERROR: syntax error at or near "\'"',
         )
         findings = probe.probe("https://example.com/page", session)
 
@@ -59,7 +60,8 @@ class TestErrorDetection:
         probe = SqlInjectionProbe()
         session = MagicMock(spec=requests.Session)
         session.get.return_value = _resp(
-            500, "ORA-00933: SQL command not properly ended",
+            500,
+            "ORA-00933: SQL command not properly ended",
         )
         findings = probe.probe("https://example.com/page", session)
 
@@ -110,7 +112,8 @@ class TestEvidence:
         probe = SqlInjectionProbe()
         session = MagicMock(spec=requests.Session)
         session.get.return_value = _resp(
-            500, "You have an error in your SQL syntax near ''",
+            500,
+            "You have an error in your SQL syntax near ''",
         )
 
         findings = probe.probe("https://example.com/page", session)

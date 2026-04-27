@@ -61,21 +61,27 @@ class SshDefaultCredsProbe(ServiceProbeBase):
                         severity=Severity.HIGH,
                         title=t(
                             "finding.ssh.default_creds.title",
-                            user=username, port=port,
+                            user=username,
+                            port=port,
                         ),
                         description=t(
                             "finding.ssh.default_creds.desc",
-                            user=username, password=password, banner=banner_display,
+                            user=username,
+                            password=password,
+                            banner=banner_display,
                         ),
                         target=f"{host}:{port}",
                         remediation=t(
-                            "finding.ssh.default_creds.remediation", user=username,
+                            "finding.ssh.default_creds.remediation",
+                            user=username,
                         ),
                         evidence=self._evidence(
-                            host=host, port=port,
+                            host=host,
+                            port=port,
                             why_vulnerable=t(
                                 "finding.ssh.default_creds.evidence",
-                                user=username, password=password,
+                                user=username,
+                                password=password,
                             ),
                             extra={
                                 "username": username,

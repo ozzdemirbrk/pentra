@@ -319,6 +319,7 @@ class TargetSelectPage(QWizardPage):
         if "/" in text:
             return False
         import ipaddress
+
         try:
             ipaddress.IPv4Address(text.strip())
             return True

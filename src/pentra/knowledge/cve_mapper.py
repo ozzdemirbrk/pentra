@@ -16,7 +16,6 @@ from dataclasses import dataclass
 
 from pentra.knowledge.nvd_client import Cve, NvdClient
 
-
 # ---------------------------------------------------------------------
 # Service -> CPE prefix mapping
 # NVD keyword search often returns 0 hits because the version isn't in the

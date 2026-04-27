@@ -36,7 +36,10 @@ def valid_token_and_target(deps):
     rate, audit, auth = deps
     target = Target(TargetType.URL, "https://example.com", description="Test")
     req = AuthorizationRequest(
-        target, ScanDepth.QUICK, user_accepted_terms=True, external_target_confirmed=True,
+        target,
+        ScanDepth.QUICK,
+        user_accepted_terms=True,
+        external_target_confirmed=True,
     )
     scope = ScopeDecision(ScopeDecisionType.REQUIRES_CONFIRMATION, target, "external")
     token = auth.grant(req, scope)
@@ -56,7 +59,9 @@ class TestProbeSelection:
 
 class TestWebScannerOrchestration:
     def test_runs_registered_probes_and_emits_findings(
-        self, deps, valid_token_and_target,
+        self,
+        deps,
+        valid_token_and_target,
     ) -> None:
         rate, audit, auth = deps
         token, target = valid_token_and_target
@@ -65,12 +70,18 @@ class TestWebScannerOrchestration:
 
         fake_findings = [
             Finding(
-                scanner_name="web_scanner", severity=Severity.HIGH,
-                title="fake1", description="d", target="https://example.com",
+                scanner_name="web_scanner",
+                severity=Severity.HIGH,
+                title="fake1",
+                description="d",
+                target="https://example.com",
             ),
             Finding(
-                scanner_name="web_scanner", severity=Severity.LOW,
-                title="fake2", description="d", target="https://example.com",
+                scanner_name="web_scanner",
+                severity=Severity.LOW,
+                title="fake2",
+                description="d",
+                target="https://example.com",
             ),
         ]
 
@@ -92,7 +103,9 @@ class TestWebScannerOrchestration:
         assert collected == fake_findings
 
     def test_probe_exception_does_not_stop_scanner(
-        self, deps, valid_token_and_target,
+        self,
+        deps,
+        valid_token_and_target,
     ) -> None:
         rate, audit, auth = deps
         token, target = valid_token_and_target
@@ -124,6 +137,7 @@ class TestWebScannerOrchestration:
         scanner = WebScanner(rate_limiter=rate, audit_log=audit, auth_manager=auth)
 
         from pentra.models import AuthorizationToken
+
         fake_token = AuthorizationToken(token_id="x", payload="y", signature="z")
         target = Target(TargetType.URL, "https://example.com")
 

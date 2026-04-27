@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pentra.models import Finding, ScanDepth, Severity, Target, TargetType
 from pentra.reporting.report_builder import Report, ReportBuilder, ReportSummary
@@ -52,8 +52,8 @@ class TestReportBuilder:
         ]
         rb = ReportBuilder()
         target = Target(TargetType.LOCALHOST, "127.0.0.1")
-        started = datetime(2026, 4, 21, 10, 0, tzinfo=timezone.utc)
-        ended = datetime(2026, 4, 21, 10, 5, tzinfo=timezone.utc)
+        started = datetime(2026, 4, 21, 10, 0, tzinfo=UTC)
+        ended = datetime(2026, 4, 21, 10, 5, tzinfo=UTC)
 
         report = rb.build(
             target=target,
@@ -74,7 +74,7 @@ class TestReportBuilder:
     def test_default_ended_at_is_now(self) -> None:
         rb = ReportBuilder()
         target = Target(TargetType.LOCALHOST, "127.0.0.1")
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         report = rb.build(
             target=target,
             depth=ScanDepth.QUICK,
@@ -88,8 +88,8 @@ class TestReportBuilder:
         report = Report(
             target=Target(TargetType.LOCALHOST, "127.0.0.1"),
             depth=ScanDepth.QUICK,
-            started_at=datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
-            ended_at=datetime(2026, 1, 1, 10, 0, 45, tzinfo=timezone.utc),
+            started_at=datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC),
+            ended_at=datetime(2026, 1, 1, 10, 0, 45, tzinfo=UTC),
             findings=[],
             summary=ReportSummary.from_findings([]),
             risk=assess_risk([]),
@@ -100,8 +100,8 @@ class TestReportBuilder:
         report = Report(
             target=Target(TargetType.LOCALHOST, "127.0.0.1"),
             depth=ScanDepth.QUICK,
-            started_at=datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
-            ended_at=datetime(2026, 1, 1, 10, 5, 30, tzinfo=timezone.utc),
+            started_at=datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC),
+            ended_at=datetime(2026, 1, 1, 10, 5, 30, tzinfo=UTC),
             findings=[],
             summary=ReportSummary.from_findings([]),
             risk=assess_risk([]),
@@ -112,8 +112,8 @@ class TestReportBuilder:
         report = Report(
             target=Target(TargetType.LOCALHOST, "127.0.0.1"),
             depth=ScanDepth.DEEP,
-            started_at=datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
-            ended_at=datetime(2026, 1, 1, 12, 15, 5, tzinfo=timezone.utc),
+            started_at=datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC),
+            ended_at=datetime(2026, 1, 1, 12, 15, 5, tzinfo=UTC),
             findings=[],
             summary=ReportSummary.from_findings([]),
             risk=assess_risk([]),

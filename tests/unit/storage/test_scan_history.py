@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -10,8 +10,6 @@ import pytest
 from pentra.models import Finding, ScanDepth, Severity, Target, TargetType
 from pentra.reporting.report_builder import ReportBuilder
 from pentra.storage.scan_history import (
-    FindingSnapshot,
-    ReportSnapshot,
     ScanHistory,
 )
 
@@ -34,8 +32,8 @@ def _build_report(
         target=target,
         depth=ScanDepth.QUICK,
         findings=findings or [],
-        started_at=ended or datetime(2026, 4, 22, tzinfo=timezone.utc),
-        ended_at=ended or datetime(2026, 4, 22, tzinfo=timezone.utc),
+        started_at=ended or datetime(2026, 4, 22, tzinfo=UTC),
+        ended_at=ended or datetime(2026, 4, 22, tzinfo=UTC),
     )
 
 
@@ -65,10 +63,12 @@ class TestRecord:
         assert scan_id > 0
 
     def test_record_persists_findings(self, history: ScanHistory) -> None:
-        report = _build_report(findings=[
-            _finding("f1", target="127.0.0.1:80", sev=Severity.HIGH),
-            _finding("f2", target="127.0.0.1:443", sev=Severity.LOW),
-        ])
+        report = _build_report(
+            findings=[
+                _finding("f1", target="127.0.0.1:80", sev=Severity.HIGH),
+                _finding("f2", target="127.0.0.1:443", sev=Severity.LOW),
+            ]
+        )
         history.record(report)
         snap = history.find_previous(report.target)
         assert snap is not None
@@ -97,11 +97,11 @@ class TestFindPrevious:
         # Same target on two different dates — newest should be returned
         old = _build_report(
             findings=[_finding("old_issue")],
-            ended=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            ended=datetime(2026, 4, 1, tzinfo=UTC),
         )
         new = _build_report(
             findings=[_finding("new_issue")],
-            ended=datetime(2026, 4, 20, tzinfo=timezone.utc),
+            ended=datetime(2026, 4, 20, tzinfo=UTC),
         )
         history.record(old)
         history.record(new)
@@ -126,9 +126,10 @@ class TestFindPrevious:
 
         rb = ReportBuilder()
         r1 = rb.build(
-            target=localhost_tgt, depth=ScanDepth.QUICK,
+            target=localhost_tgt,
+            depth=ScanDepth.QUICK,
             findings=[_finding("localhost_only")],
-            started_at=datetime(2026, 4, 22, tzinfo=timezone.utc),
+            started_at=datetime(2026, 4, 22, tzinfo=UTC),
         )
         history.record(r1)
 
@@ -145,9 +146,9 @@ class TestListRecent:
         assert history.list_recent() == []
 
     def test_orders_by_ended_at_desc(self, history: ScanHistory) -> None:
-        history.record(_build_report(target_value="a", ended=datetime(2026, 4, 1, tzinfo=timezone.utc)))
-        history.record(_build_report(target_value="b", ended=datetime(2026, 4, 10, tzinfo=timezone.utc)))
-        history.record(_build_report(target_value="c", ended=datetime(2026, 4, 20, tzinfo=timezone.utc)))
+        history.record(_build_report(target_value="a", ended=datetime(2026, 4, 1, tzinfo=UTC)))
+        history.record(_build_report(target_value="b", ended=datetime(2026, 4, 10, tzinfo=UTC)))
+        history.record(_build_report(target_value="c", ended=datetime(2026, 4, 20, tzinfo=UTC)))
 
         summaries = history.list_recent()
         assert [s.target_value for s in summaries] == ["c", "b", "a"]

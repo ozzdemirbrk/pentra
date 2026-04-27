@@ -229,5 +229,5 @@ def hash_target(target: Target) -> str:
     Instead of storing the full IP/URL in a token payload we keep its hash —
     that way audit logs don't reveal arbitrary data to a human reader.
     """
-    data = f"{target.target_type.value}|{target.value}".encode("utf-8")
+    data = f"{target.target_type.value}|{target.value}".encode()
     return hashlib.sha256(data).hexdigest()[:32]

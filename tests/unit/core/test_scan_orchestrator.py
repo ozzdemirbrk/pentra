@@ -66,7 +66,8 @@ def orchestrator(
 # =====================================================================
 class TestPrepareSuccess:
     def test_localhost_prepare_returns_prepared_scan(
-        self, orchestrator: ScanOrchestrator,
+        self,
+        orchestrator: ScanOrchestrator,
     ) -> None:
         target = Target(TargetType.LOCALHOST, "127.0.0.1")
         request = ScanRequest(target, ScanDepth.QUICK, user_accepted_terms=True)
@@ -79,7 +80,9 @@ class TestPrepareSuccess:
         assert prepared.token.token_id
 
     def test_audit_log_contains_expected_events(
-        self, orchestrator: ScanOrchestrator, audit_log: AuditLog,
+        self,
+        orchestrator: ScanOrchestrator,
+        audit_log: AuditLog,
     ) -> None:
         target = Target(TargetType.LOCALHOST, "127.0.0.1")
         request = ScanRequest(target, ScanDepth.QUICK, user_accepted_terms=True)
@@ -92,7 +95,9 @@ class TestPrepareSuccess:
         assert "auth_granted" in event_types
 
     def test_scanner_factory_called_with_target_type(
-        self, orchestrator: ScanOrchestrator, scanner_factory: MagicMock,
+        self,
+        orchestrator: ScanOrchestrator,
+        scanner_factory: MagicMock,
     ) -> None:
         target = Target(TargetType.LOCALHOST, "127.0.0.1")
         request = ScanRequest(target, ScanDepth.QUICK, user_accepted_terms=True)
@@ -121,7 +126,9 @@ class TestPrepareDenied:
             orchestrator.prepare(request)
 
     def test_scope_denied_logs_reason(
-        self, orchestrator: ScanOrchestrator, audit_log: AuditLog,
+        self,
+        orchestrator: ScanOrchestrator,
+        audit_log: AuditLog,
     ) -> None:
         target = Target(TargetType.IP_SINGLE, "224.0.0.1")
         request = ScanRequest(target, ScanDepth.QUICK, user_accepted_terms=True)
@@ -136,7 +143,8 @@ class TestPrepareDenied:
         assert "auth_granted" not in types
 
     def test_public_without_external_confirmation_raises(
-        self, orchestrator: ScanOrchestrator,
+        self,
+        orchestrator: ScanOrchestrator,
     ) -> None:
         target = Target(TargetType.IP_SINGLE, "8.8.8.8")
         request = ScanRequest(
@@ -149,7 +157,8 @@ class TestPrepareDenied:
             orchestrator.prepare(request)
 
     def test_public_with_external_confirmation_succeeds(
-        self, orchestrator: ScanOrchestrator,
+        self,
+        orchestrator: ScanOrchestrator,
     ) -> None:
         target = Target(TargetType.IP_SINGLE, "8.8.8.8")
         request = ScanRequest(
@@ -180,7 +189,9 @@ class TestCleanup:
         assert not auth_manager.verify(prepared.token, prepared.target)
 
     def test_cleanup_logs_revocation(
-        self, orchestrator: ScanOrchestrator, audit_log: AuditLog,
+        self,
+        orchestrator: ScanOrchestrator,
+        audit_log: AuditLog,
     ) -> None:
         target = Target(TargetType.LOCALHOST, "127.0.0.1")
         request = ScanRequest(target, ScanDepth.QUICK, user_accepted_terms=True)

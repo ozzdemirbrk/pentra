@@ -39,10 +39,7 @@ class PostgresDefaultCredsProbe(ServiceProbeBase):
                 with conn.cursor() as cur:
                     cur.execute("SELECT version()")
                     version_row = cur.fetchone()
-                version = (
-                    str(version_row[0]).split(",")[0]
-                    if version_row else t("common.unknown")
-                )
+                version = str(version_row[0]).split(",")[0] if version_row else t("common.unknown")
                 pwd_display = password or t("common.empty")
                 return [
                     Finding(
@@ -50,19 +47,24 @@ class PostgresDefaultCredsProbe(ServiceProbeBase):
                         severity=Severity.CRITICAL,
                         title=t(
                             "finding.postgresql.default_creds.title",
-                            user=username, port=port,
+                            user=username,
+                            port=port,
                         ),
                         description=t(
                             "finding.postgresql.default_creds.desc",
-                            user=username, password=pwd_display, version=version[:80],
+                            user=username,
+                            password=pwd_display,
+                            version=version[:80],
                         ),
                         target=f"{host}:{port}",
                         remediation=t("finding.postgresql.default_creds.remediation"),
                         evidence=self._evidence(
-                            host=host, port=port,
+                            host=host,
+                            port=port,
                             why_vulnerable=t(
                                 "finding.postgresql.default_creds.evidence",
-                                user=username, password=pwd_display,
+                                user=username,
+                                password=pwd_display,
                             ),
                             extra={"postgres_version": version[:120], "username": username},
                         ),

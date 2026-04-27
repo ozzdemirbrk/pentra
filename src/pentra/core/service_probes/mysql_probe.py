@@ -49,19 +49,24 @@ class MysqlDefaultCredsProbe(ServiceProbeBase):
                         severity=Severity.CRITICAL,
                         title=t(
                             "finding.mysql.default_creds.title",
-                            user=username, port=port,
+                            user=username,
+                            port=port,
                         ),
                         description=t(
                             "finding.mysql.default_creds.desc",
-                            user=username, password=pwd_display, version=version,
+                            user=username,
+                            password=pwd_display,
+                            version=version,
                         ),
                         target=f"{host}:{port}",
                         remediation=t("finding.mysql.default_creds.remediation"),
                         evidence=self._evidence(
-                            host=host, port=port,
+                            host=host,
+                            port=port,
                             why_vulnerable=t(
                                 "finding.mysql.default_creds.evidence",
-                                user=username, password=pwd_display,
+                                user=username,
+                                password=pwd_display,
                             ),
                             extra={"mysql_version": version, "username": username},
                         ),

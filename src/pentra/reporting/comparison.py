@@ -11,8 +11,8 @@ Severity changes are not tracked for now — kept simple.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Iterable
 
 from pentra.models import Finding
 from pentra.storage.scan_history import FindingSnapshot, ReportSnapshot
@@ -89,13 +89,9 @@ def compare(
     }
 
     # In previous, not in current -> resolved
-    resolved = tuple(
-        prev_by_key[k] for k in prev_by_key if k not in curr_by_key
-    )
+    resolved = tuple(prev_by_key[k] for k in prev_by_key if k not in curr_by_key)
     # In current, not in previous -> new
-    new_items = tuple(
-        curr_by_key[k] for k in curr_by_key if k not in prev_by_key
-    )
+    new_items = tuple(curr_by_key[k] for k in curr_by_key if k not in prev_by_key)
     # In both -> unchanged
     unchanged_count = sum(1 for k in prev_by_key if k in curr_by_key)
 

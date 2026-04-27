@@ -12,10 +12,27 @@ from pentra.i18n import t
 from pentra.models import Finding, Severity
 
 _PARAMS_TO_TEST: tuple[str, ...] = (
-    "q", "query", "search", "s", "keyword", "term",
-    "name", "user", "username", "email", "message",
-    "comment", "text", "content", "title", "subject",
-    "return", "returnTo", "redirect", "next", "url",
+    "q",
+    "query",
+    "search",
+    "s",
+    "keyword",
+    "term",
+    "name",
+    "user",
+    "username",
+    "email",
+    "message",
+    "comment",
+    "text",
+    "content",
+    "title",
+    "subject",
+    "return",
+    "returnTo",
+    "redirect",
+    "next",
+    "url",
 )
 
 
@@ -27,7 +44,7 @@ def _build_payloads(canary: str) -> tuple[tuple[str, str], ...]:
     return (
         (f"<script>/*{canary}*/</script>", f"<script>/*{canary}*/</script>"),
         (f"<xss{canary}>", f"<xss{canary}>"),
-        (f"\"><xss{canary}>", f"><xss{canary}>"),
+        (f'"><xss{canary}>', f"><xss{canary}>"),
         (f"';//{canary}", f"';//{canary}"),
     )
 
@@ -71,7 +88,9 @@ class XssProbe(WebProbeBase):
 
                 try:
                     response = session.get(
-                        full_url, timeout=self.timeout, allow_redirects=False,
+                        full_url,
+                        timeout=self.timeout,
+                        allow_redirects=False,
                     )
                 except requests.RequestException:
                     continue
@@ -85,7 +104,9 @@ class XssProbe(WebProbeBase):
                         severity=Severity.HIGH,
                         title=t("finding.web.xss.title", param=param),
                         description=t(
-                            "finding.web.xss.desc", param=param, payload=payload,
+                            "finding.web.xss.desc",
+                            param=param,
+                            payload=payload,
                         ),
                         target=full_url,
                         remediation=t("finding.web.xss.remediation"),
@@ -94,11 +115,10 @@ class XssProbe(WebProbeBase):
                             request_path=full_url,
                             response_status=response.status_code,
                             response_snippet=self._extract_context(
-                                response.text, reflection_marker,
+                                response.text,
+                                reflection_marker,
                             ),
-                            why_vulnerable=(
-                                f"Payload `{reflection_marker}` reflected unescaped"
-                            ),
+                            why_vulnerable=(f"Payload `{reflection_marker}` reflected unescaped"),
                             extra={"payload": payload, "param": param, "canary": canary},
                         ),
                     ),
@@ -138,7 +158,9 @@ class XssProbe(WebProbeBase):
         return findings
 
     def _site_echoes_random_param(
-        self, url: str, session: requests.Session,
+        self,
+        url: str,
+        session: requests.Session,
     ) -> bool:
         """Detect echo-fallback via a random parameter."""
         probe_param = f"pentra{secrets.token_hex(3)}"
@@ -153,7 +175,9 @@ class XssProbe(WebProbeBase):
             test_url = self._build_url_with_param(url, probe_param, payload)
             try:
                 response = session.get(
-                    test_url, timeout=self.timeout, allow_redirects=False,
+                    test_url,
+                    timeout=self.timeout,
+                    allow_redirects=False,
                 )
             except requests.RequestException:
                 continue

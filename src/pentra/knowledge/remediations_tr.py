@@ -58,7 +58,7 @@ _CSP_GUIDE = RemediationGuide(
             "Önce Report-Only ile başlayın, hataları izleyip gerçeğe geçin:",
             code=(
                 "add_header Content-Security-Policy-Report-Only "
-                '"default-src \'self\'; '
+                "\"default-src 'self'; "
                 "script-src 'self'; "
                 "style-src 'self' 'unsafe-inline'; "
                 "img-src 'self' data:; "
@@ -69,9 +69,9 @@ _CSP_GUIDE = RemediationGuide(
             "Apache",
             "`httpd.conf` veya `.htaccess` dosyasına ekleyin:",
             code=(
-                'Header always set Content-Security-Policy-Report-Only '
-                '"default-src \'self\'; script-src \'self\'; '
-                'style-src \'self\' \'unsafe-inline\'"'
+                "Header always set Content-Security-Policy-Report-Only "
+                "\"default-src 'self'; script-src 'self'; "
+                "style-src 'self' 'unsafe-inline'\""
             ),
         ),
         FixStep(
@@ -79,7 +79,7 @@ _CSP_GUIDE = RemediationGuide(
             "`<system.webServer><httpProtocol><customHeaders>` altına ekleyin:",
             code=(
                 '<add name="Content-Security-Policy" value="default-src \'self\'; '
-                'script-src \'self\'; style-src \'self\' \'unsafe-inline\'" />'
+                "script-src 'self'; style-src 'self' 'unsafe-inline'\" />"
             ),
         ),
         FixStep(
@@ -96,7 +96,10 @@ _CSP_GUIDE = RemediationGuide(
     ),
     references=(
         ("MDN CSP", "https://developer.mozilla.org/docs/Web/HTTP/CSP"),
-        ("OWASP CSP Cheat Sheet", "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html"),
+        (
+            "OWASP CSP Cheat Sheet",
+            "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html",
+        ),
         ("CSP Evaluator", "https://csp-evaluator.withgoogle.com/"),
     ),
 )
@@ -115,7 +118,7 @@ _HSTS_GUIDE = RemediationGuide(
             "Nginx",
             "Sadece HTTPS server bloğunda, includeSubDomains + preload için:",
             code=(
-                'add_header Strict-Transport-Security '
+                "add_header Strict-Transport-Security "
                 '"max-age=31536000; includeSubDomains; preload" always;'
             ),
         ),
@@ -123,7 +126,7 @@ _HSTS_GUIDE = RemediationGuide(
             "Apache",
             "`httpd.conf` içinde `<VirtualHost *:443>` altına:",
             code=(
-                'Header always set Strict-Transport-Security '
+                "Header always set Strict-Transport-Security "
                 '"max-age=31536000; includeSubDomains; preload"'
             ),
         ),
@@ -148,7 +151,10 @@ _HSTS_GUIDE = RemediationGuide(
         "https://hstspreload.org"
     ),
     references=(
-        ("MDN HSTS", "https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security"),
+        (
+            "MDN HSTS",
+            "https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security",
+        ),
         ("HSTS Preload", "https://hstspreload.org/"),
     ),
 )
@@ -190,7 +196,10 @@ _XFO_GUIDE = RemediationGuide(
         "`X-Frame-Options: SAMEORIGIN` dönmeli."
     ),
     references=(
-        ("MDN X-Frame-Options", "https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Frame-Options"),
+        (
+            "MDN X-Frame-Options",
+            "https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Frame-Options",
+        ),
         ("OWASP Clickjacking", "https://owasp.org/www-community/attacks/Clickjacking"),
     ),
 )
@@ -207,15 +216,21 @@ _XCTO_GUIDE = RemediationGuide(
     fix_steps=(
         FixStep("Nginx", "", code='add_header X-Content-Type-Options "nosniff" always;'),
         FixStep("Apache", "", code='Header always set X-Content-Type-Options "nosniff"'),
-        FixStep("IIS (web.config)", "", code='<add name="X-Content-Type-Options" value="nosniff" />'),
         FixStep(
-            "Django", "Middleware'e eklenir (3.0+ için default):",
-            code='SECURE_CONTENT_TYPE_NOSNIFF = True',
+            "IIS (web.config)", "", code='<add name="X-Content-Type-Options" value="nosniff" />'
+        ),
+        FixStep(
+            "Django",
+            "Middleware'e eklenir (3.0+ için default):",
+            code="SECURE_CONTENT_TYPE_NOSNIFF = True",
         ),
     ),
     verification="`curl -I https://siteniz.com | grep -i x-content-type` → `nosniff` görünmeli.",
     references=(
-        ("MDN X-Content-Type-Options", "https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options"),
+        (
+            "MDN X-Content-Type-Options",
+            "https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options",
+        ),
     ),
 )
 
@@ -236,15 +251,22 @@ _REFERRER_GUIDE = RemediationGuide(
             code='add_header Referrer-Policy "strict-origin-when-cross-origin" always;',
         ),
         FixStep(
-            "Apache", "",
+            "Apache",
+            "",
             code='Header always set Referrer-Policy "strict-origin-when-cross-origin"',
         ),
-        FixStep("IIS (web.config)", "",
-            code='<add name="Referrer-Policy" value="strict-origin-when-cross-origin" />'),
+        FixStep(
+            "IIS (web.config)",
+            "",
+            code='<add name="Referrer-Policy" value="strict-origin-when-cross-origin" />',
+        ),
     ),
     verification="`curl -I https://siteniz.com | grep -i referrer-policy`",
     references=(
-        ("MDN Referrer-Policy", "https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy"),
+        (
+            "MDN Referrer-Policy",
+            "https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy",
+        ),
     ),
 )
 
@@ -271,7 +293,7 @@ _SERVER_LEAK_GUIDE = RemediationGuide(
         FixStep(
             "IIS",
             "`web.config` içinde URL Rewrite modülü ile Server header'ını sil. "
-            "Ya da `<security><requestFiltering removeServerHeader=\"true\" />`:",
+            'Ya da `<security><requestFiltering removeServerHeader="true" />`:',
             code='<system.webServer>\n  <security>\n    <requestFiltering removeServerHeader="true" />\n  </security>\n</system.webServer>',
         ),
         FixStep(
@@ -282,7 +304,10 @@ _SERVER_LEAK_GUIDE = RemediationGuide(
     ),
     verification="`curl -I https://siteniz.com | grep -i '^server:'` komutunda sadece `Server: nginx` gibi minimum bilgi olmalı, versiyon numarası gözükmemeli.",
     references=(
-        ("Nginx server_tokens", "https://nginx.org/en/docs/http/ngx_http_core_module.html#server_tokens"),
+        (
+            "Nginx server_tokens",
+            "https://nginx.org/en/docs/http/ngx_http_core_module.html#server_tokens",
+        ),
         ("Apache ServerTokens", "https://httpd.apache.org/docs/2.4/mod/core.html#servertokens"),
     ),
 )
@@ -300,23 +325,23 @@ _HTTP_ONLY_GUIDE = RemediationGuide(
             "Sertifika Alma (Let's Encrypt — Ücretsiz)",
             "`certbot` ile otomatik kurulum + 90 günlük otomatik yenileme:",
             code="sudo apt install certbot python3-certbot-nginx\n"
-                 "sudo certbot --nginx -d siteniz.com -d www.siteniz.com",
+            "sudo certbot --nginx -d siteniz.com -d www.siteniz.com",
         ),
         FixStep(
             "Nginx — HTTP'den HTTPS'ye 301 yönlendirme",
             "",
             code="server {\n"
-                 "    listen 80;\n"
-                 "    server_name siteniz.com www.siteniz.com;\n"
-                 '    return 301 https://$server_name$request_uri;\n'
-                 "}",
+            "    listen 80;\n"
+            "    server_name siteniz.com www.siteniz.com;\n"
+            "    return 301 https://$server_name$request_uri;\n"
+            "}",
         ),
         FixStep(
             "Apache — mod_rewrite ile yönlendirme",
             "`.htaccess` veya VirtualHost içinde:",
             code="RewriteEngine On\n"
-                 "RewriteCond %{HTTPS} !=on\n"
-                 "RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R=301,L]",
+            "RewriteCond %{HTTPS} !=on\n"
+            "RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R=301,L]",
         ),
         FixStep(
             "Cloudflare — Tek Tıkla",
@@ -349,9 +374,9 @@ _SECURITY_TXT_GUIDE = RemediationGuide(
             "İçerik",
             "Aşağıdaki metni `/.well-known/security.txt` olarak yayınlayın:",
             code="Contact: mailto:security@siteniz.com\n"
-                 "Expires: 2027-01-01T00:00:00Z\n"
-                 "Preferred-Languages: tr, en\n"
-                 "Canonical: https://siteniz.com/.well-known/security.txt",
+            "Expires: 2027-01-01T00:00:00Z\n"
+            "Preferred-Languages: tr, en\n"
+            "Canonical: https://siteniz.com/.well-known/security.txt",
         ),
         FixStep(
             "Web Sunucusu Düzenleme",
@@ -372,7 +397,7 @@ _REDIS_OPEN_GUIDE = RemediationGuide(
     why_important=(
         "Redis auth'suz açıksa saldırgan tüm veriyi okuyabilir, silebilir. "
         "Daha kötüsü: `CONFIG SET dir /home/redis/.ssh` + `CONFIG SET dbfilename "
-        "authorized_keys` + `SET x \"ssh-rsa...\"` + `SAVE` kombinasyonuyla "
+        'authorized_keys` + `SET x "ssh-rsa..."` + `SAVE` kombinasyonuyla '
         "sunucuya SSH anahtar yazıp tam sistem kontrolü alabilir. 2017'den beri "
         "internet'e açık Redis'lerin binlercesi ransomware'e kurban oldu."
     ),
@@ -381,15 +406,15 @@ _REDIS_OPEN_GUIDE = RemediationGuide(
             "1. Güçlü parola + localhost bağlama",
             "`/etc/redis/redis.conf` düzenleyip Redis'i yeniden başlat:",
             code="# Sadece localhost'tan erişim\n"
-                 "bind 127.0.0.1 ::1\n"
-                 "# Güçlü parola — 32+ karakter, rastgele\n"
-                 'requirepass "<64 karakter rastgele dizi>"\n'
-                 "# Protected mode aktif kalsın\n"
-                 "protected-mode yes\n"
-                 "# Tehlikeli komutları devre dışı bırak\n"
-                 'rename-command FLUSHDB ""\n'
-                 'rename-command FLUSHALL ""\n'
-                 'rename-command CONFIG ""',
+            "bind 127.0.0.1 ::1\n"
+            "# Güçlü parola — 32+ karakter, rastgele\n"
+            'requirepass "<64 karakter rastgele dizi>"\n'
+            "# Protected mode aktif kalsın\n"
+            "protected-mode yes\n"
+            "# Tehlikeli komutları devre dışı bırak\n"
+            'rename-command FLUSHDB ""\n'
+            'rename-command FLUSHALL ""\n'
+            'rename-command CONFIG ""',
         ),
         FixStep(
             "2. ACL (Redis 6+) kullanımı",
@@ -399,15 +424,14 @@ _REDIS_OPEN_GUIDE = RemediationGuide(
         FixStep(
             "3. Güvenlik duvarı",
             "Uzak Redis gerekiyorsa (bulut) sadece uygulama IP'lerinden:",
-            code="sudo ufw allow from <app_ip> to any port 6379\n"
-                 "sudo ufw deny 6379",
+            code="sudo ufw allow from <app_ip> to any port 6379\n" "sudo ufw deny 6379",
         ),
         FixStep(
             "4. TLS",
             "Redis 6+ TLS destekler — production'da şart:",
             code="tls-port 6380\n"
-                 "tls-cert-file /path/to/cert.pem\n"
-                 "tls-key-file /path/to/key.pem",
+            "tls-cert-file /path/to/cert.pem\n"
+            "tls-key-file /path/to/key.pem",
         ),
     ),
     verification=(
@@ -432,38 +456,38 @@ _MONGODB_OPEN_GUIDE = RemediationGuide(
         FixStep(
             "1. Admin kullanıcı + auth aktif",
             "MongoDB'yi `--auth` olmadan başlatın, admin oluşturun, sonra `--auth`'la restart:",
-            code='mongosh\n'
-                 'use admin\n'
-                 'db.createUser({\n'
-                 '  user: "admin",\n'
-                 '  pwd: "<güçlü-parola>",\n'
-                 '  roles: [{ role: "root", db: "admin" }]\n'
-                 '})',
+            code="mongosh\n"
+            "use admin\n"
+            "db.createUser({\n"
+            '  user: "admin",\n'
+            '  pwd: "<güçlü-parola>",\n'
+            '  roles: [{ role: "root", db: "admin" }]\n'
+            "})",
         ),
         FixStep(
             "2. Config dosyası",
             "`/etc/mongod.conf`:",
             code="security:\n"
-                 "  authorization: enabled\n"
-                 "net:\n"
-                 "  bindIp: 127.0.0.1  # Sadece localhost\n"
-                 "  port: 27017",
+            "  authorization: enabled\n"
+            "net:\n"
+            "  bindIp: 127.0.0.1  # Sadece localhost\n"
+            "  port: 27017",
         ),
         FixStep(
             "3. Yeniden başlat + test",
             "",
             code="sudo systemctl restart mongod\n"
-                 "mongosh  # auth'suz bağlantı artık çoğu komut için reddedilmeli",
+            "mongosh  # auth'suz bağlantı artık çoğu komut için reddedilmeli",
         ),
         FixStep(
             "4. Uygulama başına ayrı kullanıcı",
             "Root kullanıcı sadece yönetim için. Her uygulama için minimum yetkili kullanıcı:",
-            code='use mydatabase\n'
-                 'db.createUser({\n'
-                 '  user: "myapp",\n'
-                 '  pwd: "<uygulama-parolası>",\n'
-                 '  roles: [{ role: "readWrite", db: "mydatabase" }]\n'
-                 '})',
+            code="use mydatabase\n"
+            "db.createUser({\n"
+            '  user: "myapp",\n'
+            '  pwd: "<uygulama-parolası>",\n'
+            '  roles: [{ role: "readWrite", db: "mydatabase" }]\n'
+            "})",
         ),
     ),
     verification=(
@@ -471,7 +495,10 @@ _MONGODB_OPEN_GUIDE = RemediationGuide(
         "'command listDatabases requires authentication' dönmeli."
     ),
     references=(
-        ("MongoDB Security Checklist", "https://www.mongodb.com/docs/manual/administration/security-checklist/"),
+        (
+            "MongoDB Security Checklist",
+            "https://www.mongodb.com/docs/manual/administration/security-checklist/",
+        ),
     ),
 )
 
@@ -487,26 +514,22 @@ _ELASTICSEARCH_OPEN_GUIDE = RemediationGuide(
         FixStep(
             "1. X-Pack Security aktif (ES 6.8+ ücretsiz)",
             "`elasticsearch.yml`:",
-            code="xpack.security.enabled: true\n"
-                 "xpack.security.transport.ssl.enabled: true",
+            code="xpack.security.enabled: true\n" "xpack.security.transport.ssl.enabled: true",
         ),
         FixStep(
             "2. Parola oluşturma",
             "",
-            code="cd /usr/share/elasticsearch\n"
-                 "bin/elasticsearch-setup-passwords auto",
+            code="cd /usr/share/elasticsearch\n" "bin/elasticsearch-setup-passwords auto",
         ),
         FixStep(
             "3. Localhost'a bağla (uzak erişim gerekmiyorsa)",
             "",
-            code="network.host: 127.0.0.1\n"
-                 "http.port: 9200",
+            code="network.host: 127.0.0.1\n" "http.port: 9200",
         ),
         FixStep(
             "4. Güvenlik duvarı",
             "",
-            code="sudo ufw deny 9200\n"
-                 "sudo ufw allow from <app_ip> to any port 9200",
+            code="sudo ufw deny 9200\n" "sudo ufw allow from <app_ip> to any port 9200",
         ),
     ),
     verification=(
@@ -515,7 +538,10 @@ _ELASTICSEARCH_OPEN_GUIDE = RemediationGuide(
         "cluster info döndürmeli."
     ),
     references=(
-        ("Elastic Security", "https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html"),
+        (
+            "Elastic Security",
+            "https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html",
+        ),
     ),
 )
 
@@ -538,21 +564,20 @@ _MYSQL_DEFAULT_GUIDE = RemediationGuide(
             "2. Manuel — root parolasını değiştir",
             "",
             code="mysql -u root\n"
-                 "mysql> ALTER USER 'root'@'localhost' IDENTIFIED BY '<güçlü-parola>';\n"
-                 "mysql> FLUSH PRIVILEGES;",
+            "mysql> ALTER USER 'root'@'localhost' IDENTIFIED BY '<güçlü-parola>';\n"
+            "mysql> FLUSH PRIVILEGES;",
         ),
         FixStep(
             "3. Uzak root'u kaldır",
             "Root hesabı sadece localhost'tan erişilebilir olsun:",
             code="mysql> DROP USER IF EXISTS 'root'@'%';\n"
-                 "mysql> DROP USER IF EXISTS 'root'@'::';\n"
-                 "mysql> FLUSH PRIVILEGES;",
+            "mysql> DROP USER IF EXISTS 'root'@'::';\n"
+            "mysql> FLUSH PRIVILEGES;",
         ),
         FixStep(
             "4. Localhost'a bağla",
             "`/etc/mysql/my.cnf`:",
-            code="[mysqld]\n"
-                 "bind-address = 127.0.0.1",
+            code="[mysqld]\n" "bind-address = 127.0.0.1",
         ),
     ),
     verification=(
@@ -560,7 +585,10 @@ _MYSQL_DEFAULT_GUIDE = RemediationGuide(
         "`mysql -u root -p` parola sorunca girilmeli."
     ),
     references=(
-        ("MySQL Security Guidelines", "https://dev.mysql.com/doc/refman/8.0/en/security-guidelines.html"),
+        (
+            "MySQL Security Guidelines",
+            "https://dev.mysql.com/doc/refman/8.0/en/security-guidelines.html",
+        ),
     ),
 )
 
@@ -583,24 +611,24 @@ _SSH_DEFAULT_GUIDE = RemediationGuide(
             "2. ÖNERİLEN — Parola ile SSH'yi TAMAMEN kapat, sadece key kullan",
             "`/etc/ssh/sshd_config`:",
             code="PasswordAuthentication no\n"
-                 "PermitRootLogin no          # Root hiç giremesin\n"
-                 "PubkeyAuthentication yes\n"
-                 "ChallengeResponseAuthentication no",
+            "PermitRootLogin no          # Root hiç giremesin\n"
+            "PubkeyAuthentication yes\n"
+            "ChallengeResponseAuthentication no",
         ),
         FixStep(
             "3. SSH key oluşturma (istemci tarafında)",
             "",
             code="# Windows'ta PowerShell veya Git Bash'te:\n"
-                 "ssh-keygen -t ed25519 -a 100 -C 'email@domain.com'\n"
-                 "# Public key'i sunucuya kopyala:\n"
-                 "ssh-copy-id user@sunucu.com",
+            "ssh-keygen -t ed25519 -a 100 -C 'email@domain.com'\n"
+            "# Public key'i sunucuya kopyala:\n"
+            "ssh-copy-id user@sunucu.com",
         ),
         FixStep(
             "4. fail2ban kur — brute-force koruma",
             "",
             code="sudo apt install fail2ban\n"
-                 "sudo systemctl enable --now fail2ban\n"
-                 "# /etc/fail2ban/jail.local içinde sshd jail'i varsayılan aktif",
+            "sudo systemctl enable --now fail2ban\n"
+            "# /etc/fail2ban/jail.local içinde sshd jail'i varsayılan aktif",
         ),
         FixStep(
             "5. SSH portunu değiştir (defense-in-depth)",
@@ -614,7 +642,10 @@ _SSH_DEFAULT_GUIDE = RemediationGuide(
         "(parola bile sorulmamalı). Key ile girdiğinizde girilmeli."
     ),
     references=(
-        ("DigitalOcean SSH Hardening", "https://www.digitalocean.com/community/tutorials/how-to-harden-openssh-on-ubuntu"),
+        (
+            "DigitalOcean SSH Hardening",
+            "https://www.digitalocean.com/community/tutorials/how-to-harden-openssh-on-ubuntu",
+        ),
         ("Mozilla OpenSSH Guidelines", "https://infosec.mozilla.org/guidelines/openssh"),
     ),
 )
@@ -646,7 +677,7 @@ _WIFI_OPEN_GUIDE = RemediationGuide(
             "En az 12 karakter, karışık. Wi-Fi parolası genelde bir kez girilir, "
             "uzun olsun. Örnek yapı: 3-4 rastgele kelime birleştir.",
             code="Kabul edilebilir: Yagmurlu-Pazar-Kedi-Su42!\n"
-                 "Çok güçlü:         correct-horse-battery-staple-99",
+            "Çok güçlü:         correct-horse-battery-staple-99",
         ),
         FixStep(
             "4. Misafir ağı kur",
@@ -667,7 +698,10 @@ _WIFI_OPEN_GUIDE = RemediationGuide(
     ),
     references=(
         ("EFF: Create a Strong Password", "https://ssd.eff.org/module/creating-new-password"),
-        ("CISA: Secure Wireless Networks", "https://www.cisa.gov/news-events/news/securing-wireless-networks"),
+        (
+            "CISA: Secure Wireless Networks",
+            "https://www.cisa.gov/news-events/news/securing-wireless-networks",
+        ),
     ),
 )
 
@@ -699,9 +733,7 @@ _WIFI_WEP_GUIDE = RemediationGuide(
         ),
     ),
     verification="Wi-Fi ayarları → güvenlik türü 'WPA2' veya 'WPA3' yazmalı, 'WEP' değil.",
-    references=(
-        ("Aircrack-ng tutorial", "https://www.aircrack-ng.org/doku.php?id=tutorial"),
-    ),
+    references=(("Aircrack-ng tutorial", "https://www.aircrack-ng.org/doku.php?id=tutorial"),),
 )
 
 _WIFI_OLD_WPA_GUIDE = RemediationGuide(
@@ -726,7 +758,10 @@ _WIFI_OLD_WPA_GUIDE = RemediationGuide(
     ),
     verification="Wi-Fi ayarları → 'WPA2' veya 'WPA3' yazmalı, 'WPA' tek başına değil.",
     references=(
-        ("Cisco: WPA vs WPA2 vs WPA3", "https://www.cisco.com/c/en/us/products/wireless/what-is-wpa3.html"),
+        (
+            "Cisco: WPA vs WPA2 vs WPA3",
+            "https://www.cisco.com/c/en/us/products/wireless/what-is-wpa3.html",
+        ),
     ),
 )
 
@@ -744,15 +779,15 @@ _EXPOSED_ENV_GUIDE = RemediationGuide(
             "1. ACİL — Dosyayı web kökünden kaldır",
             "",
             code="# Sunucuda:\n"
-                 "mv /var/www/html/.env /var/www/.env   # Web root'un BİR ÜST dizinine",
+            "mv /var/www/html/.env /var/www/.env   # Web root'un BİR ÜST dizinine",
         ),
         FixStep(
             "2. Tüm sırları DEĞİŞTİR (sızmış sayın)",
             ".env görüldüyse saldırgan kopyalamış olabilir. Tüm parolaları, API "
             "anahtarlarını, secret key'leri sıfırlayın:",
             code="# DB parolası\nALTER USER webapp WITH PASSWORD '<yeni-parola>';\n"
-                 "# Laravel APP_KEY yenile\nphp artisan key:generate\n"
-                 "# AWS credential rotate (IAM console'dan)",
+            "# Laravel APP_KEY yenile\nphp artisan key:generate\n"
+            "# AWS credential rotate (IAM console'dan)",
         ),
         FixStep(
             "Nginx — yedek olarak erişimi engelle",
@@ -762,16 +797,15 @@ _EXPOSED_ENV_GUIDE = RemediationGuide(
         FixStep(
             "Apache — .htaccess ile",
             "",
-            code='<FilesMatch "^\\.env">\n'
-                 '    Require all denied\n'
-                 '</FilesMatch>',
+            code='<FilesMatch "^\\.env">\n' "    Require all denied\n" "</FilesMatch>",
         ),
     ),
-    verification=(
-        "`curl https://siteniz.com/.env` → 404 veya 403 dönmeli, dosya içeriği değil."
-    ),
+    verification=("`curl https://siteniz.com/.env` → 404 veya 403 dönmeli, dosya içeriği değil."),
     references=(
-        ("OWASP: Sensitive Data Exposure", "https://owasp.org/www-project-top-ten/2017/A3_2017-Sensitive_Data_Exposure"),
+        (
+            "OWASP: Sensitive Data Exposure",
+            "https://owasp.org/www-project-top-ten/2017/A3_2017-Sensitive_Data_Exposure",
+        ),
         ("12-Factor App — Config", "https://12factor.net/config"),
     ),
 )
@@ -790,16 +824,15 @@ _SQL_INJECTION_GUIDE = RemediationGuide(
             "PRİMER — Parametreli sorgular (prepared statements)",
             "String birleştirme YERINE mutlaka parameter binding kullan:",
             code="# YANLIŞ (SQLi'ye açık)\n"
-                 "cursor.execute(f\"SELECT * FROM users WHERE id = {user_id}\")\n\n"
-                 "# DOĞRU (parametreli)\n"
-                 'cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))',
+            'cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")\n\n'
+            "# DOĞRU (parametreli)\n"
+            'cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))',
         ),
         FixStep(
             "ORM kullan",
             "SQLAlchemy, Django ORM, Prisma vb. — raw SQL yerine tercih edin. "
             "ORM default olarak parametrelendirir.",
-            code="# Django\n"
-                 "User.objects.filter(id=user_id)  # otomatik güvenli",
+            code="# Django\n" "User.objects.filter(id=user_id)  # otomatik güvenli",
         ),
         FixStep(
             "Input validation (katmanlı savunma)",
@@ -841,21 +874,21 @@ _XSS_GUIDE = RemediationGuide(
             "Kullanıcı girdisini HTML'e yazmadan önce escape et. Her context "
             "farklı escape gerektirir:",
             code="# HTML body → html.escape\n"
-                 "import html\n"
-                 "safe = html.escape(user_input)  # < → &lt;\n\n"
-                 "# JS string içinde → json.dumps\n"
-                 "import json\n"
-                 'safe_js = json.dumps(user_input)  # " → \\"',
+            "import html\n"
+            "safe = html.escape(user_input)  # < → &lt;\n\n"
+            "# JS string içinde → json.dumps\n"
+            "import json\n"
+            'safe_js = json.dumps(user_input)  # " → \\"',
         ),
         FixStep(
             "Framework autoescape kullan",
             "Modern framework'lerde varsayılan otomatik escape:",
             code="{# Jinja2 — default autoescape açık #}\n"
-                 "<p>{{ user_input }}</p>         {# güvenli #}\n"
-                 "<p>{{ user_input | safe }}</p>  {# TEHLİKELİ — escape'i kapatır #}\n\n"
-                 "// React — JSX default escape\n"
-                 "<p>{userInput}</p>           // güvenli\n"
-                 "<p dangerouslySetInnerHTML=...>  // TEHLİKELİ",
+            "<p>{{ user_input }}</p>         {# güvenli #}\n"
+            "<p>{{ user_input | safe }}</p>  {# TEHLİKELİ — escape'i kapatır #}\n\n"
+            "// React — JSX default escape\n"
+            "<p>{userInput}</p>           // güvenli\n"
+            "<p dangerouslySetInnerHTML=...>  // TEHLİKELİ",
         ),
         FixStep(
             "Content Security Policy (CSP)",
@@ -864,15 +897,17 @@ _XSS_GUIDE = RemediationGuide(
         ),
         FixStep(
             "HttpOnly + SameSite cookies",
-            "Session cookie'yi HttpOnly + Secure + SameSite yap — XSS JS ile "
-            "cookie okuyamaz.",
+            "Session cookie'yi HttpOnly + Secure + SameSite yap — XSS JS ile " "cookie okuyamaz.",
             code="Set-Cookie: session=xxx; HttpOnly; Secure; SameSite=Strict",
         ),
     ),
     verification="Probe'u tekrar çalıştır — payload artık escape edilmiş (&lt; &gt;) dönmeli.",
     references=(
         ("OWASP XSS", "https://owasp.org/www-community/attacks/xss/"),
-        ("OWASP XSS Prevention Cheat Sheet", "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"),
+        (
+            "OWASP XSS Prevention Cheat Sheet",
+            "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+        ),
     ),
 )
 
@@ -889,29 +924,27 @@ _PATH_TRAVERSAL_GUIDE = RemediationGuide(
             "Allowlist ile dosya adı doğrulama",
             "İzin verilen dosyaları belirtin, diğerleri reddedin:",
             code="ALLOWED = {'product-1.pdf', 'product-2.pdf', ...}\n"
-                 "if filename not in ALLOWED:\n"
-                 "    return 403",
+            "if filename not in ALLOWED:\n"
+            "    return 403",
         ),
         FixStep(
             "realpath ile yolu normalize et, kök içinde olduğunu doğrula",
             "En güvenilir kontrol:",
             code="from pathlib import Path\n"
-                 "allowed_root = Path('/var/www/uploads').resolve()\n"
-                 "user_file = (allowed_root / filename).resolve()\n"
-                 "if not user_file.is_relative_to(allowed_root):\n"
-                 "    return 403   # path traversal denemesi",
+            "allowed_root = Path('/var/www/uploads').resolve()\n"
+            "user_file = (allowed_root / filename).resolve()\n"
+            "if not user_file.is_relative_to(allowed_root):\n"
+            "    return 403   # path traversal denemesi",
         ),
         FixStep(
             "../ ve /../ karakterleri filtrele (ama yetersiz!)",
             "Tek başına yeterli değil ama ek savunma:",
-            code="if '..' in filename or '/' in filename or '\\\\' in filename:\n"
-                 "    return 400",
+            code="if '..' in filename or '/' in filename or '\\\\' in filename:\n" "    return 400",
         ),
         FixStep(
             "Web sunucusu seviyesinde",
             "Nginx — hassas dizinleri engelle:",
-            code="location ~ \\.\\.\\/ { return 400; }\n"
-                 "location /etc { deny all; }",
+            code="location ~ \\.\\.\\/ { return 400; }\n" "location /etc { deny all; }",
         ),
     ),
     verification="Probe tekrar: `?file=../../../etc/passwd` → `/etc/passwd` içeriği DÖNMEMELI; 400/403 olmalı.",
@@ -933,23 +966,23 @@ _SSL_OLD_PROTOCOL_GUIDE = RemediationGuide(
             "Nginx — sadece TLS 1.2 ve 1.3",
             "",
             code="ssl_protocols TLSv1.2 TLSv1.3;\n"
-                 "ssl_prefer_server_ciphers off;  # TLS 1.3 için\n"
-                 "ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:\n"
-                 "           ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;",
+            "ssl_prefer_server_ciphers off;  # TLS 1.3 için\n"
+            "ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:\n"
+            "           ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;",
         ),
         FixStep(
             "Apache",
             "",
             code="SSLProtocol -all +TLSv1.2 +TLSv1.3\n"
-                 "SSLHonorCipherOrder on\n"
-                 "SSLCipherSuite HIGH:!aNULL:!MD5:!3DES",
+            "SSLHonorCipherOrder on\n"
+            "SSLCipherSuite HIGH:!aNULL:!MD5:!3DES",
         ),
         FixStep(
             "IIS (PowerShell)",
             "",
             code="# SSLv3 ve eski TLS'leri kapat\n"
-                 'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\SSL 3.0\\Server" -Name Enabled -Value 0\n'
-                 'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server" -Name Enabled -Value 0',
+            'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\SSL 3.0\\Server" -Name Enabled -Value 0\n'
+            'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\Server" -Name Enabled -Value 0',
         ),
         FixStep(
             "Cloudflare",
@@ -979,15 +1012,15 @@ _SSL_CERT_PROBLEM_GUIDE = RemediationGuide(
             "Let's Encrypt (ücretsiz, otomatik yenileme)",
             "",
             code="sudo apt install certbot python3-certbot-nginx\n"
-                 "sudo certbot --nginx -d siteniz.com -d www.siteniz.com\n"
-                 "# Cron ile otomatik yenileme (certbot default kurar)",
+            "sudo certbot --nginx -d siteniz.com -d www.siteniz.com\n"
+            "# Cron ile otomatik yenileme (certbot default kurar)",
         ),
         FixStep(
             "Sertifika zinciri eksik ise",
             "Genelde 'intermediate certificate' eksikliğinden kaynaklanır. "
             "CA'nizden fullchain.pem alın, Nginx için ssl_certificate'a o'nu gösterin:",
             code="ssl_certificate     /etc/letsencrypt/live/siteniz.com/fullchain.pem;\n"
-                 "ssl_certificate_key /etc/letsencrypt/live/siteniz.com/privkey.pem;",
+            "ssl_certificate_key /etc/letsencrypt/live/siteniz.com/privkey.pem;",
         ),
         FixStep(
             "Hostname uyuşmazlığı",
@@ -1024,36 +1057,34 @@ _POSTGRES_DEFAULT_GUIDE = RemediationGuide(
             "1. Parola değiştir",
             "",
             code="sudo -u postgres psql\n"
-                 "postgres=# ALTER USER postgres WITH PASSWORD '<uzun-rastgele-parola>';\n"
-                 "postgres=# \\q",
+            "postgres=# ALTER USER postgres WITH PASSWORD '<uzun-rastgele-parola>';\n"
+            "postgres=# \\q",
         ),
         FixStep(
             "2. Uzak bağlantıları kısıtla — pg_hba.conf",
             "`/etc/postgresql/<ver>/main/pg_hba.conf`:",
             code="# Local: peer (unix socket auth)\n"
-                 "local   all   postgres   peer\n"
-                 "# Remote: scram-sha-256 parola zorunlu (md5 eski, güvensiz)\n"
-                 "host    all   all        127.0.0.1/32   scram-sha-256",
+            "local   all   postgres   peer\n"
+            "# Remote: scram-sha-256 parola zorunlu (md5 eski, güvensiz)\n"
+            "host    all   all        127.0.0.1/32   scram-sha-256",
         ),
         FixStep(
             "3. listen_addresses ayarla",
             "`postgresql.conf`:",
-            code="listen_addresses = 'localhost'\n"
-                 "password_encryption = scram-sha-256",
+            code="listen_addresses = 'localhost'\n" "password_encryption = scram-sha-256",
         ),
         FixStep(
             "4. Güvenlik duvarı",
             "",
-            code="sudo ufw deny 5432\n"
-                 "sudo ufw allow from <app_ip> to any port 5432",
+            code="sudo ufw deny 5432\n" "sudo ufw allow from <app_ip> to any port 5432",
         ),
         FixStep(
             "5. Uygulama başına ayrı kullanıcı",
             "postgres superuser sadece admin için. Uygulamaya minimum yetkili kullanıcı:",
             code="CREATE USER myapp WITH PASSWORD '<parola>';\n"
-                 "GRANT CONNECT ON DATABASE mydb TO myapp;\n"
-                 "GRANT USAGE ON SCHEMA public TO myapp;\n"
-                 "GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO myapp;",
+            "GRANT CONNECT ON DATABASE mydb TO myapp;\n"
+            "GRANT USAGE ON SCHEMA public TO myapp;\n"
+            "GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO myapp;",
         ),
     ),
     verification=(
@@ -1079,21 +1110,17 @@ _EXPOSED_GIT_GUIDE = RemediationGuide(
             "Deploy sürecini düzelt. Production'a kaynak kodu ile birlikte `.git` "
             "kopyalamayın. Doğru deploy: `git archive`, `rsync --exclude='.git'`, "
             "CI/CD pipeline (GitHub Actions vb.).",
-            code="# Acil çözüm — server'da .git'i sil\n"
-                 "sudo rm -rf /var/www/html/.git",
+            code="# Acil çözüm — server'da .git'i sil\n" "sudo rm -rf /var/www/html/.git",
         ),
         FixStep(
             "Web sunucusu — `.git/` erişimini engelle (yedek savunma)",
             "Nginx:",
-            code="location ~ /\\.git {\n"
-                 "    deny all;\n"
-                 "    return 404;\n"
-                 "}",
+            code="location ~ /\\.git {\n" "    deny all;\n" "    return 404;\n" "}",
         ),
         FixStep(
             "Apache (.htaccess)",
             "",
-            code='RedirectMatch 404 /\\.git(/|$)',
+            code="RedirectMatch 404 /\\.git(/|$)",
         ),
         FixStep(
             "Geçmişte sızmış sırları rotate et",
@@ -1123,30 +1150,33 @@ _EXPOSED_SQL_DUMP_GUIDE = RemediationGuide(
             "hash edilmiş kullanıcı parolalarını zorla sıfırla (kullanıcıları "
             "parola değişimine yönlendir).",
             code="sudo rm /var/www/html/backup.sql\n"
-                 "# DB parolalarını değiştir\n"
-                 "# Kullanıcılara 'parolanızı değiştirin' e-postası",
+            "# DB parolalarını değiştir\n"
+            "# Kullanıcılara 'parolanızı değiştirin' e-postası",
         ),
         FixStep(
             "Yedekleri web kökünde tutma",
             "Yedekler her zaman web erişimi olmayan bir dizinde (`/var/backups/`) "
             "veya dış depolamada (S3 encrypted bucket, Backblaze B2) olmalı.",
             code="# Doğru yedek dizini\n"
-                 "/var/backups/db/  # web tarafından erişilemez\n"
-                 "# Otomatik yedek script + rotation\n"
-                 "mysqldump mydb | gzip > /var/backups/db/$(date +%F).sql.gz",
+            "/var/backups/db/  # web tarafından erişilemez\n"
+            "# Otomatik yedek script + rotation\n"
+            "mysqldump mydb | gzip > /var/backups/db/$(date +%F).sql.gz",
         ),
         FixStep(
             "Nginx — .sql uzantılarını engelle",
             "",
-            code='location ~ \\.(sql|bak|old|backup)$ {\n'
-                 '    deny all;\n'
-                 '    return 404;\n'
-                 "}",
+            code="location ~ \\.(sql|bak|old|backup)$ {\n"
+            "    deny all;\n"
+            "    return 404;\n"
+            "}",
         ),
     ),
     verification="`curl -I https://siteniz.com/backup.sql` → 404.",
     references=(
-        ("OWASP Backup Files", "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/04-Review_Old_Backup_and_Unreferenced_Files_for_Sensitive_Information"),
+        (
+            "OWASP Backup Files",
+            "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/04-Review_Old_Backup_and_Unreferenced_Files_for_Sensitive_Information",
+        ),
     ),
 )
 
@@ -1162,28 +1192,28 @@ _EXPOSED_WP_CONFIG_GUIDE = RemediationGuide(
             "ACİL — Yedekleri sil, tüm parolaları yenile",
             "",
             code="rm /var/www/html/wp-config.php.bak\n"
-                 "rm /var/www/html/wp-config.php.save\n\n"
-                 "# DB parolasını değiştir (MySQL'de)\n"
-                 "ALTER USER wp_user WITH PASSWORD '<yeni>';\n"
-                 "# wp-config.php güncelle (DB_PASSWORD)\n\n"
-                 "# WordPress secret key'leri yenile\n"
-                 "curl -s https://api.wordpress.org/secret-key/1.1/salt/\n"
-                 "# Çıktıyı wp-config.php'ye yapıştır",
+            "rm /var/www/html/wp-config.php.save\n\n"
+            "# DB parolasını değiştir (MySQL'de)\n"
+            "ALTER USER wp_user WITH PASSWORD '<yeni>';\n"
+            "# wp-config.php güncelle (DB_PASSWORD)\n\n"
+            "# WordPress secret key'leri yenile\n"
+            "curl -s https://api.wordpress.org/secret-key/1.1/salt/\n"
+            "# Çıktıyı wp-config.php'ye yapıştır",
         ),
         FixStep(
             "Editor yedek dosyalarını engelle",
             "Nginx:",
-            code='location ~ \\.(bak|save|swp|orig|tmp)$ {\n'
-                 '    deny all;\n'
-                 '    return 404;\n'
-                 "}",
+            code="location ~ \\.(bak|save|swp|orig|tmp)$ {\n"
+            "    deny all;\n"
+            "    return 404;\n"
+            "}",
         ),
         FixStep(
             "wp-config.php'yi web kökünün bir üstüne taşı",
             "WordPress bunu destekler — daha güvenli:",
             code="# /var/www/html/ içinde WP kurulu ise\n"
-                 "mv wp-config.php ../wp-config.php\n"
-                 "# WP otomatik bir üst dizinde arar",
+            "mv wp-config.php ../wp-config.php\n"
+            "# WP otomatik bir üst dizinde arar",
         ),
     ),
     verification="`curl -I https://siteniz.com/wp-config.php.bak` → 404.",
@@ -1203,9 +1233,7 @@ _EXPOSED_HTACCESS_GUIDE = RemediationGuide(
         FixStep(
             "Apache — kendi dizin koruma kuralı",
             "Apache default olarak .htaccess okumasını engeller. Eğer engellenmiyorsa:",
-            code='<FilesMatch "^\\.ht">\n'
-                 '    Require all denied\n'
-                 '</FilesMatch>',
+            code='<FilesMatch "^\\.ht">\n' "    Require all denied\n" "</FilesMatch>",
         ),
         FixStep(
             "Mümkünse .htaccess yerine httpd.conf kullan",
@@ -1238,12 +1266,12 @@ _EXPOSED_DS_STORE_GUIDE = RemediationGuide(
             "Git'e girmesini engelle (.gitignore)",
             "",
             code="echo '**/.DS_Store' >> .gitignore\n"
-                 "git rm --cached **/.DS_Store  # zaten commit edilmişse",
+            "git rm --cached **/.DS_Store  # zaten commit edilmişse",
         ),
         FixStep(
             "Web sunucusu engeli",
             "Nginx:",
-            code='location ~ \\.DS_Store$ { return 404; }',
+            code="location ~ \\.DS_Store$ { return 404; }",
         ),
         FixStep(
             "macOS'ta ağ sürücülerde oluşmasını engelle",
@@ -1252,9 +1280,7 @@ _EXPOSED_DS_STORE_GUIDE = RemediationGuide(
         ),
     ),
     verification="`curl -I https://siteniz.com/.DS_Store` → 404.",
-    references=(
-        ("Apple Tech Note", "https://support.apple.com/en-us/HT208209"),
-    ),
+    references=(("Apple Tech Note", "https://support.apple.com/en-us/HT208209"),),
 )
 
 _EXPOSED_SERVER_STATUS_GUIDE = RemediationGuide(
@@ -1269,26 +1295,23 @@ _EXPOSED_SERVER_STATUS_GUIDE = RemediationGuide(
             "Apache — /server-status'u kapat veya kısıtla",
             "`httpd.conf` veya ilgili VirtualHost içinde:",
             code="# Tamamen kapat\n"
-                 "<Location /server-status>\n"
-                 "    Require all denied\n"
-                 "</Location>\n\n"
-                 "# Ya da sadece localhost'a izin (iç monitoring için)\n"
-                 "<Location /server-status>\n"
-                 "    Require host localhost\n"
-                 "    Require ip 127.0.0.1\n"
-                 "</Location>",
+            "<Location /server-status>\n"
+            "    Require all denied\n"
+            "</Location>\n\n"
+            "# Ya da sadece localhost'a izin (iç monitoring için)\n"
+            "<Location /server-status>\n"
+            "    Require host localhost\n"
+            "    Require ip 127.0.0.1\n"
+            "</Location>",
         ),
         FixStep(
             "mod_status modülünü tamamen kaldır (kullanmıyorsanız)",
             "",
-            code="sudo a2dismod status\n"
-                 "sudo systemctl restart apache2",
+            code="sudo a2dismod status\n" "sudo systemctl restart apache2",
         ),
     ),
     verification="`curl -I https://siteniz.com/server-status` → 403 veya 404.",
-    references=(
-        ("Apache mod_status", "https://httpd.apache.org/docs/2.4/mod/mod_status.html"),
-    ),
+    references=(("Apache mod_status", "https://httpd.apache.org/docs/2.4/mod/mod_status.html"),),
 )
 
 _EXPOSED_PHPINFO_GUIDE = RemediationGuide(
@@ -1304,8 +1327,8 @@ _EXPOSED_PHPINFO_GUIDE = RemediationGuide(
             "ACİL — Dosyayı sil",
             "",
             code="find /var/www -name 'phpinfo.php' -delete\n"
-                 "find /var/www -name 'info.php' -delete\n"
-                 "find /var/www -name 'test.php' -delete",
+            "find /var/www -name 'info.php' -delete\n"
+            "find /var/www -name 'test.php' -delete",
         ),
         FixStep(
             "Environment değişkenlerini sızmış kabul et",
@@ -1315,14 +1338,11 @@ _EXPOSED_PHPINFO_GUIDE = RemediationGuide(
         FixStep(
             "expose_php = Off (php.ini)",
             "PHP'nin kendi versiyon bilgisini HTTP header'ında sızdırmasını engelle:",
-            code="; /etc/php/X.X/apache2/php.ini\n"
-                 "expose_php = Off",
+            code="; /etc/php/X.X/apache2/php.ini\n" "expose_php = Off",
         ),
     ),
     verification="`curl -I https://siteniz.com/phpinfo.php` → 404.",
-    references=(
-        ("PHP Security", "https://www.php.net/manual/en/security.php"),
-    ),
+    references=(("PHP Security", "https://www.php.net/manual/en/security.php"),),
 )
 
 _EXPOSED_ADMIN_GUIDE = RemediationGuide(
@@ -1337,12 +1357,12 @@ _EXPOSED_ADMIN_GUIDE = RemediationGuide(
             "VPN veya IP allowlist arkasına taşı",
             "Admin panele sadece ofis IP'sinden veya VPN üzerinden erişim.",
             code="# Nginx — sadece belirli IP'lere izin\n"
-                 "location /admin {\n"
-                 "    allow 203.0.113.0/24;   # Ofis IP'si\n"
-                 "    allow 127.0.0.1;        # Localhost\n"
-                 "    deny all;\n"
-                 "    proxy_pass http://backend;\n"
-                 "}",
+            "location /admin {\n"
+            "    allow 203.0.113.0/24;   # Ofis IP'si\n"
+            "    allow 127.0.0.1;        # Localhost\n"
+            "    deny all;\n"
+            "    proxy_pass http://backend;\n"
+            "}",
         ),
         FixStep(
             "URL'yi tahmin edilemez hale getir",
@@ -1358,11 +1378,11 @@ _EXPOSED_ADMIN_GUIDE = RemediationGuide(
             "HTTP Basic Auth ile ekstra katman",
             "Uygulama login'inden ÖNCE web server katmanında parola iste:",
             code="# Nginx\n"
-                 "location /admin {\n"
-                 "    auth_basic 'Restricted';\n"
-                 "    auth_basic_user_file /etc/nginx/.htpasswd;\n"
-                 "    proxy_pass http://backend;\n"
-                 "}",
+            "location /admin {\n"
+            "    auth_basic 'Restricted';\n"
+            "    auth_basic_user_file /etc/nginx/.htpasswd;\n"
+            "    proxy_pass http://backend;\n"
+            "}",
         ),
     ),
     verification="Dışarıdan `curl -I https://siteniz.com/admin` → 403/401; VPN'den 200.",
@@ -1384,18 +1404,17 @@ _EXPOSED_PHPMYADMIN_GUIDE = RemediationGuide(
             "phpMyAdmin'i kaldır (en iyi çözüm)",
             "Modern alternatifler: MySQL Workbench (desktop), Adminer (tek dosya, "
             "hafif), direkt `mysql` CLI. phpMyAdmin gerçekten gerekli mi değerlendir.",
-            code="sudo apt remove phpmyadmin\n"
-                 "sudo rm -rf /var/www/html/phpmyadmin",
+            code="sudo apt remove phpmyadmin\n" "sudo rm -rf /var/www/html/phpmyadmin",
         ),
         FixStep(
             "Gerekliyse VPN arkasına taşı",
             "",
             code="# Nginx — sadece VPN subnet'inden\n"
-                 "location /pma-xyz123 {\n"
-                 "    allow 10.8.0.0/24;   # VPN subnet\n"
-                 "    deny all;\n"
-                 "    alias /var/www/phpmyadmin;\n"
-                 "}",
+            "location /pma-xyz123 {\n"
+            "    allow 10.8.0.0/24;   # VPN subnet\n"
+            "    deny all;\n"
+            "    alias /var/www/phpmyadmin;\n"
+            "}",
         ),
         FixStep(
             "Path'i değiştir + HTTP Basic Auth + fail2ban",
@@ -1405,7 +1424,10 @@ _EXPOSED_PHPMYADMIN_GUIDE = RemediationGuide(
     ),
     verification="`curl -I https://siteniz.com/phpmyadmin` → 404 veya auth zorunlu.",
     references=(
-        ("phpMyAdmin Security", "https://docs.phpmyadmin.net/en/latest/setup.html#securing-your-phpmyadmin-installation"),
+        (
+            "phpMyAdmin Security",
+            "https://docs.phpmyadmin.net/en/latest/setup.html#securing-your-phpmyadmin-installation",
+        ),
     ),
 )
 
@@ -1435,25 +1457,27 @@ _X_POWERED_BY_GUIDE = RemediationGuide(
         FixStep(
             "IIS — ASP.NET version header'ı",
             "`web.config`:",
-            code='<system.webServer>\n'
-                 '  <httpProtocol>\n'
-                 '    <customHeaders>\n'
-                 '      <remove name="X-Powered-By" />\n'
-                 '      <remove name="X-AspNet-Version" />\n'
-                 '      <remove name="X-AspNetMvc-Version" />\n'
-                 '    </customHeaders>\n'
-                 '  </httpProtocol>\n'
-                 '</system.webServer>',
+            code="<system.webServer>\n"
+            "  <httpProtocol>\n"
+            "    <customHeaders>\n"
+            '      <remove name="X-Powered-By" />\n'
+            '      <remove name="X-AspNet-Version" />\n'
+            '      <remove name="X-AspNetMvc-Version" />\n'
+            "    </customHeaders>\n"
+            "  </httpProtocol>\n"
+            "</system.webServer>",
         ),
         FixStep(
             "Cloudflare",
-            "Rules → Transform Rules → Modify Response Header → Remove → "
-            "`X-Powered-By`.",
+            "Rules → Transform Rules → Modify Response Header → Remove → " "`X-Powered-By`.",
         ),
     ),
     verification="`curl -I https://siteniz.com/ | grep -i powered` komutunda header görünmemeli.",
     references=(
-        ("OWASP Fingerprinting", "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/01-Information_Gathering/02-Fingerprint_Web_Server"),
+        (
+            "OWASP Fingerprinting",
+            "https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/01-Information_Gathering/02-Fingerprint_Web_Server",
+        ),
     ),
 )
 
@@ -1478,14 +1502,14 @@ _PORT_RDP_GUIDE = RemediationGuide(
             "Windows Firewall — 3389 portunu block",
             "",
             code="# PowerShell (admin)\n"
-                 "New-NetFirewallRule -DisplayName 'Block-RDP-Public' "
-                 "-Direction Inbound -Protocol TCP -LocalPort 3389 -Action Block",
+            "New-NetFirewallRule -DisplayName 'Block-RDP-Public' "
+            "-Direction Inbound -Protocol TCP -LocalPort 3389 -Action Block",
         ),
         FixStep(
             "Port değiştirme (güvenlik değil, gürültü azaltma)",
             "3389 yerine random port (ör. 50189). Kayıt defteri:",
             code='Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp" '
-                 '-Name PortNumber -Value 50189',
+            "-Name PortNumber -Value 50189",
         ),
         FixStep(
             "NLA (Network Level Authentication) zorunlu",
@@ -1519,19 +1543,18 @@ _PORT_SMB_GUIDE = RemediationGuide(
             "SMB internet'e açık olmamalı. Firewall'da 445 portunu dışarıdan block, "
             "iç ağda bile sadece gerekli subnet'lere izin ver.",
             code="# Windows Firewall\n"
-                 "New-NetFirewallRule -DisplayName 'Block-SMB-Public' "
-                 "-Direction Inbound -Protocol TCP -LocalPort 445 -Action Block",
+            "New-NetFirewallRule -DisplayName 'Block-SMB-Public' "
+            "-Direction Inbound -Protocol TCP -LocalPort 445 -Action Block",
         ),
         FixStep(
             "SMBv1'i tamamen devre dışı bırak",
-            "SMBv1 (kullanımdan kalkmış) en saldırıya açık sürüm. EternalBlue bunu "
-            "hedefler.",
-            code='Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol',
+            "SMBv1 (kullanımdan kalkmış) en saldırıya açık sürüm. EternalBlue bunu " "hedefler.",
+            code="Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol",
         ),
         FixStep(
             "SMB signing zorunlu",
             "",
-            code='Set-SmbServerConfiguration -RequireSecuritySignature $true',
+            code="Set-SmbServerConfiguration -RequireSecuritySignature $true",
         ),
         FixStep(
             "SMB yerine SFTP/Nextcloud değerlendir",
@@ -1541,7 +1564,10 @@ _PORT_SMB_GUIDE = RemediationGuide(
     ),
     verification="Dışarıdan port 445'e telnet/Test-NetConnection → erişim olmamalı.",
     references=(
-        ("Microsoft: Disable SMBv1", "https://learn.microsoft.com/windows-server/storage/file-server/troubleshoot/detect-enable-and-disable-smbv1-v2-v3"),
+        (
+            "Microsoft: Disable SMBv1",
+            "https://learn.microsoft.com/windows-server/storage/file-server/troubleshoot/detect-enable-and-disable-smbv1-v2-v3",
+        ),
     ),
 )
 
@@ -1559,36 +1585,32 @@ _PORT_FTP_GUIDE = RemediationGuide(
             "SFTP modern, şifreli, SSH'in zaten açık olan 22 portunu kullanır. "
             "FileZilla, WinSCP gibi istemciler SFTP destekler.",
             code="# Client bağlantı örneği\n"
-                 "sftp user@sunucu.com\n"
-                 "# veya PuTTY/FileZilla'da 'SFTP' protokolü seç",
+            "sftp user@sunucu.com\n"
+            "# veya PuTTY/FileZilla'da 'SFTP' protokolü seç",
         ),
         FixStep(
             "FTPS (FTP over TLS) alternatif",
             "Eski FTP istemcileri ile uyumluluk gerekiyorsa FTPS (explicit TLS):",
             code="# vsftpd.conf\n"
-                 "ssl_enable=YES\n"
-                 "force_local_data_ssl=YES\n"
-                 "force_local_logins_ssl=YES",
+            "ssl_enable=YES\n"
+            "force_local_data_ssl=YES\n"
+            "force_local_logins_ssl=YES",
         ),
         FixStep(
             "FTP servisini kaldır",
             "",
             code="sudo systemctl stop vsftpd\n"
-                 "sudo systemctl disable vsftpd\n"
-                 "sudo apt remove vsftpd",
+            "sudo systemctl disable vsftpd\n"
+            "sudo apt remove vsftpd",
         ),
         FixStep(
             "Anonim FTP'yi devre dışı bırak (kullanılıyorsa)",
             "",
-            code="# vsftpd.conf\n"
-                 "anonymous_enable=NO\n"
-                 "local_enable=YES",
+            code="# vsftpd.conf\n" "anonymous_enable=NO\n" "local_enable=YES",
         ),
     ),
     verification="`curl ftp://siteniz.com` → bağlanamamalı. `sftp user@siteniz.com` → çalışmalı.",
-    references=(
-        ("SFTP Hardening", "https://infosec.mozilla.org/guidelines/openssh"),
-    ),
+    references=(("SFTP Hardening", "https://infosec.mozilla.org/guidelines/openssh"),),
 )
 
 _PORT_TELNET_GUIDE = RemediationGuide(
@@ -1603,22 +1625,20 @@ _PORT_TELNET_GUIDE = RemediationGuide(
             "SSH'e geç — Telnet'i tamamen kaldır",
             "SSH 1995'ten beri Telnet'in yerine. Modern, şifreli, güçlü auth.",
             code="# Linux\n"
-                 "sudo systemctl stop telnet\n"
-                 "sudo systemctl disable telnet\n"
-                 "sudo apt remove telnetd\n\n"
-                 "# SSH açık olduğundan emin ol\n"
-                 "sudo systemctl enable --now ssh",
+            "sudo systemctl stop telnet\n"
+            "sudo systemctl disable telnet\n"
+            "sudo apt remove telnetd\n\n"
+            "# SSH açık olduğundan emin ol\n"
+            "sudo systemctl enable --now ssh",
         ),
         FixStep(
             "Windows — Telnet istemcisini bile kapat",
             "",
-            code='Disable-WindowsOptionalFeature -Online -FeatureName TelnetClient',
+            code="Disable-WindowsOptionalFeature -Online -FeatureName TelnetClient",
         ),
     ),
     verification="`telnet siteniz.com 23` → connection refused.",
-    references=(
-        ("RFC on deprecating Telnet", "https://www.rfc-editor.org/rfc/rfc4949.html"),
-    ),
+    references=(("RFC on deprecating Telnet", "https://www.rfc-editor.org/rfc/rfc4949.html"),),
 )
 
 _PORT_VNC_GUIDE = RemediationGuide(
@@ -1634,8 +1654,8 @@ _PORT_VNC_GUIDE = RemediationGuide(
             "VPN veya SSH tünel arkasına taşı",
             "VNC public'e açık olmamalı. SSH tünel ile bağlan:",
             code="# Client'ta:\n"
-                 "ssh -L 5901:localhost:5900 user@sunucu\n"
-                 "# VNC client'ı localhost:5901'e bağlar — şifreli",
+            "ssh -L 5901:localhost:5900 user@sunucu\n"
+            "# VNC client'ı localhost:5901'e bağlar — şifreli",
         ),
         FixStep(
             "VNC yerine RDP (Windows) veya NoMachine (Linux)",
@@ -1645,8 +1665,7 @@ _PORT_VNC_GUIDE = RemediationGuide(
         FixStep(
             "Kullanılmıyorsa VNC servisini kapat",
             "",
-            code="sudo systemctl stop vncserver\n"
-                 "sudo systemctl disable vncserver",
+            code="sudo systemctl stop vncserver\n" "sudo systemctl disable vncserver",
         ),
         FixStep(
             "Kullanılacaksa — güçlü parola + TLS",
@@ -1655,9 +1674,7 @@ _PORT_VNC_GUIDE = RemediationGuide(
         ),
     ),
     verification="Dışarıdan `telnet siteniz.com 5900` → bağlantı olmamalı. İçeriden SSH tüneliyle çalışmalı.",
-    references=(
-        ("VNC Security", "https://tigervnc.org/doc/vncserver.html"),
-    ),
+    references=(("VNC Security", "https://tigervnc.org/doc/vncserver.html"),),
 )
 
 _PORT_GENERIC_GUIDE = RemediationGuide(
@@ -1678,15 +1695,15 @@ _PORT_GENERIC_GUIDE = RemediationGuide(
             "Güvenlik duvarı — default deny, gerekli olanı allow",
             "",
             code="# Linux (ufw)\n"
-                 "sudo ufw default deny incoming\n"
-                 "sudo ufw allow from <app_ip> to any port <port>\n"
-                 "sudo ufw enable",
+            "sudo ufw default deny incoming\n"
+            "sudo ufw allow from <app_ip> to any port <port>\n"
+            "sudo ufw enable",
         ),
         FixStep(
             "Windows Firewall",
             "",
             code="New-NetFirewallRule -DisplayName 'Block-Port-X' "
-                 "-Direction Inbound -LocalPort <PORT> -Action Block",
+            "-Direction Inbound -LocalPort <PORT> -Action Block",
         ),
         FixStep(
             "Servis yazılımını güncel tut",
@@ -1725,43 +1742,40 @@ _PATTERN_MATCHERS: tuple[tuple[str, _TitleMatcher, RemediationGuide], ...] = (
     ("wifi_open", lambda t: "Şifresiz Wi-Fi" in t, _WIFI_OPEN_GUIDE),
     ("wifi_wep", lambda t: "WEP şifrelemeli Wi-Fi" in t, _WIFI_WEP_GUIDE),
     ("wifi_old_wpa", lambda t: "Eski WPA şifrelemeli" in t, _WIFI_OLD_WPA_GUIDE),
-
     # Web probes — Level 2 attack detection
     ("sql_injection", lambda t: "SQL Injection" in t, _SQL_INJECTION_GUIDE),
     ("xss_reflected", lambda t: "Reflected XSS" in t, _XSS_GUIDE),
     ("path_traversal", lambda t: "Path traversal" in t, _PATH_TRAVERSAL_GUIDE),
     ("ssl_old_protocol", lambda t: "Eski TLS sürümü destekleniyor" in t, _SSL_OLD_PROTOCOL_GUIDE),
     ("ssl_cert_problem", lambda t: "SSL sertifika sorunu" in t, _SSL_CERT_PROBLEM_GUIDE),
-    ("x_powered_by_leak",
-     lambda t: ("Versiyon sızıntısı: X-Powered-By" in t
-                or "Versiyon sızıntısı: X-AspNet" in t),
-     _X_POWERED_BY_GUIDE),
-
+    (
+        "x_powered_by_leak",
+        lambda t: ("Versiyon sızıntısı: X-Powered-By" in t or "Versiyon sızıntısı: X-AspNet" in t),
+        _X_POWERED_BY_GUIDE,
+    ),
     # Exposed files
     ("exposed_git", lambda t: ".git deposu" in t or ".git/HEAD" in t, _EXPOSED_GIT_GUIDE),
-    ("exposed_sql_dump",
-     lambda t: "Veritabanı yedeği" in t or "Veritabanı dump" in t,
-     _EXPOSED_SQL_DUMP_GUIDE),
-    ("exposed_wp_config",
-     lambda t: "WordPress yapılandırma" in t,
-     _EXPOSED_WP_CONFIG_GUIDE),
+    (
+        "exposed_sql_dump",
+        lambda t: "Veritabanı yedeği" in t or "Veritabanı dump" in t,
+        _EXPOSED_SQL_DUMP_GUIDE,
+    ),
+    ("exposed_wp_config", lambda t: "WordPress yapılandırma" in t, _EXPOSED_WP_CONFIG_GUIDE),
     ("exposed_htaccess", lambda t: ".htaccess dosyası erişilebilir" in t, _EXPOSED_HTACCESS_GUIDE),
     ("exposed_ds_store", lambda t: ".DS_Store sızmış" in t, _EXPOSED_DS_STORE_GUIDE),
     ("exposed_server_status", lambda t: "server-status public" in t, _EXPOSED_SERVER_STATUS_GUIDE),
     ("exposed_phpinfo", lambda t: "phpinfo.php public" in t, _EXPOSED_PHPINFO_GUIDE),
     ("exposed_admin", lambda t: "Admin paneli" in t, _EXPOSED_ADMIN_GUIDE),
     ("exposed_phpmyadmin", lambda t: "phpMyAdmin public" in t, _EXPOSED_PHPMYADMIN_GUIDE),
-
     # DB parity
-    ("postgres_default_creds",
-     lambda t: "PostgreSQL varsayılan parola" in t,
-     _POSTGRES_DEFAULT_GUIDE),
-
+    (
+        "postgres_default_creds",
+        lambda t: "PostgreSQL varsayılan parola" in t,
+        _POSTGRES_DEFAULT_GUIDE,
+    ),
     # Port-specific — order matters: specific first, generic last
     ("port_rdp", lambda t: "Açık port: 3389" in t, _PORT_RDP_GUIDE),
-    ("port_smb",
-     lambda t: "Açık port: 445" in t or "Açık port: 139" in t,
-     _PORT_SMB_GUIDE),
+    ("port_smb", lambda t: "Açık port: 445" in t or "Açık port: 139" in t, _PORT_SMB_GUIDE),
     ("port_ftp", lambda t: "Açık port: 21" in t, _PORT_FTP_GUIDE),
     ("port_telnet", lambda t: "Açık port: 23" in t, _PORT_TELNET_GUIDE),
     ("port_vnc", lambda t: "Açık port: 5900" in t, _PORT_VNC_GUIDE),

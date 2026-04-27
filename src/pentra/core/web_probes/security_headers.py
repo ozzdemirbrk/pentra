@@ -12,7 +12,6 @@ from pentra.core.web_probes.base import WebProbeBase
 from pentra.i18n import t
 from pentra.models import Finding, Severity
 
-
 # Metadata for missing security headers — severity and i18n keys
 _REQUIRED_HEADERS: dict[str, tuple[Severity, str, str, str]] = {
     # header_name -> (severity, title_key, desc_key, remediation_key)
@@ -48,7 +47,12 @@ _REQUIRED_HEADERS: dict[str, tuple[Severity, str, str, str]] = {
     ),
 }
 
-_LEAKY_HEADERS: tuple[str, ...] = ("Server", "X-Powered-By", "X-AspNet-Version", "X-AspNetMvc-Version")
+_LEAKY_HEADERS: tuple[str, ...] = (
+    "Server",
+    "X-Powered-By",
+    "X-AspNet-Version",
+    "X-AspNetMvc-Version",
+)
 
 
 class SecurityHeadersProbe(WebProbeBase):
@@ -66,10 +70,12 @@ class SecurityHeadersProbe(WebProbeBase):
                     scanner_name="web_scanner",
                     severity=Severity.INFO,
                     title=t(
-                        "finding.web.header_connection_failed.title", probe=self.name,
+                        "finding.web.header_connection_failed.title",
+                        probe=self.name,
                     ),
                     description=t(
-                        "finding.web.header_connection_failed.desc", error=str(e),
+                        "finding.web.header_connection_failed.desc",
+                        error=str(e),
                     ),
                     target=url,
                 ),
@@ -97,7 +103,8 @@ class SecurityHeadersProbe(WebProbeBase):
                             request_path=url,
                             response_status=response.status_code,
                             why_vulnerable=t(
-                                "evidence.web.header_missing", header=header_name,
+                                "evidence.web.header_missing",
+                                header=header_name,
                             ),
                         ),
                     ),
@@ -114,11 +121,13 @@ class SecurityHeadersProbe(WebProbeBase):
                         title=t("finding.web.version_leak.title", header=leaky),
                         description=t(
                             "finding.web.version_leak.desc",
-                            header=leaky, value=value,
+                            header=leaky,
+                            value=value,
                         ),
                         target=url,
                         remediation=t(
-                            "finding.web.version_leak.remediation", header=leaky,
+                            "finding.web.version_leak.remediation",
+                            header=leaky,
                         ),
                         evidence=self._build_evidence(
                             request_method="GET",
@@ -126,7 +135,8 @@ class SecurityHeadersProbe(WebProbeBase):
                             response_status=response.status_code,
                             why_vulnerable=t(
                                 "evidence.web.version_leak",
-                                header=leaky, value=value,
+                                header=leaky,
+                                value=value,
                             ),
                             extra={
                                 "leaked_header": leaky,

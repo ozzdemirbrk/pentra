@@ -34,7 +34,9 @@ class DepthSelectPage(QWizardPage):
         # --- Quick ---
         self._rb_quick = QRadioButton()
         self._rb_quick.setChecked(True)
-        self._rb_quick.setStyleSheet("QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }")
+        self._rb_quick.setStyleSheet(
+            "QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }"
+        )
         self._group.addButton(self._rb_quick, 0)
         layout.addWidget(self._rb_quick)
 
@@ -50,7 +52,9 @@ class DepthSelectPage(QWizardPage):
 
         # --- Standard ---
         self._rb_standard = QRadioButton()
-        self._rb_standard.setStyleSheet("QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }")
+        self._rb_standard.setStyleSheet(
+            "QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }"
+        )
         self._group.addButton(self._rb_standard)
         layout.addWidget(self._rb_standard)
 
@@ -66,7 +70,9 @@ class DepthSelectPage(QWizardPage):
 
         # --- Deep ---
         self._rb_deep = QRadioButton()
-        self._rb_deep.setStyleSheet("QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }")
+        self._rb_deep.setStyleSheet(
+            "QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }"
+        )
         self._group.addButton(self._rb_deep)
         layout.addWidget(self._rb_deep)
 

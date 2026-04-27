@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -91,7 +91,7 @@ class TestFinding:
         assert f.discovered_at.tzinfo is not None
 
     def test_explicit_timestamp_preserved(self) -> None:
-        ts = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        ts = datetime(2026, 1, 1, tzinfo=UTC)
         f = Finding(
             scanner_name="test",
             severity=Severity.HIGH,

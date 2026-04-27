@@ -25,14 +25,14 @@ from pentra.core.scanner_base import ScannerBase
 from pentra.core.update_checker import UpdateChecker
 from pentra.core.web_scanner import WebScanner
 from pentra.core.wifi_scanner import WifiScanner
-from pentra.knowledge.cve_mapper import CveMapper
-from pentra.knowledge.nvd_client import NvdClient
 from pentra.gui.screens.authorization import AuthorizationPage
 from pentra.gui.screens.depth_select import DepthSelectPage
 from pentra.gui.screens.progress import ProgressPage
 from pentra.gui.screens.report import ReportPage
 from pentra.gui.screens.target_select import TargetSelectPage
 from pentra.gui.wizard import PageId, PentraWizard
+from pentra.knowledge.cve_mapper import CveMapper
+from pentra.knowledge.nvd_client import NvdClient
 from pentra.models import TargetType
 from pentra.safety.authorization import AuthorizationManager
 from pentra.safety.scope_validator import ScopeValidator
@@ -137,8 +137,11 @@ def main(argv: list[str] | None = None) -> int:
     def _on_update_available(new_version: str, release_url: str) -> None:
         # Lazy import — to avoid extending startup time
         from pentra.gui.widgets.update_notification import UpdateNotificationDialog
+
         dialog = UpdateNotificationDialog(
-            new_version=new_version, release_url=release_url, parent=wizard,
+            new_version=new_version,
+            release_url=release_url,
+            parent=wizard,
         )
         dialog.show()
 

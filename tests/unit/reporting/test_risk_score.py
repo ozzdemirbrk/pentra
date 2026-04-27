@@ -16,7 +16,9 @@ from pentra.reporting.risk_score import (
 def _finding(severity: Severity, title: str = "t", cvss: float | None = None) -> Finding:
     evidence = {}
     if cvss is not None:
-        evidence = {"cves": [{"id": "CVE-X", "cvss": cvss, "severity": "X", "description": "", "url": ""}]}
+        evidence = {
+            "cves": [{"id": "CVE-X", "cvss": cvss, "severity": "X", "description": "", "url": ""}]
+        }
     return Finding(
         scanner_name="test",
         severity=severity,
@@ -69,14 +71,17 @@ class TestComputeScore:
 
 
 class TestLabelAndColor:
-    @pytest.mark.parametrize("score,expected_label", [
-        (0.0, "Temiz"),
-        (2.5, "Düşük"),
-        (5.0, "Orta"),
-        (7.5, "Yüksek"),
-        (9.5, "Kritik"),
-        (10.0, "Kritik"),
-    ])
+    @pytest.mark.parametrize(
+        "score,expected_label",
+        [
+            (0.0, "Temiz"),
+            (2.5, "Düşük"),
+            (5.0, "Orta"),
+            (7.5, "Yüksek"),
+            (9.5, "Kritik"),
+            (10.0, "Kritik"),
+        ],
+    )
     def test_label_brackets(self, score: float, expected_label: str) -> None:
         label, color = risk_label_and_color(score)
         assert label == expected_label

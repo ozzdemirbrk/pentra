@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pentra.models import Finding, Severity
-from pentra.reporting.comparison import ScanComparison, compare
+from pentra.reporting.comparison import compare
 from pentra.storage.scan_history import FindingSnapshot, ReportSnapshot
 
 
@@ -23,7 +23,7 @@ def _prev_snapshot(findings: list[FindingSnapshot], risk: float = 5.0) -> Report
         target_key="localhost:127.0.0.1",
         target_value="127.0.0.1",
         depth="quick",
-        ended_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        ended_at=datetime(2026, 4, 1, tzinfo=UTC),
         risk_score=risk,
         finding_count=len(findings),
         findings=tuple(findings),
@@ -102,7 +102,9 @@ class TestRiskTrend:
 
     def test_worsened_when_score_increased(self) -> None:
         previous = _prev_snapshot([], risk=2.0)
-        cmp = compare(previous, [_current("x"), _current("y", sev=Severity.CRITICAL)], current_risk_score=9.5)
+        cmp = compare(
+            previous, [_current("x"), _current("y", sev=Severity.CRITICAL)], current_risk_score=9.5
+        )
         assert cmp.risk_trend == "worsened"
 
     def test_stable_when_delta_small(self) -> None:

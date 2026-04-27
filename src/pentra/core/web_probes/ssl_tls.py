@@ -58,7 +58,8 @@ class SslTlsProbe(WebProbeBase):
                         description=t("finding.web.old_tls.desc", proto=proto_name),
                         target=f"{host}:{port}",
                         remediation=t(
-                            "finding.web.old_tls.remediation", proto=proto_name,
+                            "finding.web.old_tls.remediation",
+                            proto=proto_name,
                         ),
                         evidence=self._build_evidence(
                             request_method="TLS-HANDSHAKE",
@@ -80,7 +81,10 @@ class SslTlsProbe(WebProbeBase):
 
 # ---------------------------------------------------------------------
 def _try_handshake(
-    host: str, port: int, tls_version: ssl.TLSVersion, timeout: float,
+    host: str,
+    port: int,
+    tls_version: ssl.TLSVersion,
+    timeout: float,
 ) -> _HandshakeOutcome:
     proto_name = tls_version.name
 

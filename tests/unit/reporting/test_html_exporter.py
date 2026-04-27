@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pentra.models import Finding, ScanDepth, Severity, Target, TargetType
@@ -17,8 +17,8 @@ def _sample_report(findings: list[Finding] | None = None):
         target=target,
         depth=ScanDepth.QUICK,
         findings=findings or [],
-        started_at=datetime(2026, 4, 21, 10, 0, tzinfo=timezone.utc),
-        ended_at=datetime(2026, 4, 21, 10, 2, tzinfo=timezone.utc),
+        started_at=datetime(2026, 4, 21, 10, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 4, 21, 10, 2, tzinfo=UTC),
     )
 
 

@@ -18,7 +18,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from pentra.models import Target, TargetType
+from pentra.models import Target
 from pentra.reporting.report_builder import Report
 
 
@@ -131,10 +131,7 @@ class ScanHistory:
             if report.findings:
                 conn.executemany(
                     "INSERT INTO findings (scan_id, severity, title, target) VALUES (?, ?, ?, ?)",
-                    [
-                        (scan_id, f.severity.value, f.title, f.target)
-                        for f in report.findings
-                    ],
+                    [(scan_id, f.severity.value, f.title, f.target) for f in report.findings],
                 )
             return scan_id
 
