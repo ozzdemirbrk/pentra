@@ -58,7 +58,7 @@ class TestSshDefaultOpen:
 
         assert len(findings) == 1
         assert findings[0].severity == Severity.HIGH
-        assert "varsayılan parola" in findings[0].title.lower()
+        assert "default credentials" in findings[0].title.lower()
         assert "root" in findings[0].evidence["username"]
 
 

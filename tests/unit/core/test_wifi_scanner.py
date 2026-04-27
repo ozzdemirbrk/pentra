@@ -135,7 +135,7 @@ class TestEvaluation:
         f = _evaluate_network(net)
         assert f is not None
         assert f.severity == Severity.HIGH
-        assert "Şifresiz" in f.title
+        assert "Unencrypted" in f.title
 
     def test_wep_network_is_high(self) -> None:
         net = WifiNetwork(ssid="OldRouter", authentication="WEP", encryption="WEP")
@@ -179,4 +179,4 @@ class TestEvaluation:
         f = _evaluate_network(net)
         assert f is not None
         assert f.severity == Severity.HIGH
-        assert "gizli" in f.title.lower()
+        assert "hidden" in f.title.lower()

@@ -11,6 +11,16 @@ from pathlib import Path
 
 import pytest
 
+from pentra.i18n import Translator
+
+
+@pytest.fixture(autouse=True)
+def _pin_translator_to_english() -> Generator[None, None, None]:
+    # Without this, tests that assert on translated strings would depend on the
+    # host's OS locale (Turkish dev box passes, English CI runner fails).
+    Translator.instance().set_language("en")
+    yield
+
 
 @pytest.fixture
 def tmp_appdata(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[Path, None, None]:

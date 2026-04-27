@@ -30,7 +30,7 @@ class TestElasticsearchOpen:
 
         assert len(findings) == 1
         assert findings[0].severity == Severity.CRITICAL
-        assert "parolasız" in findings[0].title.lower()
+        assert "without a password" in findings[0].title.lower()
 
 
 class TestElasticsearchProtected:

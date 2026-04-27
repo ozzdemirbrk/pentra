@@ -52,7 +52,7 @@ class TestMysqlDefaultOpen:
 
         assert len(findings) == 1
         assert findings[0].severity == Severity.CRITICAL
-        assert "varsayılan parola" in findings[0].title.lower()
+        assert "default credentials" in findings[0].title.lower()
         assert "8.0.32" in findings[0].evidence["mysql_version"]
 
 

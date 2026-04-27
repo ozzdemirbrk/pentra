@@ -28,9 +28,9 @@ class TestHttpsRequired:
         findings = probe.probe("http://example.com", session)
 
         titles = [f.title for f in findings]
-        assert any("HTTP üzerinden" in t for t in titles)
+        assert any("Served over HTTP" in t for t in titles)
 
-        http_finding = next(f for f in findings if "HTTP üzerinden" in f.title)
+        http_finding = next(f for f in findings if "Served over HTTP" in f.title)
         assert http_finding.severity == Severity.HIGH
 
     def test_https_url_not_flagged_for_http_risk(self) -> None:
@@ -46,7 +46,7 @@ class TestHttpsRequired:
             },
         )
         findings = probe.probe("https://example.com", session)
-        assert not any("HTTP üzerinden" in f.title for f in findings)
+        assert not any("Served over HTTP" in f.title for f in findings)
 
 
 class TestMissingHeaders:
@@ -56,11 +56,11 @@ class TestMissingHeaders:
         findings = probe.probe("https://example.com", session)
 
         titles = {f.title for f in findings}
-        assert "HSTS eksik" in titles
-        assert "CSP eksik" in titles
-        assert any("X-Frame-Options eksik" in t for t in titles)
-        assert any("X-Content-Type-Options eksik" in t for t in titles)
-        assert "Referrer-Policy eksik" in titles
+        assert "HSTS missing" in titles
+        assert "CSP missing" in titles
+        assert any("X-Frame-Options missing" in t for t in titles)
+        assert any("X-Content-Type-Options missing" in t for t in titles)
+        assert "Referrer-Policy missing" in titles
 
     def test_all_headers_present_no_missing_findings(self) -> None:
         probe = SecurityHeadersProbe()
@@ -76,7 +76,7 @@ class TestMissingHeaders:
         )
         findings = probe.probe("https://example.com", session)
 
-        missing_titles = {f.title for f in findings if "eksik" in f.title}
+        missing_titles = {f.title for f in findings if "missing" in f.title}
         assert missing_titles == set()
 
     def test_http_url_skips_hsts_check(self) -> None:
@@ -86,7 +86,7 @@ class TestMissingHeaders:
         findings = probe.probe("http://example.com", session)
 
         titles = [f.title for f in findings]
-        assert "HSTS eksik" not in titles
+        assert "HSTS missing" not in titles
 
 
 class TestLeakyHeaders:
@@ -105,7 +105,7 @@ class TestLeakyHeaders:
         )
         findings = probe.probe("https://example.com", session)
 
-        leak_findings = [f for f in findings if "Versiyon sızıntısı" in f.title]
+        leak_findings = [f for f in findings if "Version leak" in f.title]
         assert len(leak_findings) == 1
         assert leak_findings[0].severity == Severity.INFO
         assert "Apache/2.4.41" in leak_findings[0].evidence["why_vulnerable"]
@@ -138,7 +138,7 @@ class TestNetworkFailure:
 
         assert len(findings) == 1
         assert findings[0].severity == Severity.INFO
-        assert "başarısız" in findings[0].title.lower()
+        assert "connection failed" in findings[0].title.lower()
 
 
 class TestEvidence:
@@ -148,7 +148,7 @@ class TestEvidence:
         findings = probe.probe("https://example.com", session)
 
         for f in findings:
-            if "eksik" in f.title or "HTTP" in f.title:
+            if "missing" in f.title or "HTTP" in f.title:
                 assert "probe_name" in f.evidence
                 assert f.evidence["probe_name"] == "security_headers"
                 assert "request" in f.evidence

@@ -45,7 +45,7 @@ class TestPostgresDefaultOpen:
 
         assert len(findings) == 1
         assert findings[0].severity == Severity.CRITICAL
-        assert "varsayılan parola" in findings[0].title.lower()
+        assert "default credentials" in findings[0].title.lower()
         assert "PostgreSQL 15.3" in findings[0].evidence["postgres_version"]
 
 

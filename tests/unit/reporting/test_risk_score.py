@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from pentra.i18n import Translator
 from pentra.models import Finding, Severity
 from pentra.reporting.risk_score import (
     assess_risk,
@@ -74,12 +75,12 @@ class TestLabelAndColor:
     @pytest.mark.parametrize(
         "score,expected_label",
         [
-            (0.0, "Temiz"),
-            (2.5, "Düşük"),
-            (5.0, "Orta"),
-            (7.5, "Yüksek"),
-            (9.5, "Kritik"),
-            (10.0, "Kritik"),
+            (0.0, "Clean"),
+            (2.5, "Low"),
+            (5.0, "Medium"),
+            (7.5, "High"),
+            (9.5, "Critical"),
+            (10.0, "Critical"),
         ],
     )
     def test_label_brackets(self, score: float, expected_label: str) -> None:
@@ -92,13 +93,13 @@ class TestAssessRisk:
     def test_no_findings_returns_clean(self) -> None:
         r = assess_risk([])
         assert r.score == 0.0
-        assert r.label == "Temiz"
-        assert "tespit edilmedi" in r.summary_tr or "temiz" in r.summary_tr.lower()
+        assert r.label == "Clean"
+        assert "no security issues" in r.summary_tr.lower() or "clean" in r.summary_tr.lower()
 
     def test_critical_finding_yields_high_risk(self) -> None:
-        r = assess_risk([_finding(Severity.CRITICAL, "Redis açık")])
+        r = assess_risk([_finding(Severity.CRITICAL, "Redis open")])
         assert r.score >= 9.0
-        assert r.label in ("Yüksek", "Kritik")
+        assert r.label in ("High", "Critical")
         assert "<b>" in r.summary_tr  # HTML formatting (critical count is bold)
 
     def test_summary_counts_severities(self) -> None:
@@ -109,9 +110,30 @@ class TestAssessRisk:
             _finding(Severity.MEDIUM),
         ]
         r = assess_risk(findings)
-        assert "1 kritik" in r.summary_tr.lower()
-        assert "2 yüksek" in r.summary_tr.lower()
-        assert "1 orta" in r.summary_tr.lower()
+        assert "1 critical" in r.summary_tr.lower()
+        assert "2 high" in r.summary_tr.lower()
+        assert "1 medium" in r.summary_tr.lower()
+
+
+class TestTurkishOutput:
+    """Verify the tr.json translations resolve correctly when Turkish is active."""
+
+    def test_label_in_turkish(self) -> None:
+        Translator.instance().set_language("tr")
+        try:
+            label, _ = risk_label_and_color(9.5)
+            assert label == "Kritik"
+        finally:
+            Translator.instance().set_language("en")
+
+    def test_summary_in_turkish(self) -> None:
+        Translator.instance().set_language("tr")
+        try:
+            r = assess_risk([_finding(Severity.CRITICAL), _finding(Severity.HIGH)])
+            assert "1 kritik" in r.summary_tr.lower()
+            assert "1 yüksek" in r.summary_tr.lower()
+        finally:
+            Translator.instance().set_language("en")
 
 
 class TestTopActions:

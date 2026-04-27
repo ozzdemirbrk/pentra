@@ -28,7 +28,7 @@ class TestRender:
         html = exporter.render(_sample_report())
         assert "<!DOCTYPE html>" in html
         assert "127.0.0.1" in html
-        assert "Herhangi bir bulgu" in html  # empty-state message
+        assert "No findings" in html  # empty-state message
 
     def test_render_includes_finding_title_and_severity(self) -> None:
         findings = [
@@ -44,7 +44,7 @@ class TestRender:
         exporter = HtmlExporter()
         html = exporter.render(_sample_report(findings))
         assert "3389/tcp" in html
-        assert "Yüksek" in html  # Turkish label
+        assert "High" in html  # severity label (active language)
         # The apostrophe is escaped to &#39; in HTML; the "kapat" portion remains
         assert "kapat veya kısıtla" in html
 

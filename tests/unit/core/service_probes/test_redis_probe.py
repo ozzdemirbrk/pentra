@@ -27,7 +27,7 @@ class TestRedisOpen:
 
         assert len(findings) == 1
         assert findings[0].severity == Severity.CRITICAL
-        assert "parolasız" in findings[0].title.lower()
+        assert "without a password" in findings[0].title.lower()
         assert findings[0].target == "127.0.0.1:6379"
 
 

@@ -84,7 +84,7 @@ class TestEchoFallback:
 
         assert len(findings) == 1
         assert findings[0].severity == Severity.INFO
-        assert "atland" in findings[0].title.lower()  # "XSS test skipped"
+        assert "skipped" in findings[0].title.lower()
 
     def test_echo_fallback_blocks_false_positives(self) -> None:
         """Used to produce 20+ HIGH findings — now just 1 INFO."""

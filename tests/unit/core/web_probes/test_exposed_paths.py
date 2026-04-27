@@ -55,7 +55,7 @@ class TestEnvValidator:
         )
         findings = probe.probe("https://example.com", session)
 
-        env = [f for f in findings if ".env dosyası" in f.title]
+        env = [f for f in findings if ".env file" in f.title]
         assert len(env) == 1
         assert env[0].severity == Severity.CRITICAL
 
@@ -68,7 +68,7 @@ class TestEnvValidator:
             default=_NOT_FOUND,
         )
         findings = probe.probe("https://example.com", session)
-        assert not any(".env dosyası" in f.title for f in findings)
+        assert not any(".env file" in f.title for f in findings)
 
     def test_plaintext_but_no_env_pattern_not_flagged(self) -> None:
         probe = ExposedPathsProbe()
@@ -78,7 +78,7 @@ class TestEnvValidator:
             default=_NOT_FOUND,
         )
         findings = probe.probe("https://example.com", session)
-        assert not any(".env dosyası" in f.title for f in findings)
+        assert not any(".env file" in f.title for f in findings)
 
 
 # =====================================================================
@@ -93,7 +93,7 @@ class TestGitConfigValidator:
             default=_NOT_FOUND,
         )
         findings = probe.probe("https://example.com", session)
-        assert any(".git deposu" in f.title for f in findings)
+        assert any(".git repository" in f.title for f in findings)
 
     def test_html_at_git_config_not_flagged(self) -> None:
         probe = ExposedPathsProbe()
@@ -102,7 +102,7 @@ class TestGitConfigValidator:
             default=_NOT_FOUND,
         )
         findings = probe.probe("https://example.com", session)
-        assert not any(".git deposu" in f.title for f in findings)
+        assert not any(".git repository" in f.title for f in findings)
 
 
 # =====================================================================
@@ -172,7 +172,7 @@ class TestSoftFourOhFour:
         session.get.side_effect = fake_get
 
         findings = probe.probe("https://example.com", session)
-        assert any(".env dosyası" in f.title for f in findings)
+        assert any(".env file" in f.title for f in findings)
 
 
 # =====================================================================
@@ -185,7 +185,7 @@ class TestSecurityTxt:
         session.get.return_value = _response(404, "", content_type="text/plain")
 
         findings = probe.probe("https://example.com", session)
-        assert any("security.txt yok" in f.title for f in findings)
+        assert any("security.txt missing" in f.title for f in findings)
 
     def test_present_security_txt_no_info_finding(self) -> None:
         probe = ExposedPathsProbe()
@@ -195,7 +195,7 @@ class TestSecurityTxt:
             default=_response(404, "", content_type="text/plain"),
         )
         findings = probe.probe("https://example.com", session)
-        assert not any("security.txt yok" in f.title for f in findings)
+        assert not any("security.txt missing" in f.title for f in findings)
 
     def test_soft_404_on_security_txt_reports_missing(self) -> None:
         """A security.txt response identical to the soft-404 baseline → file considered missing."""
@@ -204,7 +204,7 @@ class TestSecurityTxt:
         session = MagicMock(spec=requests.Session)
         session.get.return_value = catchall
         findings = probe.probe("https://example.com", session)
-        assert any("security.txt yok" in f.title for f in findings)
+        assert any("security.txt missing" in f.title for f in findings)
 
 
 # =====================================================================
