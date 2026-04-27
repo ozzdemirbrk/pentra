@@ -1,4 +1,4 @@
-"""redis_probe.py testleri — mocked socket."""
+"""redis_probe.py tests — mocked socket."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pentra.models import Severity
 
 
 def _mock_socket(response: bytes) -> MagicMock:
-    """Context manager gibi davranan socket mock'u."""
+    """Socket mock that behaves like a context manager."""
     sock = MagicMock()
     sock.__enter__ = MagicMock(return_value=sock)
     sock.__exit__ = MagicMock(return_value=False)

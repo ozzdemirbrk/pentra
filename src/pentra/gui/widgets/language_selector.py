@@ -1,7 +1,8 @@
-"""Dil seçici dropdown — QComboBox Translator singleton'una bağlanır.
+"""Language-selector dropdown — a QComboBox bound to the Translator singleton.
 
-Kullanıcı diğer dili seçtiğinde `Translator.set_language()` çağrılır ve tüm
-abone widget'lar `languageChanged` sinyali ile anında yeniden çevirilir.
+When the user picks another language, `Translator.set_language()` is called
+and every subscribed widget retranslates immediately via the
+`languageChanged` signal.
 """
 
 from __future__ import annotations
@@ -12,9 +13,9 @@ from pentra.i18n import Translator, t
 
 
 class LanguageSelector(QComboBox):
-    """İki dilli (EN/TR) dil seçici dropdown."""
+    """Two-language (EN/TR) language-selector dropdown."""
 
-    #: (dil_kodu, çeviri_anahtarı) çiftleri — sıra dropdown sırasını belirler.
+    #: (language_code, translation_key) pairs — order determines the dropdown order.
     _LANGUAGES: list[tuple[str, str]] = [
         ("en", "lang.english"),
         ("tr", "lang.turkish"),
@@ -27,7 +28,7 @@ class LanguageSelector(QComboBox):
         for code, label_key in self._LANGUAGES:
             self.addItem(t(label_key), code)
 
-        # Aktif dili seçili göster
+        # Mark the active language as selected
         for i in range(self.count()):
             if self.itemData(i) == translator.current_language:
                 self.setCurrentIndex(i)
@@ -43,8 +44,8 @@ class LanguageSelector(QComboBox):
             Translator.instance().set_language(code)
 
     def _retranslate_items(self, _lang: str) -> None:
-        """Dil değişimi sonrası dropdown etiketlerini günceller."""
-        # Sinyal tetiklenmesini engelle — dışarıdan dil değiştiği için
+        """Refresh the dropdown labels after a language change."""
+        # Prevent signal retriggering — the change came from outside
         self.blockSignals(True)
         try:
             for i, (_code, label_key) in enumerate(self._LANGUAGES):

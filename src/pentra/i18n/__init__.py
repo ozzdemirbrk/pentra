@@ -1,6 +1,6 @@
-"""Pentra için çok dilli (i18n) altyapısı.
+"""Internationalization (i18n) infrastructure for Pentra.
 
-Kullanım::
+Usage::
 
     from pentra.i18n import t
     label.setText(t("auth.title"))

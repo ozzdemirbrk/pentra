@@ -1,5 +1,5 @@
-"""Güvenlik bariyerleri: yetki onayı, kapsam doğrulama, rate limit.
+"""Safety barriers: authorization, scope validation, rate limiting.
 
-Bu paket her tarama talebinin önünde durur; buradaki kontroller
-atlanamaz (Chain of Responsibility deseni).
+This package sits in front of every scan request; the checks here
+cannot be bypassed (Chain of Responsibility pattern).
 """

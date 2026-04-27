@@ -1,4 +1,4 @@
-"""path_traversal.py — probe testleri."""
+"""path_traversal.py — probe tests."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ class TestLeakDetection:
         probe = PathTraversalProbe()
         session = MagicMock(spec=requests.Session)
 
-        # Tüm yanıtlarda /etc/passwd içeriği varmış gibi davran
+        # Pretend every response contains /etc/passwd content
         session.get.return_value = _response(
             200, "root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin/nologin",
         )
@@ -46,7 +46,7 @@ class TestLeakDetection:
     def test_no_leak_no_finding(self) -> None:
         probe = PathTraversalProbe()
         session = MagicMock(spec=requests.Session)
-        # Her istekte normal HTML
+        # Normal HTML on every request
         session.get.return_value = _response(200, "<html><h1>Hoş geldiniz</h1></html>")
         findings = probe.probe("https://example.com", session)
         assert findings == []
@@ -61,16 +61,16 @@ class TestLeakDetection:
 
 class TestParameterDedup:
     def test_only_one_finding_per_vulnerable_param(self) -> None:
-        """Bir parametre için ilk payload kanıtlanınca diğerlerini atlamalı."""
+        """Once the first payload proves a parameter, others should be skipped."""
         probe = PathTraversalProbe()
         session = MagicMock(spec=requests.Session)
         session.get.return_value = _response(200, "root:x:0:0:root:/root:/bin/bash")
 
         findings = probe.probe("https://example.com", session)
 
-        # Her parametre için maksimum 1 finding olmalı — tekrar testi yok
+        # At most 1 finding per parameter — no duplicate test
         param_titles = [f.title for f in findings if "Path traversal" in f.title]
-        # 10 param var, hepsinde aynı yanıt → 10 finding (ama her biri farklı param)
+        # 10 parameters, identical response → 10 findings (each from a different parameter)
         assert len(param_titles) == len(set(param_titles))
 
 
@@ -88,7 +88,7 @@ class TestUrlBuilding:
         session.get.side_effect = fake_get
 
         probe.probe("https://example.com/page", session)
-        # Hiç ? yoksa ilk param ? ile ekleniyor
+        # When there is no ?, the first parameter is appended with ?
         assert any("?file=" in u for u in urls_called)
 
     def test_existing_query_uses_ampersand(self) -> None:

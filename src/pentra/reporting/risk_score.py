@@ -1,16 +1,16 @@
-"""Genel risk skoru hesabı — finding listesinden 0.0-10.0 arası puan.
+"""Overall risk score calculation — a 0.0-10.0 score from a list of findings.
 
-Skor mantığı:
-    - En yüksek severity'li bulgu skora ana katkıyı yapar (anchor)
-    - Bulgu sayısı az bir kademe bonus verir (diminishing)
-    - CVE'li bulgularda CVSS skoru severity ağırlığından öncelikli
+Score logic:
+    - The highest-severity finding is the anchor contributing the base score
+    - Finding count gives a small bonus tier (diminishing)
+    - For findings with CVEs, the CVSS score takes priority over severity weight
 
-Etiket aralıkları (i18n):
-    0.0       → Clean / Temiz
-    0.0 – 3.9 → Low / Düşük (yeşil)
-    4.0 – 6.9 → Medium / Orta (sarı)
-    7.0 – 8.9 → High / Yüksek (turuncu)
-    9.0 – 10.0 → Critical / Kritik (kırmızı)
+Label ranges (i18n):
+    0.0       -> Clean
+    0.0 – 3.9 -> Low (green)
+    4.0 – 6.9 -> Medium (yellow)
+    7.0 – 8.9 -> High (orange)
+    9.0 – 10.0 -> Critical (red)
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from pentra.i18n import t
 from pentra.models import Finding, Severity
 
-# Severity ağırlıkları — CVE yoksa bu kullanılır
+# Severity weights — used when no CVE data is available
 _SEVERITY_WEIGHT: dict[Severity, float] = {
     Severity.CRITICAL: 9.5,
     Severity.HIGH: 7.5,
@@ -34,12 +34,12 @@ _SEVERITY_WEIGHT: dict[Severity, float] = {
 
 @dataclasses.dataclass(frozen=True)
 class RiskAssessment:
-    """Bir rapor için genel risk değerlendirmesi."""
+    """Overall risk assessment for a report."""
 
     score: float  # 0.0 – 10.0
-    label: str  # Aktif dile çevrilmiş etiket
-    color: str  # Hex — etiket rengi
-    summary_tr: str  # 1-2 cümlelik özet (aktif dile göre üretilmiş)
+    label: str  # Label translated into the active language
+    color: str  # Hex — label color
+    summary_tr: str  # 1-2 sentence summary (built in the active language)
 
     @property
     def score_display(self) -> str:
@@ -47,7 +47,7 @@ class RiskAssessment:
 
 
 def _finding_raw_score(finding: Finding) -> float:
-    """CVE'li ise max CVSS, değilse severity ağırlığı."""
+    """Return max CVSS when CVEs are present, otherwise the severity weight."""
     cves = finding.evidence.get("cves") if finding.evidence else None
     if cves:
         cvss_values = [
@@ -59,7 +59,7 @@ def _finding_raw_score(finding: Finding) -> float:
 
 
 def compute_risk_score(findings: Iterable[Finding]) -> float:
-    """0.0–10.0 arası skor döner."""
+    """Return a score in the 0.0–10.0 range."""
     findings_list = list(findings)
     if not findings_list:
         return 0.0
@@ -77,7 +77,7 @@ def compute_risk_score(findings: Iterable[Finding]) -> float:
 
 
 def risk_label_and_color(score: float) -> tuple[str, str]:
-    """Skora göre aktif dile çevrilmiş etiket + renk (hex)."""
+    """Return the label (in the active language) + color (hex) for a score."""
     if score <= 0.0:
         return t("risk.label.clean"), "#388e3c"
     if score < 4.0:
@@ -89,7 +89,7 @@ def risk_label_and_color(score: float) -> tuple[str, str]:
     return t("risk.label.critical"), "#8b0000"
 
 
-#: Risk etiketi kategorisi → aksiyon tonu anahtarı
+#: Risk label category -> action tone key
 def _tone_key(score: float) -> str:
     if score >= 7.0:
         return "risk.summary.tone_urgent"
@@ -101,11 +101,11 @@ def _tone_key(score: float) -> str:
 def _build_summary_text(
     score: float, label: str, findings: list[Finding],
 ) -> str:
-    """1-2 cümlelik aktif-dil özet metni."""
+    """1-2 sentence summary in the active language."""
     if not findings:
         return t("risk.summary.empty")
 
-    # Severity başına sayım
+    # Count per severity
     counts = {sev: 0 for sev in Severity}
     for f in findings:
         counts[f.severity] += 1
@@ -143,7 +143,7 @@ def _build_summary_text(
 
 
 def assess_risk(findings: Iterable[Finding]) -> RiskAssessment:
-    """Tam değerlendirme — skor + etiket + renk + özet cümle."""
+    """Full assessment — score + label + color + summary sentence."""
     findings_list = list(findings)
     score = compute_risk_score(findings_list)
     label, color = risk_label_and_color(score)
@@ -154,7 +154,7 @@ def assess_risk(findings: Iterable[Finding]) -> RiskAssessment:
 
 
 def top_actions(findings: Iterable[Finding], max_count: int = 3) -> list[Finding]:
-    """En kritik N bulguyu aksiyon listesi için döner."""
+    """Return the N most critical findings for the action list."""
     severity_rank = {
         Severity.CRITICAL: 0,
         Severity.HIGH: 1,

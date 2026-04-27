@@ -1,4 +1,4 @@
-"""SSL/TLS probe — sunucunun TLS yapılandırmasındaki zafiyetleri tespit eder."""
+"""SSL/TLS probe — detects weaknesses in the server's TLS configuration."""
 
 from __future__ import annotations
 
@@ -102,7 +102,7 @@ def _try_handshake(
 
 
 def _check_certificate(host: str, port: int, timeout: float) -> Finding | None:
-    """Varsayılan doğrulamayla bağlanmayı dener; hata varsa sertifika zafiyeti raporlar."""
+    """Try a connection with default verification; report a certificate issue on error."""
     context = ssl.create_default_context()
 
     try:

@@ -1,1 +1,1 @@
-"""Ortak Qt widget'ları (info-tooltip, bulgu kartı, ilerleme göstergesi vb.)."""
+"""Shared Qt widgets (info tooltip, finding card, progress indicator, etc.)."""

@@ -1,13 +1,13 @@
-"""GitHub Releases üzerinden yeni sürüm kontrolü.
+"""Check for a new release on GitHub Releases.
 
-Arka plan QThread'de çalışır. Yeni sürüm varsa `update_available` sinyalini
-yayar; UI bu sinyale bağlanıp kullanıcıya küçük bir bildirim gösterir.
+Runs on a background QThread. If a new version exists it emits the
+`update_available` signal; the UI connects to it and shows a small notice.
 
-Tasarım kararları:
-    - İnternet yoksa sessizce geçer (uygulamanın offline çalışma prensibini bozmaz)
-    - 5 saniye timeout — kullanıcıyı geciktirmez
-    - Pre-release sürümler dahil edilmez (sadece stable release'ler sayılır)
-    - Yanlış yapılandırılmış yanıtlara karşı savunmacı parsing
+Design decisions:
+    - Silently skipped when offline (keeps the app's offline-friendly principle)
+    - 5-second timeout — doesn't delay the user
+    - Pre-release versions are excluded (only stable releases count)
+    - Defensive parsing against malformed responses
 """
 
 from __future__ import annotations
@@ -24,27 +24,27 @@ _USER_AGENT: str = f"Pentra/{__version__} (update-check)"
 
 
 class UpdateChecker(QThread):
-    """GitHub Releases API'sini arka planda sorgular.
+    """Queries the GitHub Releases API in the background.
 
-    Kullanım::
+    Usage::
 
         checker = UpdateChecker()
         checker.update_available.connect(on_update)
         checker.start()
     """
 
-    #: (yeni_sürüm, release_url) parametreleriyle yayılır
+    #: Emitted with (new_version, release_url)
     update_available = Signal(str, str)
 
-    #: Hata oluşursa (log için — UI göstermez)
+    #: Emitted on error (for logging — the UI does not show this)
     check_failed = Signal(str)
 
-    def run(self) -> None:  # Qt'nin beklediği isim
-        # Lazy import — requests ağ hatasında thread sessizce çıksın
+    def run(self) -> None:  # Qt's expected name
+        # Lazy import — keeps the thread quiet when requests isn't available
         try:
             import requests
         except ImportError:
-            self.check_failed.emit("requests kütüphanesi yok")
+            self.check_failed.emit("requests library not available")
             return
 
         try:
@@ -54,8 +54,8 @@ class UpdateChecker(QThread):
                 headers={"User-Agent": _USER_AGENT, "Accept": "application/vnd.github+json"},
             )
         except requests.RequestException as e:
-            # Offline / DNS hatası / timeout — sessiz geç
-            self.check_failed.emit(f"Ağ hatası: {e}")
+            # Offline / DNS failure / timeout — skip silently
+            self.check_failed.emit(f"Network error: {e}")
             return
 
         if response.status_code != 200:
@@ -65,7 +65,7 @@ class UpdateChecker(QThread):
         try:
             data: dict[str, Any] = response.json()
         except ValueError:
-            self.check_failed.emit("Geçersiz JSON")
+            self.check_failed.emit("Invalid JSON")
             return
 
         latest_tag: str = str(data.get("tag_name", "")).lstrip("vV")
@@ -73,7 +73,7 @@ class UpdateChecker(QThread):
         prerelease: bool = bool(data.get("prerelease", False))
 
         if not latest_tag or not html_url:
-            self.check_failed.emit("tag_name veya html_url eksik")
+            self.check_failed.emit("tag_name or html_url missing")
             return
 
         if _is_newer(latest_tag, __version__, allow_prerelease=prerelease):
@@ -83,11 +83,11 @@ class UpdateChecker(QThread):
 def _is_newer(
     remote: str, local: str, *, allow_prerelease: bool = False,
 ) -> bool:
-    """remote > local ise True.
+    """Return True if remote > local.
 
-    - `packaging.version.Version` kullanır (PEP 440 uyumlu)
-    - Karşılaştırma yapılamazsa (exotic tag) güvenli varsayılan: False
-    - `allow_prerelease=False` ise pre-release remote'lar güncellenme olarak sayılmaz
+    - Uses `packaging.version.Version` (PEP 440 compliant)
+    - If versions can't be compared (exotic tag), the safe default is False
+    - With `allow_prerelease=False`, pre-release remotes don't count as updates
     """
     try:
         from packaging.version import InvalidVersion, Version
@@ -101,7 +101,7 @@ def _is_newer(
         return False
 
     if remote_ver.is_prerelease and not allow_prerelease:
-        # Uzaktaki pre-release; kullanıcı stable kullanıyorsa önerme
+        # Remote is a pre-release; don't suggest to users on stable
         if not local_ver.is_prerelease:
             return False
 

@@ -1,4 +1,4 @@
-"""Ağ yardımcı fonksiyonları — yerel subnet tespiti vb."""
+"""Network helper functions — local subnet detection and the like."""
 
 from __future__ import annotations
 
@@ -7,18 +7,18 @@ import socket
 
 
 def get_local_ip() -> str | None:
-    """Bu bilgisayarın yerel ağdaki IP'sini tespit eder.
+    """Detect this computer's IP on the local network.
 
-    UDP socket'i kamuya yönlendirip (veri göndermeden) yerel uç IP'yi okur.
-    Bu bir standart yöntem; gerçekten bağlanmaz, sadece OS'nin routing
-    kararını sorar.
+    Points a UDP socket at a public address (without sending data) and reads
+    back the local endpoint IP. This is a standard trick; it doesn't really
+    connect, it just asks the OS for its routing decision.
 
     Returns:
-        Yerel IPv4 adresi (ör. "192.168.1.42") veya tespit edilemezse None.
+        Local IPv4 address (e.g. "192.168.1.42") or None when undetectable.
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        # Gerçekten bir paket gönderilmiyor — sadece OS routing tablosu kullanılıyor
+        # No packet is actually sent — only the OS routing table is consulted
         sock.settimeout(2.0)
         sock.connect(("8.8.8.8", 80))
         ip = sock.getsockname()[0]
@@ -30,24 +30,24 @@ def get_local_ip() -> str | None:
 
 
 def guess_local_cidr(prefix_length: int = 24) -> str | None:
-    """Yerel ağı `/24` varsayımıyla CIDR notasyonunda tahmin eder.
+    """Guess the local network in CIDR notation using a `/24` assumption.
 
     Args:
-        prefix_length: Varsayılan /24 (254 host). Küçük ofisler için
-            doğru bir varsayım. Kurumsal /16 ağlar nadir evde.
+        prefix_length: Default /24 (254 hosts). A reasonable assumption for
+            small offices. Enterprise /16 networks are rare at home.
 
     Returns:
-        "192.168.1.0/24" gibi CIDR string'i veya None.
+        CIDR string like "192.168.1.0/24", or None.
     """
     if not 8 <= prefix_length <= 30:
-        raise ValueError(f"prefix_length 8-30 aralığında olmalı, verilen: {prefix_length}")
+        raise ValueError(f"prefix_length must be in range 8-30, got: {prefix_length}")
 
     local_ip = get_local_ip()
     if local_ip is None:
         return None
 
     try:
-        # Host bit'lerini sıfırlayarak network adresini elde et
+        # Zero the host bits to get the network address
         interface = ipaddress.IPv4Interface(f"{local_ip}/{prefix_length}")
         return str(interface.network)
     except (ValueError, ipaddress.AddressValueError):
@@ -55,7 +55,7 @@ def guess_local_cidr(prefix_length: int = 24) -> str | None:
 
 
 def is_valid_cidr(cidr: str) -> bool:
-    """CIDR string'i geçerli IPv4 ağ mı kontrol eder (parse etmeden önce)."""
+    """Check whether a CIDR string parses as a valid IPv4 network."""
     try:
         ipaddress.ip_network(cidr.strip(), strict=False)
         return True

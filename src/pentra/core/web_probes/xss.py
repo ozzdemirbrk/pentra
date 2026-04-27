@@ -1,4 +1,4 @@
-"""Reflected XSS probe — benign payload'un yanıta kaçışsız yansımasını tespit eder."""
+"""Reflected XSS probe — detects unescaped reflection of a benign payload in the response."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ class XssProbe(WebProbeBase):
         findings: list[Finding] = []
         reported_params: set[str] = set()
 
-        # --- Echo-fallback tespiti ---
+        # --- Echo-fallback detection ---
         if self._site_echoes_random_param(url, session):
             return [
                 Finding(
@@ -106,7 +106,7 @@ class XssProbe(WebProbeBase):
                 reported_params.add(param)
                 break
 
-        # --- Threshold kontrolü ---
+        # --- Threshold check ---
         threshold = max(1, int(len(_PARAMS_TO_TEST) * 0.5))
         if len(findings) >= threshold:
             return [
@@ -140,7 +140,7 @@ class XssProbe(WebProbeBase):
     def _site_echoes_random_param(
         self, url: str, session: requests.Session,
     ) -> bool:
-        """Rastgele param ile echo-fallback tespiti."""
+        """Detect echo-fallback via a random parameter."""
         probe_param = f"pentra{secrets.token_hex(3)}"
         canary = _make_canary()
         test_payloads = [

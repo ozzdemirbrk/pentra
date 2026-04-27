@@ -1,12 +1,13 @@
-"""Pentra logosunu (PNG) Windows .ico dosyasına çevirir.
+"""Convert the Pentra logo (PNG) into a Windows .ico file.
 
-Pillow kullanır. Çoklu boyut (16, 32, 48, 64, 128, 256) içeren tek .ico
-üretir — Windows Explorer, Taskbar ve .exe metadata'sı için uygun.
+Uses Pillow. Produces a single .ico containing multiple sizes
+(16, 32, 48, 64, 128, 256) — suitable for Windows Explorer, the taskbar,
+and .exe metadata.
 
-Kullanım:
+Usage:
     python scripts/create_icon.py
 
-Çıktı:
+Output:
     resources/icons/pentra.ico
 """
 
@@ -18,7 +19,7 @@ from pathlib import Path
 try:
     from PIL import Image
 except ImportError:
-    print("[HATA] Pillow kurulu değil. Kurulum: pip install Pillow", file=sys.stderr)
+    print("[ERROR] Pillow is not installed. Install with: pip install Pillow", file=sys.stderr)
     sys.exit(1)
 
 
@@ -29,13 +30,13 @@ SIZES: list[tuple[int, int]] = [(16, 16), (32, 32), (48, 48), (64, 64), (128, 12
 
 def main() -> int:
     if not SOURCE_PNG.exists():
-        print(f"[HATA] Kaynak PNG bulunamadı: {SOURCE_PNG}", file=sys.stderr)
+        print(f"[ERROR] Source PNG not found: {SOURCE_PNG}", file=sys.stderr)
         return 1
 
     OUTPUT_ICO.parent.mkdir(parents=True, exist_ok=True)
 
     image = Image.open(SOURCE_PNG).convert("RGBA")
-    # Pillow tek save() çağrısı ile çoklu-boyut .ico üretir
+    # A single save() call produces a multi-size .ico
     image.save(
         OUTPUT_ICO,
         format="ICO",
@@ -43,7 +44,7 @@ def main() -> int:
     )
 
     out_size_kb = OUTPUT_ICO.stat().st_size / 1024
-    print(f"[OK] {OUTPUT_ICO} oluşturuldu ({out_size_kb:.1f} KB, {len(SIZES)} boyut).")
+    print(f"[OK] {OUTPUT_ICO} created ({out_size_kb:.1f} KB, {len(SIZES)} sizes).")
     return 0
 
 

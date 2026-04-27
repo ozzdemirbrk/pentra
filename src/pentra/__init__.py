@@ -1,7 +1,7 @@
-"""Pentra — Windows masaüstü sızma testi aracı.
+"""Pentra — Windows desktop penetration testing tool.
 
-Yeni başlayanlar için sihirbaz arayüzlü, yalnızca yerel rapor üreten
-etik sınırlar içinde tasarlanmış pentest yardımcısı.
+A beginner-friendly pentest helper with a wizard UI that only generates
+local reports, designed within ethical boundaries.
 """
 
 __version__ = "1.0.0-beta"

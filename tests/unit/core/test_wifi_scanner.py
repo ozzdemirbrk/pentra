@@ -1,4 +1,4 @@
-"""wifi_scanner.py — netsh çıktısı parse ve finding üretim testleri."""
+"""wifi_scanner.py — netsh output parsing and finding generation tests."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pentra.models import Severity
 
 
 # ---------------------------------------------------------------------
-# Örnek netsh çıktıları
+# Sample netsh outputs
 # ---------------------------------------------------------------------
 _NETSH_ENGLISH = """
 Interface name : Wi-Fi
@@ -128,7 +128,7 @@ class TestParseEdgeCases:
 
 
 # ---------------------------------------------------------------------
-# Finding değerlendirmesi
+# Finding evaluation
 # ---------------------------------------------------------------------
 class TestEvaluation:
     def test_open_network_is_high(self) -> None:

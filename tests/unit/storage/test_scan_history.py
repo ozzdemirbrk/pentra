@@ -1,4 +1,4 @@
-"""scan_history.py — SQLite tarama geçmişi testleri."""
+"""scan_history.py — SQLite scan-history tests."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from pentra.storage.scan_history import (
 
 @pytest.fixture
 def history(tmp_path: Path) -> ScanHistory:
-    """Test için izole bir SQLite DB."""
+    """An isolated SQLite DB for tests."""
     return ScanHistory(tmp_path / "history.db")
 
 
@@ -27,7 +27,7 @@ def _build_report(
     findings: list[Finding] | None = None,
     ended: datetime | None = None,
 ):
-    """Yardımcı — test için hızlı Report üret."""
+    """Helper — quickly build a Report for tests."""
     target = Target(TargetType.LOCALHOST, target_value)
     rb = ReportBuilder()
     return rb.build(
@@ -50,7 +50,7 @@ def _finding(title: str, target: str = "127.0.0.1", sev: Severity = Severity.MED
 
 
 # =====================================================================
-# Şema + record
+# Schema + record
 # =====================================================================
 class TestRecord:
     def test_db_file_created_on_init(self, tmp_path: Path) -> None:
@@ -94,7 +94,7 @@ class TestFindPrevious:
         assert history.find_previous(target) is None
 
     def test_returns_most_recent_for_same_target(self, history: ScanHistory) -> None:
-        # İki farklı tarihte aynı hedef — en yenisi dönmeli
+        # Same target on two different dates — newest should be returned
         old = _build_report(
             findings=[_finding("old_issue")],
             ended=datetime(2026, 4, 1, tzinfo=timezone.utc),
@@ -115,12 +115,12 @@ class TestFindPrevious:
     def test_different_target_not_matched(self, history: ScanHistory) -> None:
         r1 = _build_report(target_value="127.0.0.1", findings=[_finding("x")])
         history.record(r1)
-        # Farklı hedef sorgulanırsa bulunmamalı
+        # Should not match when querying a different target
         other_target = Target(TargetType.LOCALHOST, "192.168.1.1")
         assert history.find_previous(other_target) is None
 
     def test_target_type_matters(self, history: ScanHistory) -> None:
-        """LOCALHOST vs IP_SINGLE farklı target_key üretir → eşleşmemeli."""
+        """LOCALHOST vs IP_SINGLE produce different target_keys -> must not match."""
         localhost_tgt = Target(TargetType.LOCALHOST, "127.0.0.1")
         ip_tgt = Target(TargetType.IP_SINGLE, "127.0.0.1")
 
@@ -132,7 +132,7 @@ class TestFindPrevious:
         )
         history.record(r1)
 
-        # IP_SINGLE 127.0.0.1 sorgusu localhost kaydını bulmamalı
+        # An IP_SINGLE 127.0.0.1 lookup should not find the localhost record
         assert history.find_previous(ip_tgt) is None
         assert history.find_previous(localhost_tgt) is not None
 

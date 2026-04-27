@@ -1,8 +1,8 @@
-"""Web Scanner — URL hedeflerinde Seviye 2 probe'ları çalıştırır.
+"""Web Scanner — runs Level 2 probes against URL targets.
 
-Bir URL alır, kayıtlı probe'ların her birini sırayla çalıştırır, bulguları
-Qt sinyalleri üzerinden UI'ye yayar. Her probe tek bir zafiyet kategorisine
-odaklanır (WebProbeBase alt sınıfı) — yeni probe eklemek = yeni sınıf yazmak.
+Takes a URL, runs each registered probe in sequence, and emits findings
+to the UI via Qt signals. Each probe focuses on one vulnerability
+category (a WebProbeBase subclass) — adding a probe means writing a new class.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from pentra.core.web_probes.xss import XssProbe
 from pentra.i18n import t
 from pentra.models import Finding, ScanDepth, Severity, Target
 
-# User-Agent — probe'ların kendilerini tanıtması bir etik norm
+# User-Agent — probes identifying themselves is an ethical norm
 _USER_AGENT = (
     "Pentra/0.2 (+https://github.com/ozzdemirbrk/pentra; "
     "security-assessment scanner)"
@@ -30,7 +30,7 @@ _USER_AGENT = (
 
 
 class WebScanner(ScannerBase):
-    """URL hedeflerini tarar — kayıtlı probe'ları sırayla çalıştırır."""
+    """Scans URL targets — runs the registered probes in sequence."""
 
     @property
     def scanner_name(self) -> str:
@@ -100,12 +100,12 @@ class WebScanner(ScannerBase):
 
     # -----------------------------------------------------------------
     def _enrich_with_cves(self, finding: Finding) -> Finding:
-        """Server header sızıntısı bulgularını NVD'den CVE ile zenginleştir."""
+        """Enrich Server-header leak findings with CVEs from NVD."""
         if self._cve_mapper is None:
             return finding
 
-        # Evidence'ta marker — security_headers probe Server header sızıntısında
-        # bunu "Server" olarak set eder.
+        # Marker on evidence — the security_headers probe sets this to
+        # "Server" when the Server header leaks.
         if finding.evidence.get("leaked_header") != "Server":
             return finding
 
@@ -159,7 +159,7 @@ class WebScanner(ScannerBase):
 
 
 # ---------------------------------------------------------------------
-# Probe kaydı & seçimi
+# Probe registration & selection
 # ---------------------------------------------------------------------
 def _all_registered_probes() -> list[WebProbeBase]:
     return [
@@ -173,5 +173,5 @@ def _all_registered_probes() -> list[WebProbeBase]:
 
 
 def _select_probes(depth: ScanDepth) -> list[WebProbeBase]:
-    del depth  # MVP'de derinlikten bağımsız
+    del depth  # depth-agnostic in MVP
     return _all_registered_probes()

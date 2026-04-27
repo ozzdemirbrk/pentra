@@ -1,11 +1,11 @@
-"""scope_validator.py — kapsamlı test seti.
+"""scope_validator.py — comprehensive test suite.
 
-Test kategorileri:
-    - IPv4 tek adres sınıflandırma (loopback / RFC1918 / public / denied)
-    - CIDR aralıkları
-    - URL hedefleri (DNS mock'lanır)
-    - Geçersiz format hataları
-    - Edge case'ler (broadcast, 0.0.0.0, IPv6)
+Test categories:
+    - Single IPv4 classification (loopback / RFC1918 / public / denied)
+    - CIDR ranges
+    - URL targets (DNS is mocked)
+    - Invalid format errors
+    - Edge cases (broadcast, 0.0.0.0, IPv6)
 """
 
 from __future__ import annotations
@@ -20,10 +20,10 @@ from pentra.safety.scope_validator import ScopeValidator
 
 
 def _make_validator(resolver: Callable[[str], list[str]] | None = None) -> ScopeValidator:
-    """Test için ScopeValidator — varsayılan olarak DNS çağırmayan fake resolver."""
+    """ScopeValidator for tests — defaults to a fake resolver that does not call DNS."""
     if resolver is None:
         def _fail(_: str) -> list[str]:
-            raise AssertionError("DNS resolver testte çağrılmamalıydı")
+            raise AssertionError("DNS resolver should not have been called in this test")
         resolver = _fail
     return ScopeValidator(dns_resolver=resolver)
 
@@ -46,7 +46,7 @@ class TestLocalhost:
         assert result.is_allowed
 
     def test_non_loopback_value_for_localhost_denied(self) -> None:
-        """Localhost tipi için 127.x dışında IP geçilmiş — karar DENIED."""
+        """An IP outside 127.x was passed for the localhost type — decision DENIED."""
         v = _make_validator()
         target = Target(TargetType.LOCALHOST, "192.168.1.1")
         result = v.validate(target)
@@ -98,7 +98,7 @@ class TestSingleIpDenied:
             ("169.254.1.1", "Link-local"),
             ("0.0.0.0", "0.0.0.0"),
             ("255.255.255.255", "broadcast"),
-            ("240.0.0.1", "Rezerve"),
+            ("240.0.0.1", "Reserved"),
         ],
     )
     def test_denied_ranges(self, ip: str, reason_contains: str) -> None:
@@ -155,12 +155,12 @@ class TestCidrExternal:
         assert result.needs_confirmation
 
     def test_too_large_public_cidr_denied(self) -> None:
-        """/16'dan daha büyük public ağlar DoS riski — DENIED."""
+        """Public networks larger than /16 carry DoS risk — DENIED."""
         v = _make_validator()
         target = Target(TargetType.IP_RANGE, "8.0.0.0/8")
         result = v.validate(target)
         assert result.is_denied
-        assert "büyük" in result.reason.lower()
+        assert "too large" in result.reason.lower()
 
 
 class TestCidrInvalid:
@@ -202,7 +202,7 @@ class TestUrl:
         assert result.is_denied
 
     def test_url_with_ip_hostname(self) -> None:
-        v = _make_validator()  # DNS çağrılmamalı, hostname zaten IP
+        v = _make_validator()  # DNS should not be called, hostname is already an IP
         target = Target(TargetType.URL, "http://192.168.1.50/admin")
         result = v.validate(target)
         assert result.is_allowed
@@ -222,13 +222,13 @@ class TestUrl:
 
     def test_dns_failure_denied(self) -> None:
         def _fail(hostname: str) -> list[str]:
-            raise socket.gaierror(f"ad çözümlenemedi: {hostname}")
+            raise socket.gaierror(f"name could not be resolved: {hostname}")
 
         v = _make_validator(resolver=_fail)
         target = Target(TargetType.URL, "https://nonexistent.invalid")
         result = v.validate(target)
         assert result.is_denied
-        assert "çözümlene" in result.reason.lower()
+        assert "could not be resolved" in result.reason.lower()
 
     def test_empty_resolution_list_denied(self) -> None:
         v = _make_validator(resolver=lambda h: [])
@@ -237,7 +237,7 @@ class TestUrl:
         assert result.is_denied
 
     def test_mixed_resolution_strictest_wins(self) -> None:
-        """Biri public, biri özel ise: public baskın — ek onay."""
+        """If one is public and one is private: public dominates — extra confirmation needed."""
         v = _make_validator(resolver=lambda h: ["8.8.8.8", "192.168.1.1"])
         target = Target(TargetType.URL, "https://mixed.example")
         result = v.validate(target)

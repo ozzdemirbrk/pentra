@@ -1,1 +1,1 @@
-"""Format başına rapor dışa aktarıcılar (pdf, html, md)."""
+"""Per-format report exporters (pdf, html, md)."""

@@ -1,6 +1,6 @@
-"""Pentra uygulamasının giriş noktası.
+"""Pentra application entry point.
 
-Tüm bağımlılıkları oluşturur ve PentraWizard'ı başlatır.
+Builds all dependencies and launches PentraWizard.
 """
 
 from __future__ import annotations
@@ -46,10 +46,10 @@ def _build_scanner_factory(
     auth_manager: AuthorizationManager,
     cve_mapper: CveMapper | None,
 ):
-    """TargetType'a göre uygun Scanner örneği üretir."""
+    """Produces the appropriate Scanner instance based on TargetType."""
 
     def factory(target_type: TargetType) -> ScannerBase:
-        # URL → WebScanner, WIFI → WifiScanner, diğerleri → NetworkScanner.
+        # URL -> WebScanner, WIFI -> WifiScanner, others -> NetworkScanner.
         if target_type == TargetType.URL:
             return WebScanner(
                 rate_limiter=rate_limiter,
@@ -76,31 +76,31 @@ def _build_scanner_factory(
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv if argv is None else argv
 
-    # ---- .env dosyasını yükle (varsa) ----
-    # Proje kökünde .env varsa NVD_API_KEY gibi anahtarları yükler.
-    # Dosya yoksa sessizce geçer (os.environ'da tanımlı olanlar kullanılır).
+    # ---- Load .env file (if present) ----
+    # If there's a .env at project root, it loads keys like NVD_API_KEY.
+    # If missing, silently skipped (values already in os.environ are used).
     _load_env_file()
 
-    # ---- Qt uygulaması ----
+    # ---- Qt application ----
     app = QApplication(args)
     app.setApplicationName(__app_name__)
     app.setApplicationVersion(__version__)
     app.setOrganizationName(__app_name__)
 
-    # ---- Paylaşımlı servisler ----
+    # ---- Shared services ----
     appdata = get_appdata_dir()
     audit_log = AuditLog(log_path=appdata / "audit.log")
     scan_history = ScanHistory(db_path=appdata / "history.db")
     scope_validator = ScopeValidator()
-    auth_manager = AuthorizationManager()  # secret otomatik, TTL 30 dk
+    auth_manager = AuthorizationManager()  # auto-generated secret, 30 min TTL
 
-    # Rate limiter: varsayılan 500 pps, burst 2000
+    # Rate limiter: default 500 pps, burst 2000
     rate_limiter = TokenBucket(
         capacity=MAX_RATE_LIMIT_PPS,
         refill_rate_per_sec=float(DEFAULT_RATE_LIMIT_PPS),
     )
 
-    # ---- NVD / CVE Mapper (opsiyonel — .env'de key varsa hızlı, yoksa anonim) ----
+    # ---- NVD / CVE Mapper (optional — fast when key is in .env, otherwise anonymous) ----
     nvd_api_key = os.environ.get("NVD_API_KEY") or None
     nvd_client = NvdClient(api_key=nvd_api_key)
     cve_mapper = CveMapper(nvd_client=nvd_client)
@@ -119,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
         scanner_factory=scanner_factory,
     )
 
-    # ---- Sihirbaz ----
+    # ---- Wizard ----
     wizard = PentraWizard(orchestrator=orchestrator, scan_history=scan_history)
     wizard.setPage(PageId.AUTHORIZATION, AuthorizationPage())
     wizard.setPage(PageId.TARGET_SELECT, TargetSelectPage())
@@ -130,12 +130,12 @@ def main(argv: list[str] | None = None) -> int:
 
     wizard.show()
 
-    # ---- Arka planda güncelleme kontrolü ----
-    # İnternet yoksa sessizce geçer; yeni sürüm varsa küçük bir dialog göstereceğiz.
+    # ---- Background update check ----
+    # Silently skipped when offline; if a new version exists we'll show a small dialog.
     _update_checker = UpdateChecker()
 
     def _on_update_available(new_version: str, release_url: str) -> None:
-        # Lazy import — startup süresini uzatmamak için
+        # Lazy import — to avoid extending startup time
         from pentra.gui.widgets.update_notification import UpdateNotificationDialog
         dialog = UpdateNotificationDialog(
             new_version=new_version, release_url=release_url, parent=wizard,
@@ -144,24 +144,24 @@ def main(argv: list[str] | None = None) -> int:
 
     _update_checker.update_available.connect(_on_update_available)
     _update_checker.start()
-    # Worker, app.exec() süresince yaşayacak — tek-shot, bittiğinde Qt otomatik temizler.
-    # Referansı tutmak için app.exec() içinde scope'ta kalması yeterli.
+    # Worker lives for the duration of app.exec() — one-shot, Qt cleans up automatically.
+    # Staying in scope inside app.exec() is enough to keep the reference alive.
 
     return app.exec()
 
 
 def _load_env_file() -> None:
-    """Proje kökündeki .env dosyasını os.environ'a yükler (varsa).
+    """Load the project-root .env file into os.environ (if present).
 
-    Arama sırası: çalışma dizini → bu modülün üst klasörleri.
+    Search order: current working directory -> this module's parent directories.
     """
-    # Önce çalışma dizini
+    # First the current working directory
     cwd_env = Path.cwd() / ".env"
     if cwd_env.exists():
         load_dotenv(cwd_env)
         return
 
-    # Sonra paket içinden yukarı doğru (ör. kaynaktan çalıştırmada)
+    # Then walk upward from within the package (e.g. when running from source)
     here = Path(__file__).resolve()
     for parent in [here.parent, *here.parents]:
         candidate = parent / ".env"

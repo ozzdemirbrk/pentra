@@ -1,12 +1,12 @@
-"""Servis+versiyon → CVE listesi eşleştirme.
+"""Service+version -> CVE list mapping.
 
-NVD keyword araması gevşek olduğundan (ör. "IIS 10.0" aranınca binlerce
-alakasız CVE dönebiliyor), iki aşamalı filtre uygulanır:
+NVD keyword search is loose (e.g. searching "IIS 10.0" can return thousands
+of unrelated CVEs), so a two-stage filter is applied:
 
-    1. **Servis adı normalleştirme**: `microsoft-iis` → `IIS`, `openssh` → `OpenSSH`
-       gibi NVD'nin kullandığı yaygın adlara çevrilir
-    2. **Post-filter**: Sadece açıklaması hem servis adını hem versiyonu
-       içeren CVE'ler döner (case-insensitive)
+    1. **Service name normalization**: `microsoft-iis` -> `IIS`,
+       `openssh` -> `OpenSSH` — names translated to NVD's canonical form
+    2. **Post-filter**: only CVEs whose description contains both the
+       service name and the version pass through (case-insensitive)
 """
 
 from __future__ import annotations
@@ -18,15 +18,15 @@ from pentra.knowledge.nvd_client import Cve, NvdClient
 
 
 # ---------------------------------------------------------------------
-# Servis → CPE prefix eşlemesi
-# NVD keyword araması çoğu zaman açıklamada versiyon geçmediği için 0 döner.
-# CPE ile kesin versiyon eşleşmesi yaparız — çok daha doğru sonuç.
-# Format: `cpe:2.3:a:vendor:product` (versiyon + wildcard'lar eklenecek)
+# Service -> CPE prefix mapping
+# NVD keyword search often returns 0 hits because the version isn't in the
+# description. CPE lookups give an exact version match — much more accurate.
+# Format: `cpe:2.3:a:vendor:product` (version + wildcards are appended)
 # ---------------------------------------------------------------------
 _CPE_PREFIXES: dict[str, str] = {
     "Microsoft IIS": "cpe:2.3:a:microsoft:internet_information_services",
     "Apache": "cpe:2.3:a:apache:http_server",
-    "nginx": "cpe:2.3:a:f5:nginx",  # NVD f5 satın aldığından beri
+    "nginx": "cpe:2.3:a:f5:nginx",  # after NVD's f5 acquisition
     "OpenSSH": "cpe:2.3:a:openbsd:openssh",
     "MySQL": "cpe:2.3:a:oracle:mysql",
     "MariaDB": "cpe:2.3:a:mariadb:mariadb",
@@ -44,11 +44,11 @@ _CPE_PREFIXES: dict[str, str] = {
 
 
 # ---------------------------------------------------------------------
-# Servis adı normalleştirme
-# Nmap / HTTP Server header'ındaki isim → NVD'nin kullandığı kanonik isim
+# Service name normalization
+# Name from Nmap / HTTP Server header -> canonical name used by NVD
 # ---------------------------------------------------------------------
 _SERVICE_NORMALIZATIONS: dict[str, str] = {
-    # Web sunucular
+    # Web servers
     "microsoft-iis": "Microsoft IIS",
     "ms-iis": "Microsoft IIS",
     "iis": "Microsoft IIS",
@@ -56,12 +56,12 @@ _SERVICE_NORMALIZATIONS: dict[str, str] = {
     "apache httpd": "Apache",
     "httpd": "Apache",
     "nginx": "nginx",
-    "openresty": "nginx",  # OpenResty nginx tabanlı
+    "openresty": "nginx",  # OpenResty is nginx-based
     "lighttpd": "lighttpd",
     # SSH
     "openssh": "OpenSSH",
     "ssh": "OpenSSH",
-    # Veritabanları
+    # Databases
     "mysql": "MySQL",
     "mariadb": "MariaDB",
     "postgresql": "PostgreSQL",
@@ -70,10 +70,10 @@ _SERVICE_NORMALIZATIONS: dict[str, str] = {
     "mongodb": "MongoDB",
     "elasticsearch": "Elasticsearch",
     "memcached": "Memcached",
-    # RDP / uzak masaüstü
+    # RDP / remote desktop
     "ms-wbt-server": "Remote Desktop",
     "rdp": "Remote Desktop",
-    # E-posta
+    # Email
     "smtp": "SMTP",
     "exim": "Exim",
     "postfix": "Postfix",
@@ -82,7 +82,7 @@ _SERVICE_NORMALIZATIONS: dict[str, str] = {
     "ftp": "FTP",
     "vsftpd": "vsftpd",
     "proftpd": "ProFTPD",
-    # Diğer
+    # Other
     "telnet": "Telnet",
     "smb": "SMB",
     "microsoft-ds": "SMB",
@@ -93,19 +93,19 @@ _SERVICE_NORMALIZATIONS: dict[str, str] = {
 
 @dataclass(frozen=True)
 class CveQuery:
-    """Bir servis+versiyon sorgusu — CveMapper'a gelen girdi."""
+    """A service+version query — input to CveMapper."""
 
     service: str
     version: str
 
     @property
     def is_queryable(self) -> bool:
-        """Hem servis hem versiyon dolu ve tanınmış olmalı."""
+        """Both service and version must be non-empty and recognised."""
         return bool(self.service.strip()) and bool(self.version.strip())
 
 
 class CveMapper:
-    """Servis+versiyon çiftlerini CVE listesine çevirir."""
+    """Maps service+version pairs to a list of CVEs."""
 
     def __init__(self, nvd_client: NvdClient, max_cves_per_query: int = 10) -> None:
         self._nvd = nvd_client
@@ -113,15 +113,15 @@ class CveMapper:
 
     # -----------------------------------------------------------------
     def lookup(self, service: str, version: str) -> list[Cve]:
-        """Tek bir servis+versiyon için CVE listesi döndürür.
+        """Return a CVE list for a single service+version pair.
 
         Args:
-            service: Nmap/HTTP'den alınan ham servis adı (ör. `microsoft-iis`)
-            version: Versiyon string'i (ör. `10.0` veya `2.4.41`)
+            service: Raw service name from Nmap/HTTP (e.g. `microsoft-iis`)
+            version: Version string (e.g. `10.0` or `2.4.41`)
 
         Returns:
-            CVSS skoruna göre azalan sırada CVE listesi. Boş versiyon,
-            tanınmayan servis veya ağ hatası → boş liste.
+            CVEs sorted by CVSS score descending. Empty version, unknown
+            service, or network error -> empty list.
         """
         if not service.strip() or not version.strip():
             return []
@@ -130,21 +130,21 @@ class CveMapper:
         if not canonical:
             return []
 
-        # Versiyonun başını al (bazıları "10.0.17763" gibi; "10.0" daha iyi eşleşir)
+        # Take the leading segment of the version (e.g. "10.0.17763" -> "10.0")
         short_version = self._shorten_version(version)
 
-        # CPE-based search (tam versiyon eşleşmesi) — tanınmış servisler için
-        # kesin ve tek doğru yol. CPE 0 dönerse, NVD'de gerçekten o versiyon
-        # için kayıt yok demektir — keyword fallback YANLIŞ sonuç döndürür
-        # (örn. IIS 10.0 sorunca IIS 5.0 CVE'leri gelir).
+        # CPE-based search (exact version match) — the definitive path for
+        # recognised services. If CPE returns 0 it means NVD truly has no
+        # record for that version — a keyword fallback would return WRONG
+        # results (e.g. searching IIS 10.0 would return IIS 5.0 CVEs).
         if canonical in _CPE_PREFIXES:
             cpe_prefix = _CPE_PREFIXES[canonical]
             cpe_name = f"{cpe_prefix}:{short_version}:*:*:*:*:*:*:*"
             return self._nvd.search_by_cpe(cpe_name, max_results=self._max)
 
-        # Tanınmayan servis — CPE haritasında yok. En iyi çaba olarak keyword
-        # araması + servis adı filtresi. Sonuçlar "muhtemel ilgili" olarak
-        # yorumlanmalı — versiyon eşleşmesi garanti değil.
+        # Unknown service — not in the CPE map. Best-effort keyword search
+        # plus service-name filter. Treat results as "likely related" —
+        # exact version match is not guaranteed.
         return self._nvd.search_cves(
             keyword=canonical,
             max_results=self._max,
@@ -152,12 +152,12 @@ class CveMapper:
         )
 
     def lookup_from_server_header(self, server_header: str) -> list[Cve]:
-        """HTTP `Server:` header'ını parse edip CVE listesi döndürür.
+        """Parse an HTTP `Server:` header and return a CVE list.
 
-        Örnekler:
-            "Microsoft-IIS/10.0" → IIS 10.0
-            "Apache/2.4.41 (Ubuntu)" → Apache 2.4.41
-            "nginx/1.18.0" → nginx 1.18.0
+        Examples:
+            "Microsoft-IIS/10.0" -> IIS 10.0
+            "Apache/2.4.41 (Ubuntu)" -> Apache 2.4.41
+            "nginx/1.18.0" -> nginx 1.18.0
         """
         service, version = _parse_server_header(server_header)
         if not service or not version:
@@ -167,15 +167,15 @@ class CveMapper:
     # -----------------------------------------------------------------
     @staticmethod
     def _normalize_service(service_raw: str) -> str:
-        """Ham servis adını NVD kanonik formuna çevirir.
+        """Normalise the raw service name to NVD's canonical form.
 
-        Tanınmazsa orijinali döner — yine de NVD'ye gönderilir, post-filter
-        eşleşmeleri eler.
+        If unrecognised the original is returned — it's still sent to NVD
+        and the post-filter weeds out non-matches.
         """
         key = service_raw.strip().lower()
         if key in _SERVICE_NORMALIZATIONS:
             return _SERVICE_NORMALIZATIONS[key]
-        # Kısmi eşleşme: "http" içeren ama tam tanımlanmamış isimler
+        # Partial match: names containing "http" but not fully defined
         for known_key, canonical in _SERVICE_NORMALIZATIONS.items():
             if known_key in key:
                 return canonical
@@ -183,20 +183,21 @@ class CveMapper:
 
     @staticmethod
     def _shorten_version(version: str) -> str:
-        """Uzun versiyon string'ini kısaltır ama bilgi kaybetmez.
+        """Shorten a long version string without losing useful info.
 
-        Örnekler:
-            "10.0.17763.1" → "10.0"  (2 parça yeter)
-            "2.4.41" → "2.4.41" (3 parça — tipik semver)
-            "Windows 10 20H2" → "10" (ilk sayı)
+        Examples:
+            "10.0.17763.1" -> "10.0"  (two segments are enough)
+            "2.4.41" -> "2.4.41" (three segments — typical semver)
+            "Windows 10 20H2" -> "10" (first number)
 
-        Post-filter açıklamada bu substring'i arayacağı için çok kısa olmamalı.
+        The post-filter searches for this substring in the description, so
+        it must not be too short.
         """
-        # İlk 2-3 sayısal segmenti al
+        # Take the first 2-3 numeric segments
         match = re.match(r"^(\d+(?:\.\d+){1,2})", version.strip())
         if match:
             return match.group(1)
-        # Sayısal yapı yok, olduğu gibi döndür
+        # No numeric structure, return as-is
         return version.strip()
 
 
@@ -212,7 +213,7 @@ _SERVER_HEADER_PATTERNS: tuple[re.Pattern[str], ...] = (
 
 
 def _parse_server_header(header: str) -> tuple[str, str]:
-    """`Server: X/Y (Z)` → (X, Y). Başarısızlıkta ('', '')."""
+    """`Server: X/Y (Z)` -> (X, Y). Returns ('', '') on failure."""
     header = header.strip()
     for pattern in _SERVER_HEADER_PATTERNS:
         match = pattern.match(header)

@@ -1,4 +1,4 @@
-"""SSH default credentials probe — port 22'de varsayılan parola testi."""
+"""SSH default credentials probe — tests default passwords on port 22."""
 
 from __future__ import annotations
 

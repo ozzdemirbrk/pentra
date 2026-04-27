@@ -1,4 +1,4 @@
-"""mongodb_probe.py testleri — mocked pymongo."""
+"""mongodb_probe.py tests — mocked pymongo."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pentra.models import Severity
 
 @pytest.fixture
 def pymongo_stub():
-    """pymongo modülünü sahte bir MongoClient ile mock'la."""
+    """Mock the pymongo module with a fake MongoClient."""
     mongo_client = MagicMock()
     operation_failure = type("OperationFailure", (Exception,), {})
     connection_failure = type("ConnectionFailure", (Exception,), {})
@@ -41,7 +41,7 @@ def pymongo_stub():
 
 class TestMongoDbOpen:
     def test_anonymous_list_dbs_success_yields_critical(self, pymongo_stub) -> None:
-        # client.list_database_names() başarılı → auth yok
+        # client.list_database_names() succeeds → no auth
         fake_client = MagicMock()
         fake_client.list_database_names.return_value = ["admin", "local", "config", "userdata"]
         pymongo_stub["client_factory"].return_value = fake_client
@@ -88,10 +88,10 @@ class TestMongoDbProtected:
 
 class TestMongoDbMissingDep:
     def test_pymongo_not_installed_returns_empty(self) -> None:
-        """pymongo ImportError → probe sessizce boş döner."""
+        """pymongo ImportError → probe silently returns empty."""
         import sys
         probe = MongoDbAuthProbe()
-        # pymongo mock'u kaldır; import başarısız olsun
+        # Remove the pymongo mock; import must fail
         with patch.dict(sys.modules, {"pymongo": None}):
             findings = probe.probe("10.0.0.5", 27017)
         assert findings == []

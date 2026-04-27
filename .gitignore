@@ -17,7 +17,7 @@ pip-wheel-metadata/
 MANIFEST
 
 # ----------------------------------------------------
-# Sanal ortam
+# Virtual environment
 # ----------------------------------------------------
 .venv/
 venv/
@@ -25,7 +25,7 @@ env/
 ENV/
 
 # ----------------------------------------------------
-# Test & Kapsam
+# Test & coverage
 # ----------------------------------------------------
 .pytest_cache/
 .coverage
@@ -38,7 +38,7 @@ coverage.xml
 .hypothesis/
 
 # ----------------------------------------------------
-# Lint / Tip / Format önbellekleri
+# Lint / type / format caches
 # ----------------------------------------------------
 .mypy_cache/
 .ruff_cache/
@@ -54,24 +54,24 @@ dmypy.json
 *.swo
 *~
 
-# Claude Code oturum ayarları — kullanıcıya özel, commit edilmez
+# Claude Code session settings — user-specific, not committed
 .claude/
 !.claude/commands/
 
 # ----------------------------------------------------
-# Geliştirme notları — public repo'da bulunmaz
+# Development notes — not part of the public repo
 # ----------------------------------------------------
 CLAUDE.md
 memory.md
 memory-bank/
 
-# Pentra_Rapor_*.{en,tr} de kullanıcı raporlarıdır
+# User-generated reports (also caught below)
 Pentra_Report_*.pdf
 Pentra_Report_*.html
 Pentra_Report_*.md
 
 # ----------------------------------------------------
-# İşletim sistemi
+# Operating system
 # ----------------------------------------------------
 Thumbs.db
 Desktop.ini
@@ -79,7 +79,7 @@ $RECYCLE.BIN/
 .DS_Store
 
 # ----------------------------------------------------
-# PyInstaller çıktıları
+# PyInstaller output
 # ----------------------------------------------------
 *.spec
 build/
@@ -87,7 +87,7 @@ dist/
 pyinstaller_build/
 
 # ----------------------------------------------------
-# Pentra'ya özel — hassas çıktılar kesinlikle commit EDİLMEZ
+# Pentra-specific — sensitive output never committed
 # ----------------------------------------------------
 *.log
 audit.log
@@ -95,12 +95,12 @@ audit.log
 *.sqlite
 *.sqlite3
 
-# Kullanıcı raporları (masaüstüne yazılır ama ihtiyaten)
+# User reports (saved to desktop, but guarded here too)
 Pentra_Rapor_*.pdf
 Pentra_Rapor_*.html
 Pentra_Rapor_*.md
 
-# Yerel yapılandırma ve sırlar
+# Local config and secrets
 .env
 .env.*
 !.env.example
@@ -109,5 +109,5 @@ secrets/
 *.key
 *.crt
 
-# Kullanıcı AppData simulasyonu (test fixture'ları için)
+# AppData simulation for tests/fixtures
 appdata_local/

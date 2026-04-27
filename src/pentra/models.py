@@ -1,7 +1,7 @@
-"""Pentra genelinde paylaşılan veri modelleri ve enum'lar.
+"""Shared data models and enums used across Pentra.
 
-Bu modül GUI, core, safety, storage katmanlarının tümü tarafından
-import edilir — alt katmanlara bağımlılığı yoktur.
+This module is imported by all of the GUI, core, safety, and storage layers
+and has no dependencies on them.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from typing import Any
 
 
 class TargetType(str, Enum):
-    """Tarama hedefi tipi."""
+    """Type of scan target."""
 
     LOCALHOST = "localhost"
     LOCAL_NETWORK = "local_network"
@@ -24,7 +24,7 @@ class TargetType(str, Enum):
 
 
 class ScanDepth(str, Enum):
-    """Tarama derinliği — süre ve kapsam farkı."""
+    """Scan depth — differs by duration and coverage."""
 
     QUICK = "quick"
     STANDARD = "standard"
@@ -32,7 +32,7 @@ class ScanDepth(str, Enum):
 
 
 class Severity(str, Enum):
-    """Bulgu önem derecesi — raporda renk kodu olarak kullanılır."""
+    """Finding severity level — used as a color code in the report."""
 
     INFO = "info"
     LOW = "low"
@@ -42,27 +42,27 @@ class Severity(str, Enum):
 
 
 class ScopeDecisionType(str, Enum):
-    """Kapsam doğrulama sonucu."""
+    """Outcome of scope validation."""
 
-    # Özel ağ (RFC1918) veya localhost — doğrudan izin
+    # Private network (RFC1918) or localhost — allowed directly
     ALLOWED_PRIVATE = "allowed_private"
-    # Dış hedef — kullanıcının ek onayı gerekir
+    # External target — requires additional user confirmation
     REQUIRES_CONFIRMATION = "requires_confirmation"
-    # Rezerve/multicast/link-local — tarama yasak
+    # Reserved/multicast/link-local — scanning forbidden
     DENIED = "denied"
 
 
 @dataclass(frozen=True)
 class Target:
-    """Tarama hedefi — tarayıcılara geçirilen immutable değer nesnesi.
+    """Scan target — immutable value object passed to scanners.
 
-    `value` hedef tipine göre farklı format alır:
+    `value` takes different formats depending on the target type:
         - LOCALHOST: "127.0.0.1"
-        - LOCAL_NETWORK: otomatik tespit edilen CIDR (ör. "192.168.1.0/24")
+        - LOCAL_NETWORK: auto-detected CIDR (e.g. "192.168.1.0/24")
         - IP_SINGLE: "192.168.1.50"
-        - IP_RANGE: CIDR notasyonu ("192.168.1.0/24")
+        - IP_RANGE: CIDR notation ("192.168.1.0/24")
         - URL: "https://example.com"
-        - WIFI: SSID veya "*" (çevredeki tüm ağlar)
+        - WIFI: SSID or "*" (all nearby networks)
     """
 
     target_type: TargetType
@@ -72,66 +72,66 @@ class Target:
 
 @dataclass(frozen=True)
 class ScopeDecision:
-    """ScopeValidator'ın çıktısı."""
+    """Output of ScopeValidator."""
 
     decision: ScopeDecisionType
     target: Target
-    reason: str  # Türkçe açıklama — UI'da gösterilir
+    reason: str  # Localized explanation — shown in the UI
     resolved_ips: tuple[str, ...] = field(default_factory=tuple)
 
     @property
     def is_allowed(self) -> bool:
-        """Doğrudan izinli mi (ek onay gerektirmez)."""
+        """Whether the target is directly allowed (no extra confirmation needed)."""
         return self.decision == ScopeDecisionType.ALLOWED_PRIVATE
 
     @property
     def is_denied(self) -> bool:
-        """Kesinlikle reddedildi mi."""
+        """Whether the target was firmly denied."""
         return self.decision == ScopeDecisionType.DENIED
 
     @property
     def needs_confirmation(self) -> bool:
-        """Kullanıcının ek onay vermesi gerekiyor mu."""
+        """Whether the user must provide an additional confirmation."""
         return self.decision == ScopeDecisionType.REQUIRES_CONFIRMATION
 
 
 @dataclass(frozen=True)
 class AuthorizationRequest:
-    """Yetki talebi — kullanıcı sihirbazda onay verdiğinde oluşturulur."""
+    """Authorization request — created when the user approves in the wizard."""
 
     target: Target
     depth: ScanDepth
-    user_accepted_terms: bool  # Ekran 1'deki ana onay
-    external_target_confirmed: bool = False  # RFC1918 dışı için ek onay
+    user_accepted_terms: bool  # Main consent from screen 1
+    external_target_confirmed: bool = False  # Extra consent for non-RFC1918 targets
 
 
 @dataclass(frozen=True)
 class AuthorizationToken:
-    """Tek-kullanımlık tarama yetki belirteci.
+    """Single-use scan authorization token.
 
-    Scanner bu token'ı almadan hiçbir paket gönderemez. HMAC imzalı
-    olduğu için sahte token üretilemez.
+    A scanner cannot send any packet without receiving this token. Because it is
+    HMAC-signed, a forged token cannot be produced.
     """
 
-    token_id: str  # UUID — izleme için
+    token_id: str  # UUID — for tracking
     payload: str  # base64 encoded JSON — target_hash, granted_at, ttl
     signature: str  # HMAC-SHA256 hex
 
 
 @dataclass(frozen=True)
 class Finding:
-    """Bir güvenlik bulgusu — rapor bileşeni.
+    """A single security finding — a building block of the report.
 
-    Her tarayıcı N tane Finding döndürür.
+    Each scanner returns N Findings.
     """
 
     scanner_name: str
     severity: Severity
-    title: str  # Türkçe özet ("SSH açık ve şifreli parola kabul ediyor")
-    description: str  # Türkçe detay
-    target: str  # IP:port, URL vb.
+    title: str  # Localized summary (e.g. "SSH accepts default credentials")
+    description: str  # Localized detail
+    target: str  # IP:port, URL etc.
     cve_ids: tuple[str, ...] = field(default_factory=tuple)
-    remediation: str | None = None  # Türkçe onarım önerisi
+    remediation: str | None = None  # Localized remediation suggestion
     evidence: dict[str, Any] = field(default_factory=dict)
     discovered_at: datetime = field(
         default_factory=lambda: datetime.now(timezone.utc),
@@ -140,9 +140,9 @@ class Finding:
 
 @dataclass(frozen=True)
 class AuditEvent:
-    """Denetim izine yazılan olay — değişmez, hash-zincirli."""
+    """Event written to the audit log — immutable, hash-chained."""
 
-    event_type: str  # "scan_requested", "scan_started", "scan_completed" vb.
+    event_type: str  # "scan_requested", "scan_started", "scan_completed" etc.
     timestamp: datetime
-    target_fingerprint: str  # Target'ın SHA256 kısa özeti (tam değer yerine)
+    target_fingerprint: str  # Short SHA256 digest of the target (instead of the full value)
     details: dict[str, Any] = field(default_factory=dict)

@@ -1,6 +1,6 @@
-"""Yeni sürüm bildirimi dialog'u.
+"""New-version notification dialog.
 
-Modal değil — kullanıcı kapatabilir. İnternet yoksa hiç açılmaz.
+Not modal — the user can dismiss it. Doesn't open at all when offline.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from pentra.i18n import Translator, t
 
 
 class UpdateNotificationDialog(QDialog):
-    """Yeni sürüm tespit edilince gösterilen bildirim."""
+    """Notification shown when a new version is detected."""
 
     def __init__(
         self,

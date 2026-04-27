@@ -1,4 +1,4 @@
-"""mysql_probe.py testleri — mocked pymysql."""
+"""mysql_probe.py tests — mocked pymysql."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pentra.models import Severity
 
 @pytest.fixture
 def pymysql_stub():
-    """pymysql modülünü sahte bir connect + OperationalError ile mock'la."""
+    """Mock the pymysql module with a fake connect + OperationalError."""
     operational_error = type("OperationalError", (Exception,), {})
     fake_err = MagicMock()
     fake_err.OperationalError = operational_error
@@ -32,7 +32,7 @@ def pymysql_stub():
 
 
 def _mock_mysql_conn(version: str = "8.0.32") -> MagicMock:
-    """Başarılı bir MySQL bağlantısını taklit eder."""
+    """Imitate a successful MySQL connection."""
     cursor = MagicMock()
     cursor.fetchone.return_value = (version,)
     cursor.__enter__ = MagicMock(return_value=cursor)
@@ -58,7 +58,7 @@ class TestMysqlDefaultOpen:
 
 class TestMysqlProtected:
     def test_access_denied_all_creds_no_finding(self, pymysql_stub) -> None:
-        # Tüm bağlantı denemelerinde OperationalError fırlat
+        # Raise OperationalError on every connection attempt
         op_fail = pymysql_stub["OperationalError"]
         pymysql_stub["pymysql"].connect.side_effect = op_fail("Access denied (1045)")
 
@@ -67,14 +67,14 @@ class TestMysqlProtected:
         assert findings == []
 
     def test_max_2_attempts(self, pymysql_stub) -> None:
-        """Probe en fazla 2 credentials denemeli."""
+        """Probe should try at most 2 credential pairs."""
         op_fail = pymysql_stub["OperationalError"]
         pymysql_stub["pymysql"].connect.side_effect = op_fail("Access denied")
 
         probe = MysqlDefaultCredsProbe()
         probe.probe("10.0.0.5", 3306)
 
-        # Connect 2 kez çağrıldı (root:'', root:root)
+        # connect called twice (root:'', root:root)
         assert pymysql_stub["pymysql"].connect.call_count == 2
 
 

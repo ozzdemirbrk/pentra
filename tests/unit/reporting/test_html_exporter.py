@@ -1,4 +1,4 @@
-"""html_exporter.py — HTML üretimi + dosyaya yazma testleri."""
+"""html_exporter.py — HTML generation + file-write tests."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pentra.reporting.report_builder import ReportBuilder
 
 
 def _sample_report(findings: list[Finding] | None = None):
-    target = Target(TargetType.LOCALHOST, "127.0.0.1", description="Bu bilgisayar")
+    target = Target(TargetType.LOCALHOST, "127.0.0.1", description="This computer")
     rb = ReportBuilder()
     return rb.build(
         target=target,
@@ -28,7 +28,7 @@ class TestRender:
         html = exporter.render(_sample_report())
         assert "<!DOCTYPE html>" in html
         assert "127.0.0.1" in html
-        assert "Herhangi bir bulgu" in html  # boş durum mesajı
+        assert "Herhangi bir bulgu" in html  # empty-state message
 
     def test_render_includes_finding_title_and_severity(self) -> None:
         findings = [
@@ -36,7 +36,7 @@ class TestRender:
                 scanner_name="network",
                 severity=Severity.HIGH,
                 title="Açık port: 3389/tcp (ms-wbt-server)",
-                description="RDP açık.",
+                description="RDP open.",
                 target="127.0.0.1:3389",
                 remediation="RDP'yi kapat veya kısıtla.",
             ),
@@ -44,8 +44,8 @@ class TestRender:
         exporter = HtmlExporter()
         html = exporter.render(_sample_report(findings))
         assert "3389/tcp" in html
-        assert "Yüksek" in html  # Türkçe etiket
-        # Apostrof HTML'de &#39; olarak escape edilir, "kapat" kısmı kaldı
+        assert "Yüksek" in html  # Turkish label
+        # The apostrophe is escaped to &#39; in HTML; the "kapat" portion remains
         assert "kapat veya kısıtla" in html
 
     def test_html_escapes_dangerous_content(self) -> None:

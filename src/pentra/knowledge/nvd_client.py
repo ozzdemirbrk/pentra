@@ -1,13 +1,14 @@
-"""NVD (National Vulnerability Database) API istemcisi.
+"""NVD (National Vulnerability Database) API client.
 
-NVD REST 2.0 API kullanır: https://services.nvd.nist.gov/rest/json/cves/2.0
-Anonymous: 5 istek / 30 saniye. API key ile: 50 istek / 30 saniye.
-Ücretsiz API key: https://nvd.nist.gov/developers/request-an-api-key
+Uses the NVD REST 2.0 API: https://services.nvd.nist.gov/rest/json/cves/2.0
+Anonymous: 5 requests / 30 seconds. With API key: 50 requests / 30 seconds.
+Free API key: https://nvd.nist.gov/developers/request-an-api-key
 
-Özellikler:
-    - Rate limit (TokenBucket) — otomatik bekleme
-    - Oturum-içi bellek cache — aynı sorgu tekrar edilmez
-    - Timeout + hata yutma — ağ hatası varsa boş liste döner (scanner durmasın)
+Features:
+    - Rate limit (TokenBucket) — automatic waiting
+    - In-session memory cache — duplicate queries aren't re-issued
+    - Timeout + error swallowing — on network errors return an empty list
+      so the scanner keeps running
 """
 
 from __future__ import annotations
@@ -28,28 +29,28 @@ _DEFAULT_TIMEOUT: float = 15.0
 
 @dataclasses.dataclass(frozen=True)
 class Cve:
-    """Tek bir CVE kaydının özeti."""
+    """Summary of a single CVE record."""
 
     cve_id: str
-    cvss_score: float | None  # 0.0 — 10.0, bilinmiyorsa None
+    cvss_score: float | None  # 0.0 — 10.0, None if unknown
     severity: str  # "CRITICAL" / "HIGH" / "MEDIUM" / "LOW" / "NONE" / "UNKNOWN"
-    description: str  # İlk 300 karakter (özet için)
-    published_date: str = ""  # "2024-01-15" formatı (opsiyonel)
+    description: str  # First 300 chars (for summaries)
+    published_date: str = ""  # "2024-01-15" format (optional)
 
     @property
     def nvd_url(self) -> str:
-        """CVE'nin NVD detay sayfası URL'i."""
+        """NVD detail page URL for this CVE."""
         return f"https://nvd.nist.gov/vuln/detail/{self.cve_id}"
 
 
 class NvdClient:
-    """NVD REST API için hafif istemci.
+    """Lightweight client for the NVD REST API.
 
-    Kullanımı:
+    Usage:
         client = NvdClient()  # anonymous
         cves = client.search_cves("Microsoft IIS 10.0")
 
-        # API key ile:
+        # With API key:
         client = NvdClient(api_key="xxxxx")
     """
 
@@ -62,7 +63,7 @@ class NvdClient:
         self._timeout = timeout
         self._cache: dict[str, list[Cve]] = {}
 
-        # Rate limiter — API key varsa 50/30s, yoksa 5/30s
+        # Rate limiter — 50/30s with API key, 5/30s without
         if api_key:
             self._rate_limiter = TokenBucket(
                 capacity=50, refill_rate_per_sec=50.0 / 30.0,
@@ -77,20 +78,20 @@ class NvdClient:
             self._session.headers["apiKey"] = api_key
 
     def search_by_cpe(self, cpe_name: str, max_results: int = 20) -> list[Cve]:
-        """CPE URI ile tam versiyon eşleşmesi — keyword'den çok daha doğru.
+        """Exact version match via CPE URI — much more accurate than keyword.
 
-        CPE formatı: `cpe:2.3:a:vendor:product:version:*:*:*:*:*:*:*`
-        Örnek: `cpe:2.3:a:microsoft:internet_information_services:10.0:*:*:*:*:*:*:*`
+        CPE format: `cpe:2.3:a:vendor:product:version:*:*:*:*:*:*:*`
+        Example: `cpe:2.3:a:microsoft:internet_information_services:10.0:*:*:*:*:*:*:*`
 
-        Bu endpoint NVD'nin `cpeName` parametresini kullanır — açıklama metninde
-        versiyon geçmese bile (NVD'nin CPE indeksinden) CVE'leri getirir.
+        This endpoint uses NVD's `cpeName` parameter — it returns CVEs based
+        on NVD's CPE index even when the version isn't in the description.
         """
         cache_key = f"cpe||{cpe_name}||{max_results}"
         if cache_key in self._cache:
             return self._cache[cache_key]
 
         if not self._rate_limiter.wait_for(1, timeout=60.0):
-            logger.warning("NVD rate limit timeout — CPE araması iptal")
+            logger.warning("NVD rate limit timeout — CPE search cancelled")
             return []
 
         params = {"cpeName": cpe_name, "resultsPerPage": min(max_results, 200)}
@@ -101,7 +102,7 @@ class NvdClient:
             response.raise_for_status()
             data = response.json()
         except (requests.RequestException, ValueError) as e:
-            logger.warning("NVD CPE isteği başarısız: %s", e)
+            logger.warning("NVD CPE request failed: %s", e)
             return []
 
         cves = _parse_nvd_response(data, must_contain=())
@@ -117,30 +118,30 @@ class NvdClient:
         max_results: int = 20,
         must_contain: tuple[str, ...] = (),
     ) -> list[Cve]:
-        """Keyword araması — NVD'de açıklama içinde eşleşen CVE'leri döndürür.
+        """Keyword search — returns CVEs matching in the NVD description.
 
         Args:
-            keyword: NVD'ye gönderilecek arama metni (ör. "Microsoft IIS 10.0")
-            max_results: En fazla kaç CVE dönsün
-            must_contain: Post-filter — CVE açıklaması bu string'leri (case-insensitive)
-                içermiyorsa elenir. Örn: ("IIS", "10.0"). NVD keyword araması gevşek
-                olduğu için bu filtre kritik.
+            keyword: Search text sent to NVD (e.g. "Microsoft IIS 10.0")
+            max_results: Max CVEs to return
+            must_contain: Post-filter — CVEs whose description doesn't contain
+                these strings (case-insensitive) are dropped. E.g. ("IIS", "10.0").
+                NVD keyword search is loose, so this filter is critical.
 
         Returns:
-            CVE listesi. Hata / ağ sorunu / sonuç yok → boş liste.
+            CVE list. On error / network issue / no results -> empty list.
         """
         cache_key = f"{keyword}||{','.join(must_contain)}||{max_results}"
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        # Rate limit (hata verirse timeout ile döner)
+        # Rate limit (returns with timeout on error)
         if not self._rate_limiter.wait_for(1, timeout=60.0):
-            logger.warning("NVD rate limit timeout — istek iptal edildi")
+            logger.warning("NVD rate limit timeout — request cancelled")
             return []
 
         params = {
             "keywordSearch": keyword,
-            "resultsPerPage": min(max_results * 3, 200),  # post-filter'dan sonra az kalmasın
+            "resultsPerPage": min(max_results * 3, 200),  # headroom for post-filter
         }
 
         try:
@@ -149,19 +150,19 @@ class NvdClient:
             )
             response.raise_for_status()
         except requests.RequestException as e:
-            logger.warning("NVD API isteği başarısız: %s", e)
+            logger.warning("NVD API request failed: %s", e)
             return []
 
         try:
             data = response.json()
         except ValueError as e:
-            logger.warning("NVD JSON parse hatası: %s", e)
+            logger.warning("NVD JSON parse error: %s", e)
             return []
 
         cves = _parse_nvd_response(data, must_contain)
         cves = cves[:max_results]
 
-        # CVSS skoruna göre azalan sırala (en kritik önce)
+        # Sort by CVSS score descending (most critical first)
         cves.sort(key=lambda c: (c.cvss_score or 0.0), reverse=True)
 
         self._cache[cache_key] = cves
@@ -175,7 +176,7 @@ def _parse_nvd_response(
     data: dict[str, Any],
     must_contain: tuple[str, ...],
 ) -> list[Cve]:
-    """NVD 2.0 API cevabını Cve listesine çevirir + post-filter uygular."""
+    """Convert an NVD 2.0 API response into a list of Cves + apply post-filter."""
     vulnerabilities = data.get("vulnerabilities", [])
     must_lower = tuple(s.lower() for s in must_contain)
 
@@ -190,7 +191,7 @@ def _parse_nvd_response(
         if not description:
             continue
 
-        # Post-filter: must_contain stringlerinin hepsi açıklamada olmalı
+        # Post-filter: every must_contain string must appear in the description
         desc_lower = description.lower()
         if must_lower and not all(s in desc_lower for s in must_lower):
             continue
@@ -212,22 +213,22 @@ def _parse_nvd_response(
 
 
 def _extract_description(cve_obj: dict[str, Any]) -> str:
-    """İngilizce açıklamayı çıkarır (NVD Türkçe vermez)."""
+    """Extract the English description (NVD doesn't provide Turkish)."""
     descriptions = cve_obj.get("descriptions", [])
     for d in descriptions:
         if d.get("lang") == "en":
             return d.get("value", "")
-    # İngilizce yoksa ilk varı döndür
+    # If no English, return the first available
     if descriptions:
         return descriptions[0].get("value", "")
     return ""
 
 
 def _extract_cvss(cve_obj: dict[str, Any]) -> tuple[float | None, str]:
-    """CVSS 3.1 / 3.0 / 2.0 önceliğiyle skor ve severity çıkarır."""
+    """Extract score and severity preferring CVSS 3.1 / 3.0 / 2.0 in that order."""
     metrics = cve_obj.get("metrics", {})
 
-    # v3.1 öncelikli
+    # v3.1 first
     for metric_key in ("cvssMetricV31", "cvssMetricV30"):
         entries = metrics.get(metric_key, [])
         if entries:
@@ -243,7 +244,7 @@ def _extract_cvss(cve_obj: dict[str, Any]) -> tuple[float | None, str]:
         cvss_data = entries[0].get("cvssData", {})
         score = cvss_data.get("baseScore")
         if score is not None:
-            # v2'de severity farklı — skor aralığından türetiliyor
+            # v2 uses different severity — derived from the score range
             score_f = float(score)
             if score_f >= 9.0:
                 sev = "CRITICAL"

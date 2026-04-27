@@ -1,9 +1,9 @@
-"""Web probe modülleri — her probe tek bir zafiyet kategorisini test eder.
+"""Web probe modules — each probe tests one vulnerability category.
 
-Tüm probe'lar `WebProbeBase`'den türer ve Seviye 2 kurallarına uyar:
-    1. Tek seferlik (aynı endpoint'e döngü yok)
-    2. Kanıt yeterli (minimum paket)
-    3. Oku, yazma (sunucuda kalıcı değişiklik yok)
+All probes inherit from `WebProbeBase` and follow the Level 2 rules:
+    1. Single-shot (no loops against the same endpoint)
+    2. Evidence is enough (minimum packets)
+    3. Read, don't write (no persistent server-side changes)
 """
 
 from pentra.core.web_probes.base import WebProbeBase

@@ -1,4 +1,4 @@
-"""comparison.py — iki tarama arasındaki diff mantığı testleri."""
+"""comparison.py — tests for the diff logic between two scans."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def _prev_snapshot(findings: list[FindingSnapshot], risk: float = 5.0) -> Report
 
 
 # =====================================================================
-# Yeni bulgu tespiti
+# New-finding detection
 # =====================================================================
 class TestNewFindings:
     def test_finding_only_in_current_is_new(self) -> None:
@@ -50,7 +50,7 @@ class TestNewFindings:
 
 
 # =====================================================================
-# Çözülmüş bulgu tespiti
+# Resolved-finding detection
 # =====================================================================
 class TestResolvedFindings:
     def test_finding_only_in_previous_is_resolved(self) -> None:
@@ -69,14 +69,14 @@ class TestResolvedFindings:
 
 
 # =====================================================================
-# Eşleştirme (title + target bazlı)
+# Matching (by title + target)
 # =====================================================================
 class TestMatching:
     def test_same_title_different_target_treated_as_different(self) -> None:
         previous = _prev_snapshot([_snap("CSP eksik", target="https://a.com")])
         current = [_current("CSP eksik", target="https://b.com")]
         cmp = compare(previous, current, current_risk_score=5.0)
-        # Farklı target → biri resolved, diğeri new
+        # Different targets -> one is resolved, the other is new
         assert cmp.resolved_count == 1
         assert cmp.new_count == 1
         assert cmp.unchanged_count == 0
@@ -91,7 +91,7 @@ class TestMatching:
 
 
 # =====================================================================
-# Risk trendi
+# Risk trend
 # =====================================================================
 class TestRiskTrend:
     def test_improved_when_score_decreased(self) -> None:

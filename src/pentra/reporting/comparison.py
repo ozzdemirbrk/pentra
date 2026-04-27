@@ -1,11 +1,11 @@
-"""Tarama karşılaştırması — aynı hedefin önceki ve mevcut taramasını diff'ler.
+"""Scan comparison — diffs the previous and current scans of the same target.
 
-Bulgular `(title, target)` anahtarıyla eşleştirilir:
-    - Önceki tarama içinde olup şimdi olmayan → **çözülmüş** (fix uygulanmış)
-    - Şimdi olup öncekinde olmayan → **yeni risk**
-    - Her ikisinde var → **değişmemiş**
+Findings are matched on a `(title, target)` key:
+    - Existed before, missing now -> **resolved** (fix applied)
+    - Exists now, missing before -> **new risk**
+    - Present in both -> **unchanged**
 
-Severity değişiklikleri şimdilik takip edilmiyor — basit tutuluyor.
+Severity changes are not tracked for now — kept simple.
 """
 
 from __future__ import annotations
@@ -20,12 +20,12 @@ from pentra.storage.scan_history import FindingSnapshot, ReportSnapshot
 
 @dataclasses.dataclass(frozen=True)
 class ScanComparison:
-    """İki tarama arasındaki fark — rapor şablonunda gösterilir."""
+    """Difference between two scans — shown in the report template."""
 
     previous_date: datetime
     previous_risk_score: float
-    new_findings: tuple[FindingSnapshot, ...]  # mevcut'ta var, önceki'de yoktu
-    resolved_findings: tuple[FindingSnapshot, ...]  # önceki'de vardı, mevcut'ta yok
+    new_findings: tuple[FindingSnapshot, ...]  # in current, not in previous
+    resolved_findings: tuple[FindingSnapshot, ...]  # in previous, not in current
     unchanged_count: int
     current_risk_score: float
 
@@ -43,12 +43,12 @@ class ScanComparison:
 
     @property
     def risk_delta(self) -> float:
-        """Risk skoru değişimi: pozitif = arttı (kötü), negatif = azaldı (iyi)."""
+        """Risk score change: positive = worsened, negative = improved."""
         return self.current_risk_score - self.previous_risk_score
 
     @property
     def risk_trend(self) -> str:
-        """'improved' / 'worsened' / 'stable' — UI için ikon seçimi."""
+        """'improved' / 'worsened' / 'stable' — used to pick the UI icon."""
         delta = self.risk_delta
         if abs(delta) < 0.3:
             return "stable"
@@ -68,19 +68,19 @@ def compare(
     current_findings: Iterable[Finding],
     current_risk_score: float,
 ) -> ScanComparison:
-    """Geçmiş bir snapshot ile mevcut (henüz kaydedilmemiş) raporu karşılaştır.
+    """Compare a historical snapshot with the (not-yet-saved) current report.
 
     Args:
-        previous: DB'den çekilen önceki tarama
-        current_findings: Mevcut taramada üretilen bulgular
-        current_risk_score: Mevcut genel risk skoru
+        previous: Previous scan fetched from the DB
+        current_findings: Findings produced by the current scan
+        current_risk_score: Current overall risk score
 
     Returns:
-        ScanComparison — new/resolved/unchanged bilgisi
+        ScanComparison — new/resolved/unchanged info
     """
     current_list = list(current_findings)
 
-    # (title, target) anahtarıyla set'ler oluştur
+    # Build sets keyed by (title, target)
     prev_by_key: dict[tuple[str, str], FindingSnapshot] = {
         (f.title, f.target): f for f in previous.findings
     }
@@ -88,15 +88,15 @@ def compare(
         (f.title, f.target): _snapshot_from_finding(f) for f in current_list
     }
 
-    # Önceki'de vardı, mevcut'ta yok → çözülmüş
+    # In previous, not in current -> resolved
     resolved = tuple(
         prev_by_key[k] for k in prev_by_key if k not in curr_by_key
     )
-    # Mevcut'ta var, önceki'de yoktu → yeni
+    # In current, not in previous -> new
     new_items = tuple(
         curr_by_key[k] for k in curr_by_key if k not in prev_by_key
     )
-    # Her ikisinde var → değişmemiş
+    # In both -> unchanged
     unchanged_count = sum(1 for k in prev_by_key if k in curr_by_key)
 
     return ScanComparison(

@@ -1,4 +1,4 @@
-"""web_scanner.py — WebScanner iskelet testleri."""
+"""web_scanner.py — WebScanner skeleton tests."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def valid_token_and_target(deps):
     req = AuthorizationRequest(
         target, ScanDepth.QUICK, user_accepted_terms=True, external_target_confirmed=True,
     )
-    scope = ScopeDecision(ScopeDecisionType.REQUIRES_CONFIRMATION, target, "dış")
+    scope = ScopeDecision(ScopeDecisionType.REQUIRES_CONFIRMATION, target, "external")
     token = auth.grant(req, scope)
     return token, target
 
@@ -48,7 +48,7 @@ class TestProbeSelection:
         for depth in ScanDepth:
             probes = _select_probes(depth)
             assert len(probes) >= 1
-            # İlerde her probe'un WebProbeBase türevi olması beklenir
+            # In future every probe is expected to be a WebProbeBase subclass
             for p in probes:
                 assert hasattr(p, "probe")
                 assert hasattr(p, "name")
@@ -74,7 +74,7 @@ class TestWebScannerOrchestration:
             ),
         ]
 
-        # Tek bir mock probe oluştur — tüm kayıtlı probe'lar yerine bu kullanılsın
+        # Build a single mock probe — use it instead of all registered probes
         fake_probe = MagicMock()
         fake_probe.name = "fake_probe"
         fake_probe.description = "fake"
@@ -107,7 +107,7 @@ class TestWebScannerOrchestration:
         fake_probe = MagicMock()
         fake_probe.name = "fake_probe"
         fake_probe.description = "fake"
-        fake_probe.probe.side_effect = RuntimeError("beklenmedik")
+        fake_probe.probe.side_effect = RuntimeError("unexpected")
 
         with patch(
             "pentra.core.web_scanner._select_probes",
@@ -115,7 +115,7 @@ class TestWebScannerOrchestration:
         ):
             scanner.scan(target, ScanDepth.QUICK, token)
 
-        # Scanner hata yakalasa bile "completed" sinyalini göndermeli
+        # Even when the scanner catches the error, it must still emit "completed"
         assert len(errors) >= 1
         assert len(completed) == 1
 
@@ -140,7 +140,7 @@ class TestWebScannerOrchestration:
         ):
             scanner.scan(target, ScanDepth.QUICK, fake_token)
 
-            # Token geçersiz olduğu için hiçbir probe çalıştırılmamalı
+            # Token is invalid → no probe should run
             fake_probe.probe.assert_not_called()
 
         assert len(errors) == 1

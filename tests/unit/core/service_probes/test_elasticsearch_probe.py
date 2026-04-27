@@ -1,4 +1,4 @@
-"""elasticsearch_probe.py testleri — mocked HTTP."""
+"""elasticsearch_probe.py tests — mocked HTTP."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ class TestElasticsearchProtected:
         assert findings == []
 
     def test_200_but_not_es_no_finding(self) -> None:
-        """200 ama ES imzası yoksa bulgu yok (başka bir HTTP servis olabilir)."""
+        """200 but no ES signature → no finding (could be another HTTP service)."""
         probe = ElasticsearchAuthProbe()
         with patch(
             "pentra.core.service_probes.elasticsearch_probe.requests.get",

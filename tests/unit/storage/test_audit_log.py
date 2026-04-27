@@ -1,4 +1,4 @@
-"""audit_log.py — hash-zincirli denetim izi testleri."""
+"""audit_log.py — hash-chained audit trail tests."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def audit(log_path: Path) -> AuditLog:
 
 
 # =====================================================================
-# Temel yazma
+# Basic writing
 # =====================================================================
 class TestLogEvent:
     def test_fresh_log_starts_with_genesis_prev_hash(
@@ -75,14 +75,14 @@ class TestLogEvent:
 
 
 # =====================================================================
-# Kalıcılık (persistence)
+# Persistence
 # =====================================================================
 class TestPersistence:
     def test_reopen_continues_chain(self, log_path: Path) -> None:
         a1 = AuditLog(log_path)
         a1.log_event(make_event("first", "fp"))
 
-        a2 = AuditLog(log_path)  # yeni instance, aynı dosya
+        a2 = AuditLog(log_path)  # new instance, same file
         a2.log_event(make_event("second", "fp"))
 
         entries = [json.loads(l) for l in log_path.read_text().splitlines()]
@@ -90,7 +90,7 @@ class TestPersistence:
         assert entries[1]["prev_hash"] == entries[0]["entry_hash"]
 
     def test_empty_file_treated_as_fresh(self, log_path: Path) -> None:
-        log_path.touch()  # boş dosya oluştur
+        log_path.touch()  # create empty file
         audit = AuditLog(log_path)
         audit.log_event(make_event("x", "fp"))
         entry = json.loads(log_path.read_text().splitlines()[0])
@@ -98,7 +98,7 @@ class TestPersistence:
 
 
 # =====================================================================
-# Bütünlük doğrulaması
+# Integrity verification
 # =====================================================================
 class TestVerifyIntegrity:
     def test_clean_log_verifies(self, audit: AuditLog) -> None:
@@ -119,7 +119,7 @@ class TestVerifyIntegrity:
 
         lines = log_path.read_text().splitlines()
         first = json.loads(lines[0])
-        first["details"] = {"val": 999}  # içeriği değiştir, hash güncellenmemiş
+        first["details"] = {"val": 999}  # modify content, hash not updated
         lines[0] = json.dumps(first, sort_keys=True, ensure_ascii=False)
         log_path.write_text("\n".join(lines) + "\n")
 
@@ -134,7 +134,7 @@ class TestVerifyIntegrity:
         audit.log_event(make_event("c", "fp"))
 
         lines = log_path.read_text().splitlines()
-        # Ortadaki satırı sil
+        # Delete the middle line
         log_path.write_text(lines[0] + "\n" + lines[2] + "\n")
 
         violations = audit.verify_integrity()
@@ -145,7 +145,7 @@ class TestVerifyIntegrity:
     def test_corrupted_json_detected(self, audit: AuditLog, log_path: Path) -> None:
         audit.log_event(make_event("a", "fp"))
         with log_path.open("a", encoding="utf-8") as f:
-            f.write("{bu geçerli json değil\n")
+            f.write("{this is not valid json\n")
 
         violations = audit.verify_integrity()
         assert len(violations) == 1
@@ -158,11 +158,11 @@ class TestVerifyIntegrity:
 
         violations = audit.verify_integrity()
         assert len(violations) == 1
-        assert "eksik" in violations[0].reason.lower()
+        assert "missing" in violations[0].reason.lower()
 
 
 # =====================================================================
-# Okuma
+# Reading
 # =====================================================================
 class TestReadAll:
     def test_read_all_returns_events(self, audit: AuditLog) -> None:
@@ -179,7 +179,7 @@ class TestReadAll:
 
 
 # =====================================================================
-# Yardımcı hash fonksiyonu
+# Helper hash function
 # =====================================================================
 class TestComputeEntryHash:
     def test_deterministic(self) -> None:
@@ -231,6 +231,6 @@ class TestThreadSafety:
         for t in threads:
             t.join()
 
-        # 5 thread * 20 event = 100 entry, tümü zincirlenmeli
+        # 5 threads * 20 events = 100 entries, all must be chained
         violations = audit.verify_integrity()
-        assert violations == [], f"Thread race zincir bozdu: {violations}"
+        assert violations == [], f"Thread race broke the chain: {violations}"

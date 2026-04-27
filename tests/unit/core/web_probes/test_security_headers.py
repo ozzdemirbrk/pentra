@@ -1,4 +1,4 @@
-"""security_headers.py probe testleri — mocked HTTP yanıtlarıyla."""
+"""security_headers.py probe tests — using mocked HTTP responses."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pentra.models import Severity
 
 
 def _mock_session(status_code: int, headers: dict[str, str]) -> MagicMock:
-    """Fake session — get() çağrısı sabit response döndürür."""
+    """Fake session — get() returns a fixed response."""
     response = MagicMock()
     response.status_code = status_code
     response.headers = headers
@@ -75,7 +75,7 @@ class TestMissingHeaders:
         assert missing_titles == set()
 
     def test_http_url_skips_hsts_check(self) -> None:
-        """HSTS sadece HTTPS'te anlamlıdır — HTTP sitesinde HSTS eksikliği raporlanmamalı."""
+        """HSTS only matters over HTTPS — missing HSTS on an HTTP site must not be reported."""
         probe = SecurityHeadersProbe()
         session = _mock_session(200, {})
         findings = probe.probe("http://example.com", session)

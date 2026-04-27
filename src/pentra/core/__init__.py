@@ -1,1 +1,1 @@
-"""Tarama motorları ve orkestratör — Pentra'nın çekirdek iş mantığı."""
+"""Scan engines and orchestrator — Pentra's core business logic."""

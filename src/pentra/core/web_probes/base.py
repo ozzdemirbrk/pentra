@@ -1,16 +1,16 @@
-"""WebProbeBase — tüm web probe'larının soyut temeli.
+"""WebProbeBase — the abstract base for every web probe.
 
-Her probe:
-    - `name`: audit log'da ve rapor evidence'ında kullanılan kısa ad
-    - `description`: Türkçe kısa açıklama (kullanıcı görür)
-    - `probe(url, session)`: Gerçek test — Finding listesi döner
+Each probe provides:
+    - `name`: short name used in the audit log and in report evidence
+    - `description`: short user-visible description
+    - `probe(url, session)`: the actual test — returns a list of Findings
 
-TASARIM KURALLARI (ihlal edilirse kod review'da red):
-    1. probe() tek seferlik çalışır — aynı endpoint'e tekrar tekrar istek YASAK
-    2. Gönderilen her isteğin timeout'u ≤ 10 sn olmalı
-    3. Bağlantı kullanılmıyorsa kapat
-    4. Finding.evidence dict'i içinde: request yolu, response status, kısa snippet
-    5. Destructive payload YASAK — `DROP TABLE`, `rm -rf`, shell komutları vb.
+DESIGN RULES (violations are rejected in code review):
+    1. probe() runs once — repeated requests to the same endpoint are FORBIDDEN
+    2. Every request must have a timeout <= 10 s
+    3. Close connections that are no longer in use
+    4. Finding.evidence dict must include: request path, response status, short snippet
+    5. Destructive payloads are FORBIDDEN — `DROP TABLE`, `rm -rf`, shell commands, etc.
 """
 
 from __future__ import annotations
@@ -24,37 +24,37 @@ from pentra.models import Finding
 
 
 class WebProbeBase(ABC):
-    """Tek bir web zafiyet kategorisi için non-destructive test."""
+    """Non-destructive test for a single web vulnerability category."""
 
-    # Alt sınıf zorunlu olarak üzerine yazar
+    # Subclass must override
     name: str = ""
 
-    #: UI'da gösterilen açıklama için i18n anahtarı
+    #: i18n key for the description shown in the UI
     description_key: str = ""
 
-    # Varsayılan HTTP timeout (saniye) — probe'lar override edebilir
+    # Default HTTP timeout (seconds) — probes may override
     timeout: float = 10.0
 
     @property
     def description(self) -> str:
-        """Aktif dile çevrilmiş, insan-okunur açıklama."""
+        """Human-readable description translated into the active language."""
         return t(self.description_key) if self.description_key else ""
 
     @abstractmethod
     def probe(self, url: str, session: requests.Session) -> list[Finding]:
-        """Probe'u çalıştır, bulguları döndür.
+        """Run the probe and return findings.
 
         Args:
-            url: Hedef URL (scope_validator tarafından doğrulanmış).
-            session: Ortak `requests.Session` — UA, rate vb. önceden ayarlı.
+            url: Target URL (already validated by scope_validator).
+            session: Shared `requests.Session` — UA, rate, etc. preconfigured.
 
         Returns:
-            Bulgu listesi (boş liste = zafiyet yok / probe uygulanamadı).
+            List of findings (empty list = no vulnerability / probe not applicable).
 
-        Hatalar:
-            Network/timeout hataları probe tarafından yakalanmalı;
-            WebScanner üst katmanda yutar. Ama `ValueError` gibi programlama
-            hataları yukarı atılsın — test sırasında yakalanması için.
+        Errors:
+            Network/timeout errors must be caught inside the probe; the upper
+            WebScanner layer swallows them. But programming errors such as
+            `ValueError` should bubble up so tests can catch them.
         """
 
     def _build_evidence(
@@ -67,7 +67,7 @@ class WebProbeBase(ABC):
         why_vulnerable: str = "",
         extra: dict[str, object] | None = None,
     ) -> dict[str, object]:
-        """Standart evidence dict — her Finding için eşit format sağlar."""
+        """Standard evidence dict — guarantees a uniform shape per Finding."""
         evidence: dict[str, object] = {
             "probe_name": self.name,
             "request": f"{request_method} {request_path}",
@@ -75,7 +75,7 @@ class WebProbeBase(ABC):
         if response_status is not None:
             evidence["response_status"] = response_status
         if response_snippet:
-            # Response snippet'i en fazla 200 karakter — kanıt için yeter
+            # At most 200 characters of response snippet — enough as evidence
             evidence["response_snippet"] = response_snippet[:200]
         if why_vulnerable:
             evidence["why_vulnerable"] = why_vulnerable

@@ -1,4 +1,4 @@
-"""authorization.py — AuthorizationManager testleri."""
+"""authorization.py — AuthorizationManager tests."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from pentra.safety.authorization import (
 
 
 # ---------------------------------------------------------------------
-# Yardımcılar
+# Helpers
 # ---------------------------------------------------------------------
 _SECRET = b"test-secret-32-bytes-for-unit-tests!!"
 
@@ -34,11 +34,11 @@ def _localhost_target() -> Target:
 
 
 def _allowed_scope(target: Target) -> ScopeDecision:
-    return ScopeDecision(ScopeDecisionType.ALLOWED_PRIVATE, target, "özel ağ")
+    return ScopeDecision(ScopeDecisionType.ALLOWED_PRIVATE, target, "private network")
 
 
 def _needs_confirm_scope(target: Target) -> ScopeDecision:
-    return ScopeDecision(ScopeDecisionType.REQUIRES_CONFIRMATION, target, "dış hedef")
+    return ScopeDecision(ScopeDecisionType.REQUIRES_CONFIRMATION, target, "external target")
 
 
 def _denied_scope(target: Target) -> ScopeDecision:
@@ -46,30 +46,30 @@ def _denied_scope(target: Target) -> ScopeDecision:
 
 
 # ---------------------------------------------------------------------
-# Kurucu
+# Constructor
 # ---------------------------------------------------------------------
 class TestInit:
     def test_default_generates_random_secret(self) -> None:
         m1 = AuthorizationManager()
         m2 = AuthorizationManager()
-        # Farklı örnekler farklı secret üretir — verilen aynı payload farklı imzalanır
+        # Different instances produce different secrets — same payload signs differently
         target = _localhost_target()
         req = AuthorizationRequest(target, ScanDepth.QUICK, user_accepted_terms=True)
         t1 = m1.grant(req, _allowed_scope(target))
-        # m2 m1'in token'ını doğrulayamamalı
+        # m2 should not be able to verify m1's token
         assert m2.verify(t1, target) is False
 
     def test_short_secret_raises(self) -> None:
-        with pytest.raises(ValueError, match="16 bayt"):
+        with pytest.raises(ValueError, match="16 bytes"):
             AuthorizationManager(secret=b"short")
 
     def test_non_positive_ttl_raises(self) -> None:
-        with pytest.raises(ValueError, match="ttl_sec pozitif"):
+        with pytest.raises(ValueError, match="ttl_sec must be positive"):
             AuthorizationManager(secret=_SECRET, ttl_sec=0)
 
 
 # ---------------------------------------------------------------------
-# grant() — başarı senaryoları
+# grant() — success scenarios
 # ---------------------------------------------------------------------
 class TestGrantSuccess:
     def test_private_target_with_accepted_terms(self) -> None:
@@ -105,21 +105,21 @@ class TestGrantSuccess:
 
 
 # ---------------------------------------------------------------------
-# grant() — reddedilen senaryolar
+# grant() — denied scenarios
 # ---------------------------------------------------------------------
 class TestGrantDenied:
     def test_unchecked_terms_raises(self) -> None:
         mgr = AuthorizationManager(secret=_SECRET)
         target = _localhost_target()
         req = AuthorizationRequest(target, ScanDepth.QUICK, user_accepted_terms=False)
-        with pytest.raises(AuthorizationDenied, match="onay"):
+        with pytest.raises(AuthorizationDenied, match="consent"):
             mgr.grant(req, _allowed_scope(target))
 
     def test_denied_scope_raises(self) -> None:
         mgr = AuthorizationManager(secret=_SECRET)
         target = Target(TargetType.IP_SINGLE, "224.0.0.1")
         req = AuthorizationRequest(target, ScanDepth.QUICK, user_accepted_terms=True)
-        with pytest.raises(AuthorizationDenied, match="uygun değil"):
+        with pytest.raises(AuthorizationDenied, match="not eligible"):
             mgr.grant(req, _denied_scope(target))
 
     def test_external_without_extra_confirmation_raises(self) -> None:
@@ -131,7 +131,7 @@ class TestGrantDenied:
             user_accepted_terms=True,
             external_target_confirmed=False,
         )
-        with pytest.raises(AuthorizationDenied, match="ek"):
+        with pytest.raises(AuthorizationDenied, match="additional"):
             mgr.grant(req, _needs_confirm_scope(target))
 
     def test_mismatched_scope_target_raises(self) -> None:
@@ -139,12 +139,12 @@ class TestGrantDenied:
         req_target = _localhost_target()
         other_target = Target(TargetType.IP_SINGLE, "192.168.1.1")
         req = AuthorizationRequest(req_target, ScanDepth.QUICK, user_accepted_terms=True)
-        with pytest.raises(AuthorizationDenied, match="farklı"):
+        with pytest.raises(AuthorizationDenied, match="different"):
             mgr.grant(req, _allowed_scope(other_target))
 
 
 # ---------------------------------------------------------------------
-# verify() — çeşitli saldırı/hata senaryoları
+# verify() — various attack/error scenarios
 # ---------------------------------------------------------------------
 class TestVerify:
     def _make_valid_token(self, mgr: AuthorizationManager) -> tuple[AuthorizationToken, Target]:
@@ -161,7 +161,7 @@ class TestVerify:
     def test_tampered_signature_fails(self) -> None:
         mgr = AuthorizationManager(secret=_SECRET)
         token, target = self._make_valid_token(mgr)
-        # İmzanın son karakterini değiştir
+        # Change the last character of the signature
         flipped_char = "a" if token.signature[-1] != "a" else "b"
         tampered = AuthorizationToken(
             token_id=token.token_id,
@@ -173,7 +173,7 @@ class TestVerify:
     def test_tampered_payload_fails(self) -> None:
         mgr = AuthorizationManager(secret=_SECRET)
         token, target = self._make_valid_token(mgr)
-        # Payload'u decode et, ttl_sec'i yükselt, tekrar encode et — imza eşleşmez
+        # Decode the payload, raise ttl_sec, re-encode — signature won't match
         raw = base64.urlsafe_b64decode(token.payload)
         data = json.loads(raw)
         data["ttl_sec"] = 999999
@@ -183,7 +183,7 @@ class TestVerify:
         tampered = AuthorizationToken(
             token_id=token.token_id,
             payload=new_payload,
-            signature=token.signature,  # eski imza artık geçerli değil
+            signature=token.signature,  # the old signature is no longer valid
         )
         assert mgr.verify(tampered, target) is False
 
@@ -202,10 +202,10 @@ class TestVerify:
         req = AuthorizationRequest(target, ScanDepth.QUICK, user_accepted_terms=True)
         token = mgr.grant(req, _allowed_scope(target))
 
-        # Daha TTL dolmadı
+        # TTL has not yet expired
         assert mgr.verify(token, target)
 
-        # TTL'yi aş
+        # Exceed the TTL
         clock["now"] = 1000.0 + 61
         assert mgr.verify(token, target) is False
 
@@ -251,7 +251,7 @@ class TestVerify:
 
 
 # ---------------------------------------------------------------------
-# Target hash fonksiyonu
+# Target hash function
 # ---------------------------------------------------------------------
 class TestHashTarget:
     def test_same_target_same_hash(self) -> None:

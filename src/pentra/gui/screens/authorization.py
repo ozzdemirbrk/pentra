@@ -1,7 +1,8 @@
-"""Ekran 1 — Yetki Onayı.
+"""Screen 1 — Authorization.
 
-Kullanıcı iki zorunlu onay kutusunu işaretlemeden İleri butonu pasif kalır.
-Sayfanın sağ üstünde dil seçici bulunur; seçilen dil tüm arayüzü günceller.
+The Next button stays disabled until both required checkboxes are ticked.
+A language selector sits in the top-right corner; changing it updates the
+entire UI.
 """
 
 from __future__ import annotations
@@ -22,14 +23,14 @@ from pentra.i18n import Translator, t
 
 
 class AuthorizationPage(QWizardPage):
-    """Sihirbazın ilk sayfası — yasal/etik onay + dil seçici."""
+    """First wizard page — legal/ethical consent + language selector."""
 
     def __init__(self) -> None:
         super().__init__()
 
         layout = QVBoxLayout(self)
 
-        # ---- Üst bar: sağ üstte dil seçici ----
+        # ---- Top bar: language selector in the top-right ----
         top_bar = QHBoxLayout()
         self._lang_label = QLabel()
         top_bar.addStretch()
@@ -37,25 +38,25 @@ class AuthorizationPage(QWizardPage):
         top_bar.addWidget(LanguageSelector())
         layout.addLayout(top_bar)
 
-        # ---- Giriş metni ----
+        # ---- Intro text ----
         self._intro = QLabel()
         self._intro.setWordWrap(True)
         self._intro.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(self._intro)
 
-        # ---- Ayrım çizgisi ----
+        # ---- Separator line ----
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(line)
 
-        # ---- Ne yapar / ne yapmaz ----
+        # ---- What it does / doesn't do ----
         self._features = QLabel()
         self._features.setWordWrap(True)
         self._features.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(self._features)
 
-        # ---- Onay kutuları ----
+        # ---- Consent checkboxes ----
         self._chk_owner = QCheckBox()
         self._chk_owner.setStyleSheet("QCheckBox { font-weight: bold; }")
         self._chk_owner.stateChanged.connect(self._on_state_changed)
@@ -68,15 +69,15 @@ class AuthorizationPage(QWizardPage):
 
         layout.addStretch()
 
-        # İlk çeviri + dil değişimine abone ol
+        # First translation pass + subscribe to language changes
         self.retranslate_ui()
         Translator.instance().languageChanged.connect(lambda _l: self.retranslate_ui())
 
     # -----------------------------------------------------------------
-    # Çeviri
+    # Translation
     # -----------------------------------------------------------------
     def retranslate_ui(self) -> None:
-        """Tüm metinleri aktif dilden yeniden yükler."""
+        """Reload every text from the active language."""
         self.setTitle(t("auth.title"))
         self.setSubTitle(t("auth.subtitle"))
         self._lang_label.setText(t("lang.selector.label"))
@@ -86,14 +87,14 @@ class AuthorizationPage(QWizardPage):
         self._chk_terms.setText(t("auth.checkbox_terms"))
 
     # -----------------------------------------------------------------
-    # QWizardPage entegrasyonu
+    # QWizardPage integration
     # -----------------------------------------------------------------
-    def isComplete(self) -> bool:  # noqa: N802 — Qt metodu
-        """İki onay da işaretliyken İleri butonu aktif."""
+    def isComplete(self) -> bool:  # noqa: N802 — Qt method
+        """Next is enabled only when both consent boxes are ticked."""
         return self._chk_owner.isChecked() and self._chk_terms.isChecked()
 
     def validatePage(self) -> bool:  # noqa: N802
-        """Sayfa terk edilirken context'e yaz."""
+        """Write state into the context when the page is left."""
         wizard = self.wizard()
         if isinstance(wizard, PentraWizard):
             wizard.context.user_accepted_terms = (
@@ -102,7 +103,7 @@ class AuthorizationPage(QWizardPage):
         return True
 
     # -----------------------------------------------------------------
-    # İç
+    # Internal
     # -----------------------------------------------------------------
     def _on_state_changed(self, _state: int) -> None:
         self.completeChanged.emit()

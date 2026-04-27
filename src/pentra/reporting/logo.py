@@ -1,8 +1,8 @@
-"""Pentra logo yükleyici — raporlarda kullanılacak base64 data URI üretir.
+"""Pentra logo loader — produces a base64 data URI used in reports.
 
-HTML raporlarda `<img src="{{ logo_data_uri }}">` ile gömülür. Browser
-data URI'yi direkt render eder, ayrı dosya gerekmez. PDF exporter da
-aynı URI'yi kullanır.
+Embedded via `<img src="{{ logo_data_uri }}">` in HTML reports. The browser
+renders the data URI directly, so no separate file is needed. The PDF
+exporter uses the same URI.
 """
 
 from __future__ import annotations
@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 def _find_logo_path() -> Path | None:
-    """Logo dosyasını proje kökünden ara — ilk bulduğuna dön."""
+    """Search for the logo starting at the project root — return the first hit."""
     here = Path(__file__).resolve()
-    # Paket/üst dizinleri tara: src/pentra/reporting/logo.py → ../../../public/logo/
+    # Walk parent dirs: src/pentra/reporting/logo.py -> ../../../public/logo/
     for parent in [here.parent, *here.parents]:
         candidate = parent / "public" / "logo" / "Pentra.png"
         if candidate.exists():
@@ -26,16 +26,16 @@ def _find_logo_path() -> Path | None:
 
 
 def get_logo_data_uri() -> str:
-    """Logo PNG'yi base64 data URI olarak döndür. Bulunamazsa boş string."""
+    """Return the logo PNG as a base64 data URI. Empty string when missing."""
     path = _find_logo_path()
     if path is None:
-        logger.info("Logo bulunamadı (public/logo/Pentra.png) — rapor logosuz olacak")
+        logger.info("Logo not found (public/logo/Pentra.png) — report will have no logo")
         return ""
 
     try:
         encoded = base64.b64encode(path.read_bytes()).decode("ascii")
     except OSError as e:
-        logger.warning("Logo okunamadı: %s", e)
+        logger.warning("Could not read logo: %s", e)
         return ""
 
     return f"data:image/png;base64,{encoded}"

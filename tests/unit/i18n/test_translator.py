@@ -1,6 +1,6 @@
-"""translator.py — çoğul dil çevirmeni testleri.
+"""translator.py — multi-language translator tests.
 
-QSettings'in test izolasyonu için geçici INI konumuna yönlendirilir.
+QSettings is redirected to a temporary INI location for test isolation.
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ from pentra.i18n.translator import Translator, t
 
 @pytest.fixture(autouse=True)
 def _isolated_qsettings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Her test taze bir QSettings dizini ve yeni Translator örneği alır."""
-    # QApplication singleton; yoksa oluştur
+    """Give every test a fresh QSettings directory and a new Translator instance."""
+    # QApplication is a singleton; create one if missing
     app = QApplication.instance() or QApplication([])
     QCoreApplication.setOrganizationName("PentraTest")
     QCoreApplication.setApplicationName("PentraTest")
@@ -27,15 +27,15 @@ def _isolated_qsettings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         QSettings.Scope.UserScope,
         str(tmp_path),
     )
-    # Translator singleton'ını sıfırla — her test taze başlasın
+    # Reset the Translator singleton — every test starts fresh
     Translator._instance = None
     yield
     Translator._instance = None
-    _ = app  # tutulmazsa GC; lint sessizleştirme
+    _ = app  # keep a reference so GC doesn't collect it; silence the linter
 
 
 # =====================================================================
-# Temel çeviri
+# Basic translation
 # =====================================================================
 class TestTranslation:
     def test_english_key_returns_english(self) -> None:
@@ -58,16 +58,16 @@ class TestTranslation:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """TR'de eksik anahtar EN'ye düşmeli."""
+        """A key missing in TR should fall back to EN."""
         tr = Translator.instance()
         tr.set_language("tr")
-        # EN'de var, TR'de yok olduğunu varsayıyoruz — test için EN tablosunu manipüle et
+        # Assume it exists in EN but not in TR — mutate the EN table for the test
         tr._translations["en"]["_only_in_en"] = "only-en"
         assert t("_only_in_en") == "only-en"
 
 
 # =====================================================================
-# Dil değişimi + sinyal
+# Language switch + signal
 # =====================================================================
 class TestLanguageSwitching:
     def test_set_language_emits_signal(self) -> None:
@@ -92,17 +92,17 @@ class TestLanguageSwitching:
             tr.set_language("de")
 
     def test_set_language_persists_across_instances(self) -> None:
-        """Kaydedilen dil tercihi, yeni Translator örneğinde de okunmalı."""
+        """A saved language preference should be picked up by a new Translator instance."""
         tr = Translator.instance()
         tr.set_language("tr")
-        # Singleton'ı sıfırla — sıfırdan instance, QSettings'ten okumalı
+        # Reset the singleton — a fresh instance should read from QSettings
         Translator._instance = None
         tr2 = Translator.instance()
         assert tr2.current_language == "tr"
 
 
 # =====================================================================
-# Formatlama
+# Formatting
 # =====================================================================
 class TestFormatting:
     def test_kwargs_format_value(self) -> None:
@@ -112,11 +112,11 @@ class TestFormatting:
         assert t("greet", name="World") == "Hello World"
 
     def test_format_error_returns_unformatted(self) -> None:
-        """Eksik kwarg → format hatası → ham string dönsün."""
+        """Missing kwarg -> format error -> raw string should be returned."""
         tr = Translator.instance()
         tr._translations["en"]["greet"] = "Hello {name}"
         tr.set_language("en")
-        # 'name' yok — KeyError yakalanıp ham string dönmeli
+        # 'name' is missing — KeyError should be caught and the raw string returned
         assert t("greet", wrong="x") == "Hello {name}"
 
 

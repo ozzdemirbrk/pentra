@@ -1,8 +1,8 @@
-"""ServiceProbeBase — bir port üzerinde auth/yapılandırma testi.
+"""ServiceProbeBase — auth/configuration test against an open port.
 
-NetworkScanner açık port bulunca, o porta tanımlı `ServiceProbeBase`
-örneği varsa `probe(host, port)` çağırır. Probe sadece kanıt üreten
-tek istek gönderir, veri çekmez.
+When NetworkScanner finds an open port, it calls `probe(host, port)` if a
+`ServiceProbeBase` is registered for it. The probe sends a single
+evidence-gathering request without extracting data.
 """
 
 from __future__ import annotations
@@ -14,36 +14,36 @@ from pentra.models import Finding
 
 
 class ServiceProbeBase(ABC):
-    """Bir servisin auth durumunu kanıtlayan hafif probe."""
+    """Lightweight probe that proves a service's auth state."""
 
-    #: Bu probe'un çalıştığı varsayılan port numaraları
+    #: Default ports this probe runs on
     default_ports: tuple[int, ...] = ()
 
-    #: Audit log'da kullanılan kısa ad (ör. "redis_auth")
+    #: Short name used in the audit log (e.g. "redis_auth")
     name: str = ""
 
-    #: UI'da gösterilen açıklama için i18n anahtarı
+    #: i18n key for the description shown in the UI
     description_key: str = ""
 
-    #: Bağlantı timeout (saniye)
+    #: Connection timeout (seconds)
     timeout: float = 5.0
 
     @property
     def description(self) -> str:
-        """Aktif dile çevrilmiş, insan-okunur açıklama."""
+        """Human-readable description translated into the active language."""
         return t(self.description_key) if self.description_key else ""
 
     @abstractmethod
     def probe(self, host: str, port: int) -> list[Finding]:
-        """Servise bağlan, auth durumunu tespit et, bulguları döndür.
+        """Connect to the service, detect auth state, return findings.
 
         Args:
-            host: Hedef IP veya hostname (scope_validator ile doğrulanmış)
-            port: TCP port numarası
+            host: Target IP or hostname (already validated by scope_validator).
+            port: TCP port number.
 
         Returns:
-            Bulgu listesi. Servis auth istiyorsa (veya erişilemezse) boş liste.
-            Auth açık ise CRITICAL severity'li Finding.
+            List of findings. Empty list if the service requires auth (or is
+            unreachable). A CRITICAL-severity Finding if auth is open.
         """
 
     def _evidence(
@@ -55,7 +55,7 @@ class ServiceProbeBase(ABC):
         response_snippet: str = "",
         extra: dict[str, object] | None = None,
     ) -> dict[str, object]:
-        """Standart evidence dict oluşturur."""
+        """Build a standard evidence dict."""
         evidence: dict[str, object] = {
             "probe_name": self.name,
             "target": f"{host}:{port}",

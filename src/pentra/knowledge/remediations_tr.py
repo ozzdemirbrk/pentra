@@ -1,14 +1,14 @@
-"""Detaylı Türkçe onarım rehberleri.
+"""Detailed Turkish remediation guides.
 
-Her finding tipi için 5 bölümlü adım-adım rehber:
-    1. **Sorun özeti** — title'ı tekrarlar
-    2. **Niye önemli** — risk context + saldırı senaryosu
-    3. **Nasıl düzeltirim** — sunucu varyantları (Nginx/Apache/IIS/Cloudflare)
-    4. **Doğrulama** — fix sonrası test komutu
-    5. **Referanslar** — güvenilir dokümantasyon linkleri
+A five-section step-by-step guide for every finding type:
+    1. **Problem summary** — repeats the title
+    2. **Why it matters** — risk context + attack scenario
+    3. **How to fix** — server variants (Nginx/Apache/IIS/Cloudflare)
+    4. **Verification** — post-fix test command
+    5. **References** — trusted documentation links
 
-Rapor şablonu bu rehberleri "Detaylı rehberi göster" açılır kartı olarak sunar.
-Bir finding için rehber tanımlı değilse kısa `remediation` string'i kullanılır.
+The report template presents these as a "Show detailed guide" expandable card.
+If no guide is defined for a finding, the short `remediation` string is used.
 """
 
 from __future__ import annotations
@@ -21,26 +21,26 @@ from pentra.models import Finding
 
 @dataclasses.dataclass(frozen=True)
 class FixStep:
-    """Belirli bir sunucu/servis için tek bir onarım adımı."""
+    """A single remediation step for a specific server/service."""
 
     platform: str  # "Nginx" / "Apache" / "IIS (web.config)" / "Cloudflare Dashboard"
-    instructions: str  # Türkçe açıklama (Markdown-light: ** kalın, ` kod `)
-    code: str = ""  # Copy-paste snippet (opsiyonel)
+    instructions: str  # Turkish description (Markdown-light: ** bold, ` code `)
+    code: str = ""  # Copy-paste snippet (optional)
 
 
 @dataclasses.dataclass(frozen=True)
 class RemediationGuide:
-    """Bir finding tipi için tam rehber."""
+    """Full guide for a finding type."""
 
     problem_summary: str
     why_important: str
     fix_steps: tuple[FixStep, ...]
     verification: str  # "Düzeltmeyi doğrulayın: `curl -I https://...`"
-    references: tuple[tuple[str, str], ...]  # ((başlık, url), ...)
+    references: tuple[tuple[str, str], ...]  # ((title, url), ...)
 
 
 # =====================================================================
-# Rehberler
+# Guides
 # =====================================================================
 _CSP_GUIDE = RemediationGuide(
     problem_summary="Content-Security-Policy (CSP) header'ı yanıtta yok.",
@@ -1457,7 +1457,7 @@ _X_POWERED_BY_GUIDE = RemediationGuide(
     ),
 )
 
-# --- Port-bazlı rehberler ---
+# --- Port-based guides ---
 
 _PORT_RDP_GUIDE = RemediationGuide(
     problem_summary="RDP (Remote Desktop, port 3389) açık.",
@@ -1702,11 +1702,11 @@ _PORT_GENERIC_GUIDE = RemediationGuide(
 
 
 # =====================================================================
-# Finding title → guide key eşlemesi
+# Finding title -> guide key mapping
 # =====================================================================
 _TitleMatcher = Callable[[str], bool]
 
-# (guide_key, matcher, guide) — matcher title pattern döndürür
+# (guide_key, matcher, guide) — matcher returns True on title pattern match
 _PATTERN_MATCHERS: tuple[tuple[str, _TitleMatcher, RemediationGuide], ...] = (
     ("csp_missing", lambda t: "CSP eksik" in t, _CSP_GUIDE),
     ("hsts_missing", lambda t: "HSTS eksik" in t, _HSTS_GUIDE),
@@ -1757,7 +1757,7 @@ _PATTERN_MATCHERS: tuple[tuple[str, _TitleMatcher, RemediationGuide], ...] = (
      lambda t: "PostgreSQL varsayılan parola" in t,
      _POSTGRES_DEFAULT_GUIDE),
 
-    # Port-specific — sıralama kritik: spesifik önce, sonunda generic
+    # Port-specific — order matters: specific first, generic last
     ("port_rdp", lambda t: "Açık port: 3389" in t, _PORT_RDP_GUIDE),
     ("port_smb",
      lambda t: "Açık port: 445" in t or "Açık port: 139" in t,
@@ -1765,16 +1765,17 @@ _PATTERN_MATCHERS: tuple[tuple[str, _TitleMatcher, RemediationGuide], ...] = (
     ("port_ftp", lambda t: "Açık port: 21" in t, _PORT_FTP_GUIDE),
     ("port_telnet", lambda t: "Açık port: 23" in t, _PORT_TELNET_GUIDE),
     ("port_vnc", lambda t: "Açık port: 5900" in t, _PORT_VNC_GUIDE),
-    # Generic port catch-all — EN SON olmalı (önce spesifikler eşleşsin)
+    # Generic port catch-all — MUST be last (specifics need to match first)
     ("port_generic", lambda t: t.startswith("Açık port:"), _PORT_GENERIC_GUIDE),
 )
 
 
 def get_guide(finding: Finding) -> RemediationGuide | None:
-    """Verilen finding için detaylı rehber varsa döndürür, yoksa None.
+    """Return the detailed guide for the given finding, or None if missing.
 
-    Rapor şablonu bu değerle çağırılır; None ise sadece kısa `remediation`
-    gösterilir, değer dönüyorsa "Detaylı rehberi göster" açılır kart sunulur.
+    The report template calls this; on None only the short `remediation`
+    is shown, on a non-None return a "Show detailed guide" expandable card
+    is added.
     """
     for _key, matcher, guide in _PATTERN_MATCHERS:
         if matcher(finding.title):

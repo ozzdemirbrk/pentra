@@ -1,4 +1,4 @@
-"""nvd_client.py — NVD API istemcisi testleri (mocked HTTP)."""
+"""nvd_client.py — NVD API client tests (mocked HTTP)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pentra.knowledge.nvd_client import Cve, NvdClient
 
 
 def _nvd_response(vulnerabilities: list) -> dict:
-    """Sahte NVD 2.0 API yanıtı."""
+    """Fake NVD 2.0 API response."""
     return {
         "resultsPerPage": len(vulnerabilities),
         "startIndex": 0,
@@ -26,7 +26,7 @@ def _vuln(
     cvss_v31: float | None = None,
     severity: str = "HIGH",
 ) -> dict:
-    """Tek bir vulnerability kaydı sahtesi."""
+    """Fake of a single vulnerability record."""
     entry: dict = {
         "cve": {
             "id": cve_id,
@@ -70,7 +70,7 @@ class TestSearchCves:
         assert cves[0].published_date == "2024-05-01"
 
     def test_post_filter_must_contain(self) -> None:
-        """must_contain stringlerinden herhangi biri yoksa CVE elenmeli."""
+        """A CVE should be filtered out if any of the must_contain strings is missing."""
         client = NvdClient()
         mock_response = MagicMock()
         mock_response.json.return_value = _nvd_response([
@@ -85,8 +85,8 @@ class TestSearchCves:
 
         ids = [c.cve_id for c in cves]
         assert "CVE-A" in ids
-        assert "CVE-B" not in ids  # "IIS" yok
-        assert "CVE-C" not in ids  # "10.0" yok
+        assert "CVE-B" not in ids  # missing "IIS"
+        assert "CVE-C" not in ids  # missing "10.0"
 
     def test_sorted_by_cvss_desc(self) -> None:
         client = NvdClient()
@@ -135,7 +135,7 @@ class TestSearchCves:
             client.search_cves("same", must_contain=("x",))
             client.search_cves("same", must_contain=("x",))
             client.search_cves("same", must_contain=("x",))
-            # Sadece 1 HTTP isteği — sonrakiler cache'den
+            # Only 1 HTTP request — subsequent ones are served from cache
             assert mock_get.call_count == 1
 
     def test_empty_results(self) -> None:

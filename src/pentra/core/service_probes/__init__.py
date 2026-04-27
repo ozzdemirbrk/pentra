@@ -1,14 +1,14 @@
-"""Servis probe'ları — açık port üzerinde auth/yapılandırma kontrolü.
+"""Service probes — auth/configuration checks on an open port.
 
-NetworkScanner port taraması yaptıktan sonra, bulduğu açık portların
-bazıları için (veritabanı, admin arayüzü vb.) ek non-destructive probe
-çalıştırılır. Örnek: Redis 6379 açıksa `PING` gönder, auth olmadan
-yanıt veriyorsa CRITICAL bulgu.
+After NetworkScanner runs a port scan, additional non-destructive probes
+may run against some of the open ports it found (databases, admin
+interfaces, etc.). Example: if Redis 6379 is open, send `PING`, and if
+it answers without auth, emit a CRITICAL finding.
 
-Seviye 2 kurallarına tam uyum:
-    - Tek seferlik bağlantı
-    - Yalnızca auth durumunu kontrol (veri çekme YOK)
-    - Bağlantı kopartılır
+Fully compliant with the Level 2 rules:
+    - Single-shot connection
+    - Only checks the auth state (NO data extraction)
+    - Connection is closed afterwards
 """
 
 from pentra.core.service_probes.base import ServiceProbeBase

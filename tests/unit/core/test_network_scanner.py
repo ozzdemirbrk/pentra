@@ -1,9 +1,9 @@
-"""network_scanner.py — nmap mock'lu unit testler.
+"""network_scanner.py — unit tests with mocked nmap.
 
-Gerçek nmap çağırmadan NetworkScanner'ın:
-    - Doğru nmap argümanlarını ürettiğini
-    - Sonuçları Finding'e doğru çevirdiğini
-    - Riskli portları uygun severity'ye atadığını doğrular.
+Without invoking real nmap, we verify that NetworkScanner:
+    - Produces the right nmap arguments
+    - Correctly converts results into Findings
+    - Assigns the proper severity to risky ports.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from pentra.storage.audit_log import AuditLog
 
 @pytest.fixture
 def scanner_deps(tmp_path: Path):
-    """NetworkScanner'ın bağımlılıklarını oluşturur."""
+    """Build the NetworkScanner dependencies."""
     audit_log = AuditLog(tmp_path / "audit.log")
     auth_mgr = AuthorizationManager(secret=b"x" * 32)
     rate_limiter = TokenBucket(capacity=1000, refill_rate_per_sec=1000.0)
@@ -39,16 +39,16 @@ def scanner_deps(tmp_path: Path):
 
 @pytest.fixture
 def valid_token(scanner_deps):
-    """Localhost için geçerli bir token üretir."""
+    """Produces a valid token for localhost."""
     _, _, auth_mgr = scanner_deps
     target = Target(TargetType.LOCALHOST, "127.0.0.1")
     request = AuthorizationRequest(target, ScanDepth.QUICK, user_accepted_terms=True)
-    scope = ScopeDecision(ScopeDecisionType.ALLOWED_PRIVATE, target, "özel")
+    scope = ScopeDecision(ScopeDecisionType.ALLOWED_PRIVATE, target, "private")
     return auth_mgr.grant(request, scope), target
 
 
 # =====================================================================
-# Argüman üretimi
+# Argument generation
 # =====================================================================
 class TestBuildNmapArgs:
     def test_quick_args(self) -> None:
@@ -64,18 +64,18 @@ class TestBuildNmapArgs:
     def test_deep_args(self) -> None:
         args = NetworkScanner._build_nmap_args(ScanDepth.DEEP)
         assert "-O" in args
-        # Derin tarama güvenli NSE script'leri + tüm portlar kapsamalı
+        # Deep scan should include safe NSE scripts + all ports
         assert "--script=safe" in args
         assert "-p-" in args
         assert "-sV" in args
 
 
 # =====================================================================
-# Nmap çıktısının Finding'e çevrilmesi (mock)
+# Translating nmap output into Findings (mock)
 # =====================================================================
 class TestDoScanWithMockedNmap:
     def _make_mock_scanner(self, hosts_data: dict) -> MagicMock:
-        """Mock nmap.PortScanner — scan() çağrılınca hosts_data döner."""
+        """Mock nmap.PortScanner — scan() returns hosts_data when called."""
         mock_ps = MagicMock()
         mock_ps.all_hosts.return_value = list(hosts_data.keys())
 
@@ -86,7 +86,7 @@ class TestDoScanWithMockedNmap:
         return mock_ps
 
     def _make_host_result(self, ports: dict[int, dict]) -> MagicMock:
-        """Bir host için mock sonuç — {port: {state, name, ...}}."""
+        """Mock result for a host — {port: {state, name, ...}}."""
         proto_dict = {p: info for p, info in ports.items()}
         host = MagicMock()
         host.all_protocols.return_value = ["tcp"]
@@ -99,7 +99,7 @@ class TestDoScanWithMockedNmap:
 
         scanner = NetworkScanner(rate_limiter=rate, audit_log=audit, auth_manager=auth)
 
-        # Sinyal yakalamak için bir dinleyici
+        # A listener to capture signals
         findings: list = []
         scanner.finding_discovered.connect(findings.append)
 
@@ -117,7 +117,7 @@ class TestDoScanWithMockedNmap:
         with patch("nmap.PortScanner", return_value=mock_scanner):
             scanner.scan(target, ScanDepth.QUICK, token)
 
-        # Sadece açık portlar → 2 finding
+        # Only open ports → 2 findings
         assert len(findings) == 2
         titles = {f.title for f in findings}
         assert any("80/tcp" in t for t in titles)
@@ -131,7 +131,7 @@ class TestDoScanWithMockedNmap:
         findings: list = []
         scanner.finding_discovered.connect(findings.append)
 
-        # RDP açık → HIGH severity
+        # RDP open → HIGH severity
         hosts_data = {
             "127.0.0.1": self._make_host_result(
                 {3389: {"state": "open", "name": "ms-wbt-server", "product": "", "version": ""}},
@@ -152,7 +152,7 @@ class TestDoScanWithMockedNmap:
         findings: list = []
         scanner.finding_discovered.connect(findings.append)
 
-        # 8080 listede değil → INFO
+        # 8080 not in the risky list → INFO
         hosts_data = {
             "127.0.0.1": self._make_host_result(
                 {8080: {"state": "open", "name": "http-alt", "product": "", "version": ""}},
@@ -184,9 +184,9 @@ class TestDoScanWithMockedNmap:
         rate, audit, auth = scanner_deps
         scanner = NetworkScanner(rate_limiter=rate, audit_log=audit, auth_manager=auth)
 
-        # Hiç nmap çağrılmamalı
+        # nmap should never be called
         with patch("nmap.PortScanner") as mock_class:
-            # Geçersiz token
+            # Invalid token
             from pentra.models import AuthorizationToken
 
             fake = AuthorizationToken(token_id="x", payload="y", signature="z")
@@ -198,4 +198,4 @@ class TestDoScanWithMockedNmap:
 
             mock_class.assert_not_called()
             assert len(errors) == 1
-            assert "yetki" in errors[0].lower() or "token" in errors[0].lower()
+            assert "authorization" in errors[0].lower() or "token" in errors[0].lower()

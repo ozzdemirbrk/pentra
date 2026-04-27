@@ -1,4 +1,4 @@
-"""Elasticsearch auth check — port 9200'de parolasız erişim kontrolü."""
+"""Elasticsearch auth check — tests for no-password access on port 9200."""
 
 from __future__ import annotations
 

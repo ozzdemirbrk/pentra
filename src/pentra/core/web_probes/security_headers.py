@@ -1,7 +1,7 @@
-"""Security Headers probe — HTTP yanıt header'larında kritik güvenlik ayarlarını kontrol eder.
+"""Security Headers probe — checks critical security settings in HTTP response headers.
 
-Tek GET isteği gönderir, response header'larını analiz eder.
-Sunucuda hiçbir değişiklik yapmaz, tamamen pasif (Seviye 2'nin en hafif probe'u).
+Sends a single GET request and analyses the response headers.
+Makes no changes on the server; fully passive (the lightest Level 2 probe).
 """
 
 from __future__ import annotations
@@ -13,9 +13,9 @@ from pentra.i18n import t
 from pentra.models import Finding, Severity
 
 
-# Eksik security header'lar için meta — severity ve i18n anahtarları
+# Metadata for missing security headers — severity and i18n keys
 _REQUIRED_HEADERS: dict[str, tuple[Severity, str, str, str]] = {
-    # header_name → (severity, title_key, desc_key, remediation_key)
+    # header_name -> (severity, title_key, desc_key, remediation_key)
     "Strict-Transport-Security": (
         Severity.MEDIUM,
         "finding.web.hsts_missing.title",
@@ -77,9 +77,9 @@ class SecurityHeadersProbe(WebProbeBase):
 
         is_https = url.lower().startswith("https://")
 
-        # ---- Eksik güvenlik header'ları ----
+        # ---- Missing security headers ----
         for header_name, (severity, title_key, desc_key, rem_key) in _REQUIRED_HEADERS.items():
-            # HSTS sadece HTTPS sitelerde anlamlıdır
+            # HSTS is only meaningful on HTTPS sites
             if header_name == "Strict-Transport-Security" and not is_https:
                 continue
 
@@ -103,7 +103,7 @@ class SecurityHeadersProbe(WebProbeBase):
                     ),
                 )
 
-        # ---- Versiyon sızdıran header'lar ----
+        # ---- Version-leaking headers ----
         for leaky in _LEAKY_HEADERS:
             if leaky in response.headers:
                 value = response.headers[leaky]
@@ -136,7 +136,7 @@ class SecurityHeadersProbe(WebProbeBase):
                     ),
                 )
 
-        # ---- HTTPS zorunluluğu ----
+        # ---- HTTPS requirement ----
         if not is_https:
             findings.append(
                 Finding(

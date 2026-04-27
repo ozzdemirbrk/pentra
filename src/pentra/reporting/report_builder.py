@@ -1,7 +1,7 @@
-"""Rapor veri yapısı + Finding listesinden rapor oluşturan yardımcı.
+"""Report data structure + helper that builds a report from a list of Findings.
 
-Rapor formatlamasını (HTML/PDF/MD) bilmez; sadece veri hazırlar.
-Exporter'lar aldıkları Report nesnesiyle ilgili formata çevirir.
+Knows nothing about report formatting (HTML/PDF/MD); just prepares data.
+Exporters convert the Report object they receive into their target format.
 """
 
 from __future__ import annotations
@@ -14,11 +14,11 @@ from pentra.reporting.risk_score import RiskAssessment, assess_risk, top_actions
 
 
 # ---------------------------------------------------------------------
-# Rapor veri modeli
+# Report data model
 # ---------------------------------------------------------------------
 @dataclasses.dataclass(frozen=True)
 class ReportSummary:
-    """Bulgu sayaçları — rapor başında hızlı özet için."""
+    """Finding counters — used for the quick overview at the top of the report."""
 
     total: int
     critical: int
@@ -44,7 +44,7 @@ class ReportSummary:
 
 @dataclasses.dataclass(frozen=True)
 class Report:
-    """Dışa aktarıma hazır tam rapor."""
+    """Full report ready for export."""
 
     target: Target
     depth: ScanDepth
@@ -52,11 +52,11 @@ class Report:
     ended_at: datetime
     findings: list[Finding]
     summary: ReportSummary
-    #: Risk skoru (0–10) + Türkçe etiket + özet cümle
+    #: Risk score (0–10) + Turkish label + summary sentence
     risk: RiskAssessment
-    #: Rapor başında gösterilen ilk N öncelikli aksiyon
+    #: Top N priority actions shown at the top of the report
     top_actions: list[Finding] = dataclasses.field(default_factory=list)
-    #: Önceki taramayla karşılaştırma (varsa); ilk tarama ise None
+    #: Comparison with the previous scan (if any); None on first scan
     comparison: "ScanComparison | None" = None
 
     @property
@@ -65,7 +65,7 @@ class Report:
 
     @property
     def duration_pretty(self) -> str:
-        """Süreyi Türkçe olarak biçimlendirir (ör. '3 dk 12 sn')."""
+        """Format the duration in Turkish (e.g. '3 dk 12 sn')."""
         total = int(self.duration_seconds)
         minutes, seconds = divmod(total, 60)
         hours, minutes = divmod(minutes, 60)
@@ -80,7 +80,7 @@ class Report:
 # Builder
 # ---------------------------------------------------------------------
 class ReportBuilder:
-    """Tarama sonucundan `Report` nesnesi üretir."""
+    """Builds a `Report` object from a scan result."""
 
     def build(
         self,
@@ -95,7 +95,7 @@ class ReportBuilder:
         if ended_at is None:
             ended_at = datetime.now(timezone.utc)
 
-        # Severity sırasına göre (kritik → info) sırala — raporda üstte kritikler
+        # Sort by severity (critical -> info) so critical items appear first
         severity_order = {
             Severity.CRITICAL: 0,
             Severity.HIGH: 1,

@@ -1,4 +1,4 @@
-"""remediations_tr.py — guide lookup testleri."""
+"""remediations_tr.py — guide lookup tests."""
 
 from __future__ import annotations
 
@@ -25,12 +25,12 @@ def _finding_with_title(title: str) -> Finding:
 
 class TestGuideStructure:
     @pytest.mark.parametrize("key", [
-        # İlk 17 rehber
+        # First 17 guides
         "csp_missing", "hsts_missing", "xfo_missing", "xcto_missing",
         "referrer_missing", "server_leak", "http_only", "security_txt",
         "redis_open", "mongodb_open", "elasticsearch_open", "mysql_default",
         "ssh_default", "env_exposed", "wifi_open", "wifi_wep", "wifi_old_wpa",
-        # Yeni eklenen 16 rehber
+        # 16 newly added guides
         "sql_injection", "xss_reflected", "path_traversal",
         "ssl_old_protocol", "ssl_cert_problem", "x_powered_by_leak",
         "exposed_git", "exposed_sql_dump", "exposed_wp_config",
@@ -49,7 +49,7 @@ class TestGuideStructure:
         assert get_guide_by_key("nonexistent_key_xyz") is None
 
     def test_guide_has_all_sections(self) -> None:
-        """Her rehber 5 bölümü doldurmuş olmalı."""
+        """Every guide must populate all 5 sections."""
         guide = get_guide_by_key("csp_missing")
         assert guide is not None
         assert guide.problem_summary
@@ -63,7 +63,7 @@ class TestGuideStructure:
         assert guide is not None
         for step in guide.fix_steps:
             assert isinstance(step, FixStep)
-            assert step.platform  # boş olmamalı
+            assert step.platform  # must not be empty
 
 
 class TestTitleMatching:
@@ -109,10 +109,10 @@ class TestTitleMatching:
         finding = _finding_with_title(title)
         guide = get_guide(finding)
         if expected_key_present:
-            assert guide is not None, f"'{title}' için rehber bulunamadı"
+            assert guide is not None, f"no guide found for '{title}'"
 
     def test_unknown_title_returns_none(self) -> None:
-        finding = _finding_with_title("Rastgele tanımsız bulgu")
+        finding = _finding_with_title("Random undefined finding")
         assert get_guide(finding) is None
 
 
@@ -123,18 +123,18 @@ class TestGuideContent:
         platforms = {step.platform for step in guide.fix_steps}
         assert "Nginx" in platforms
         assert "Apache" in platforms
-        # IIS ve Cloudflare varyantları da olmalı
+        # IIS and Cloudflare variants should also be present
         assert any("IIS" in p for p in platforms)
 
     def test_redis_guide_mentions_requirepass(self) -> None:
-        """Redis rehberinde 'requirepass' yönergesi geçmeli."""
+        """Redis guide should mention the 'requirepass' directive."""
         guide = get_guide_by_key("redis_open")
         assert guide is not None
         combined = "\n".join(step.code for step in guide.fix_steps)
         assert "requirepass" in combined
 
     def test_ssh_guide_mentions_key_auth(self) -> None:
-        """SSH rehberi parola yerine key authentication önermeli."""
+        """SSH guide should recommend key authentication instead of passwords."""
         guide = get_guide_by_key("ssh_default")
         assert guide is not None
         combined = "\n".join(step.code for step in guide.fix_steps)

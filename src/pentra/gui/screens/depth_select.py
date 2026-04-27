@@ -1,7 +1,7 @@
-"""Ekran 3 — Derinlik Seçimi.
+"""Screen 3 — Depth Selection.
 
-Üç seçenek aktif: Hızlı (top 100 port), Standart (top 1000 + CVE),
-Derin (tüm 65k port + NSE safe + OS detection).
+Three choices: Quick (top 100 ports), Standard (top 1000 + CVE),
+Deep (all 65k ports + NSE safe + OS detection).
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from pentra.models import ScanDepth
 
 
 class DepthSelectPage(QWizardPage):
-    """Tarama derinliğini (ve dolayısıyla süre/kapsam) seçer."""
+    """Pick the scan depth (which in turn picks duration/coverage)."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -31,7 +31,7 @@ class DepthSelectPage(QWizardPage):
 
         self._group = QButtonGroup(self)
 
-        # --- Hızlı ---
+        # --- Quick ---
         self._rb_quick = QRadioButton()
         self._rb_quick.setChecked(True)
         self._rb_quick.setStyleSheet("QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }")
@@ -48,7 +48,7 @@ class DepthSelectPage(QWizardPage):
         line1.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(line1)
 
-        # --- Standart ---
+        # --- Standard ---
         self._rb_standard = QRadioButton()
         self._rb_standard.setStyleSheet("QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }")
         self._group.addButton(self._rb_standard)
@@ -64,7 +64,7 @@ class DepthSelectPage(QWizardPage):
         line2.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(line2)
 
-        # --- Derin ---
+        # --- Deep ---
         self._rb_deep = QRadioButton()
         self._rb_deep.setStyleSheet("QRadioButton { font-size: 14px; font-weight: bold; padding: 6px; }")
         self._group.addButton(self._rb_deep)

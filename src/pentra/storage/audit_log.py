@@ -1,18 +1,19 @@
-"""Hash-zincirli append-only denetim izi.
+"""Hash-chained append-only audit log.
 
-Amaç: Pentra'nın ürettiği her tarama talebi, başlangıcı ve sonucu izlenebilir
-olsun. Her satır bir JSON event + bir önceki satırın hash'i + kendi hash'i
-içerir. Herhangi bir satır değiştirilirse takip eden tüm hash'ler bozulur
-ve `verify_integrity()` bunu tespit eder.
+Goal: make every scan request, start, and outcome produced by Pentra auditable.
+Each line contains a JSON event + the previous line's hash + its own hash. If
+any line is tampered with, every following hash breaks and
+`verify_integrity()` detects it.
 
-Dosya formatı (her satır bağımsız JSON):
+File format (one independent JSON per line):
     {"ts":"...","event_type":"...","target_fp":"...","details":{...},
      "prev_hash":"...","entry_hash":"..."}
 
-Tehdit modeli (v1):
-    ✔ Kaza ile ya da kullanıcıyı yanıltmak amacıyla seçici düzenlemeye karşı dayanıklı
-    ✘ Dosyayı tamamen yeniden yazıp zinciri baştan hesaplayabilen saldırgan kapsam dışı
-      (bu düzeyde koruma için offline/WORM depolama gerekir)
+Threat model (v1):
+    - Robust against accidental or selective edits aimed at misleading the user.
+    - Out of scope: an attacker able to rewrite the full file and recompute the
+      entire chain from scratch (that level of protection needs offline/WORM
+      storage).
 """
 
 from __future__ import annotations
@@ -28,26 +29,26 @@ from typing import Any
 
 from pentra.models import AuditEvent
 
-# Zincirin ilk halkası için kullanılan "doğum hash'i"
+# "Genesis hash" used as the predecessor of the very first entry
 GENESIS_HASH: str = "0" * 64
 
 
 @dataclasses.dataclass(frozen=True)
 class IntegrityViolation:
-    """Log dosyasında tespit edilen bir bütünlük ihlali."""
+    """An integrity violation detected in the log file."""
 
-    line_number: int  # 1-indexed (insan tarafından okunurken rahat olsun diye)
-    reason: str  # Türkçe açıklama
+    line_number: int  # 1-indexed (so it's easy to read for humans)
+    reason: str  # Localized description
 
 
 class AuditLogError(Exception):
-    """Audit log ile ilgili genel hata."""
+    """General audit-log error."""
 
 
 class AuditLog:
-    """Append-only, hash-zincirli denetim izi.
+    """Append-only, hash-chained audit log.
 
-    Thread-safe: birden fazla thread aynı anda `log_event()` çağırabilir.
+    Thread-safe: multiple threads may call `log_event()` concurrently.
     """
 
     def __init__(self, log_path: Path) -> None:
@@ -57,14 +58,14 @@ class AuditLog:
         self._last_hash: str = self._read_last_hash()
 
     # -----------------------------------------------------------------
-    # Dışa dönük API
+    # Public API
     # -----------------------------------------------------------------
     @property
     def path(self) -> Path:
         return self._path
 
     def log_event(self, event: AuditEvent) -> str:
-        """Olayı zincire ekle. Yeni satırın entry_hash'ini döner."""
+        """Append an event to the chain. Returns the new entry's entry_hash."""
         with self._lock:
             entry = self._build_entry(event, prev_hash=self._last_hash)
             line = json.dumps(entry, ensure_ascii=False, sort_keys=True)
@@ -75,10 +76,10 @@ class AuditLog:
             return entry["entry_hash"]
 
     def read_all(self) -> list[AuditEvent]:
-        """Logdaki tüm event'leri AuditEvent nesnesi olarak döndür.
+        """Return every event in the log as AuditEvent objects.
 
-        Bütünlük kontrolü yapmaz — sadece parse eder. Doğrulama için
-        `verify_integrity()` kullanın.
+        Does no integrity check — only parsing. Use `verify_integrity()`
+        to validate the chain.
         """
         events: list[AuditEvent] = []
         for _, entry in self._iter_entries():
@@ -93,9 +94,9 @@ class AuditLog:
         return events
 
     def verify_integrity(self) -> list[IntegrityViolation]:
-        """Tüm dosyayı kontrol et; ihlalleri döndür.
+        """Check the entire file; return any violations.
 
-        Boş liste = dosya temiz. Dosya yoksa da boş liste döner.
+        Empty list = file is clean. A missing file also returns an empty list.
         """
         violations: list[IntegrityViolation] = []
         prev_hash = GENESIS_HASH
@@ -114,16 +115,16 @@ class AuditLog:
                         entry = json.loads(raw)
                     except json.JSONDecodeError as e:
                         violations.append(
-                            IntegrityViolation(line_no, f"JSON geçersiz: {e}"),
+                            IntegrityViolation(line_no, f"Invalid JSON: {e}"),
                         )
-                        break  # zincir bozuldu, devamı anlamsız
+                        break  # chain is broken, nothing after this matters
 
                     required = {"ts", "event_type", "target_fp", "prev_hash", "entry_hash"}
                     missing = required - entry.keys()
                     if missing:
                         violations.append(
                             IntegrityViolation(
-                                line_no, f"eksik alanlar: {', '.join(sorted(missing))}",
+                                line_no, f"missing fields: {', '.join(sorted(missing))}",
                             ),
                         )
                         break
@@ -132,8 +133,8 @@ class AuditLog:
                         violations.append(
                             IntegrityViolation(
                                 line_no,
-                                f"prev_hash uyuşmuyor: bekleniyor {prev_hash[:16]}..., "
-                                f"bulunan {entry['prev_hash'][:16]}...",
+                                f"prev_hash mismatch: expected {prev_hash[:16]}..., "
+                                f"found {entry['prev_hash'][:16]}...",
                             ),
                         )
                         break
@@ -149,19 +150,19 @@ class AuditLog:
                         violations.append(
                             IntegrityViolation(
                                 line_no,
-                                "entry_hash yanlış — içerik ile eşleşmiyor",
+                                "entry_hash mismatch — does not match content",
                             ),
                         )
                         break
 
                     prev_hash = entry["entry_hash"]
         except OSError as e:
-            raise AuditLogError(f"Log dosyası okunamadı: {e}") from e
+            raise AuditLogError(f"Could not read log file: {e}") from e
 
         return violations
 
     # -----------------------------------------------------------------
-    # İç
+    # Internal
     # -----------------------------------------------------------------
     def _build_entry(self, event: AuditEvent, prev_hash: str) -> dict[str, Any]:
         ts = event.timestamp.isoformat()
@@ -183,11 +184,11 @@ class AuditLog:
         }
 
     def _read_last_hash(self) -> str:
-        """Son satırı parse ederek last_hash'i belirler. Dosya yoksa genesis."""
+        """Determine last_hash by parsing the final line. Genesis when file missing."""
         if not self._path.exists() or self._path.stat().st_size == 0:
             return GENESIS_HASH
 
-        # Basit, küçük dosyalar için: tüm satırları oku, sonuncuyu al
+        # Simple approach for small files: read all lines, take the last
         last_entry: dict[str, Any] | None = None
         try:
             with self._path.open("r", encoding="utf-8") as f:
@@ -198,10 +199,10 @@ class AuditLog:
                     try:
                         last_entry = json.loads(raw)
                     except json.JSONDecodeError:
-                        # Bozuk satır — devam et; bu bozukluk verify_integrity'de yakalanır
+                        # Corrupt line — keep going; verify_integrity() catches this
                         last_entry = None
         except OSError as e:
-            raise AuditLogError(f"Log dosyası okunamadı: {e}") from e
+            raise AuditLogError(f"Could not read log file: {e}") from e
 
         if last_entry is None or "entry_hash" not in last_entry:
             return GENESIS_HASH
@@ -222,7 +223,7 @@ class AuditLog:
 
 
 # ---------------------------------------------------------------------
-# Hash hesaplama (dışarıdan da kullanılabilir)
+# Hash calculation (usable from the outside too)
 # ---------------------------------------------------------------------
 def _compute_entry_hash(
     *,
@@ -232,9 +233,9 @@ def _compute_entry_hash(
     target_fp: str,
     details: dict[str, Any],
 ) -> str:
-    """Bir satırın entry_hash'ini kanonik olarak hesaplar.
+    """Compute a line's entry_hash canonically.
 
-    Deterministik olması için details JSON'u sort_keys=True ile serileşir.
+    `details` is serialized with sort_keys=True to be deterministic.
     """
     canonical = json.dumps(
         {
@@ -257,7 +258,7 @@ def make_event(
     *,
     timestamp: datetime | None = None,
 ) -> AuditEvent:
-    """Kolaylık yapıcı — timestamp verilmezse şu anki UTC."""
+    """Convenience factory — uses current UTC when timestamp is omitted."""
     return AuditEvent(
         event_type=event_type,
         timestamp=timestamp if timestamp is not None else datetime.now(timezone.utc),

@@ -1,16 +1,18 @@
-"""Exposed Paths probe — hassas dosya/klasörlerin public erişimini kontrol eder.
+"""Exposed Paths probe — checks whether sensitive files/folders are publicly accessible.
 
-Üç katmanlı false-positive savunması:
+Three layers of false-positive defense:
 
-    1. **Soft-404 baseline**: Probe başında rastgele bir yol istenir. 200 dönerse
-       sunucu 404 yerine catch-all sayfa veriyor demektir; sonraki probe'lar bu
-       baseline'la karşılaştırılır (boyut + ilk 500 karakter). Benzer = atla.
+    1. **Soft-404 baseline**: A random path is requested at the start. If it
+       returns 200, the server is serving a catch-all page instead of a real
+       404; subsequent probes are compared against this baseline (size + first
+       500 chars). If similar, skip.
 
-    2. **Content-Type filtresi**: `.env`, `.sql`, `.htaccess` gibi teknik dosyalar
-       `text/html` dönüyorsa büyük ihtimalle HTML anasayfa — sahte pozitif.
+    2. **Content-Type filter**: If technical files like `.env`, `.sql`,
+       `.htaccess` return `text/html`, it's probably the HTML home page — a
+       false positive.
 
-    3. **Spesifik içerik validator'ı**: Her path için yalnızca gerçek dosyanın
-       üreteceği içerik pattern'i aranır.
+    3. **Specific content validator**: For every path only the content pattern
+       that a real file would produce is searched.
 """
 
 from __future__ import annotations
@@ -172,13 +174,13 @@ def _phpmyadmin_validator(response: requests.Response) -> tuple[bool, str]:
 
 
 # ---------------------------------------------------------------------
-# Path kayıtları — i18n anahtarları
+# Path registrations — i18n keys
 # ---------------------------------------------------------------------
 @dataclasses.dataclass(frozen=True)
 class _PathCheck:
     path: str
     severity: Severity
-    #: i18n key prefix. title/desc/remediation = `{key_prefix}.title` vs.
+    #: i18n key prefix. title/desc/remediation = `{key_prefix}.title` etc.
     key_prefix: str
     validator: Validator
 
@@ -242,7 +244,7 @@ def _looks_like_baseline(response: requests.Response, baseline: _Baseline) -> bo
 
 
 # ---------------------------------------------------------------------
-# Ana probe sınıfı
+# Main probe class
 # ---------------------------------------------------------------------
 class ExposedPathsProbe(WebProbeBase):
     name: str = "exposed_paths"
@@ -255,7 +257,7 @@ class ExposedPathsProbe(WebProbeBase):
         # 1. Soft-404 baseline
         baseline = _capture_baseline(base, session, self.timeout)
 
-        # 2. Her hassas yolu test et
+        # 2. Test every sensitive path
         for check in _SENSITIVE_PATHS:
             full_url = urljoin(base + "/", check.path.lstrip("/"))
 
@@ -295,7 +297,7 @@ class ExposedPathsProbe(WebProbeBase):
                 ),
             )
 
-        # 3. security.txt — ters mantık (yoksa uyar)
+        # 3. security.txt — inverted logic (warn if missing)
         security_url = urljoin(base + "/", ".well-known/security.txt")
         try:
             sec_response = session.get(

@@ -1,1 +1,1 @@
-"""GUI katmanı — PySide6 tabanlı sihirbaz arayüzü."""
+"""GUI layer — wizard interface built on PySide6."""

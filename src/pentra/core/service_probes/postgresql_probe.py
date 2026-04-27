@@ -1,4 +1,4 @@
-"""PostgreSQL default credentials probe — port 5432'de varsayılan parola testi."""
+"""PostgreSQL default credentials probe — tests default passwords on port 5432."""
 
 from __future__ import annotations
 

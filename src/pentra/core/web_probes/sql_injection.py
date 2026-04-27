@@ -1,4 +1,4 @@
-"""SQL Injection probe — error-based tespit."""
+"""SQL Injection probe — error-based detection."""
 
 from __future__ import annotations
 
@@ -116,10 +116,10 @@ class SqlInjectionProbe(WebProbeBase):
     # -----------------------------------------------------------------
     @staticmethod
     def _match_sql_error(body: str) -> tuple[str | None, str]:
-        """Yanıt gövdesinde SQL hata pattern'i var mı bak.
+        """Check the response body for a SQL error pattern.
 
         Returns:
-            (matched_text, translated_dbms_label) ya da (None, "")
+            (matched_text, translated_dbms_label) or (None, "")
         """
         snippet = body[:16384]
         for pattern, dbms_key in _SQL_ERROR_PATTERNS:

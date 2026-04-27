@@ -1,7 +1,7 @@
-"""scan_orchestrator.py — Güvenlik zinciri doğrulama testleri.
+"""scan_orchestrator.py — Safety chain validation tests.
 
-ScanOrchestrator'un görevi: yetki + kapsam + scanner seçimini koordine etmek.
-Burada Scanner'ı mock'larız — orchestrator'ın kendi mantığını izole test ederiz.
+ScanOrchestrator's job: coordinate authorization + scope + scanner selection.
+We mock the Scanner here — the orchestrator's own logic is tested in isolation.
 """
 
 from __future__ import annotations
@@ -32,14 +32,14 @@ def auth_manager() -> AuthorizationManager:
 @pytest.fixture
 def scope_validator() -> ScopeValidator:
     def _no_dns(hostname: str) -> list[str]:
-        raise AssertionError("DNS çağrılmamalıydı")
+        raise AssertionError("DNS should not have been called")
 
     return ScopeValidator(dns_resolver=_no_dns)
 
 
 @pytest.fixture
 def scanner_factory():
-    """Mock scanner üretir — gerçek tarama yapmaz."""
+    """Produces a mock scanner — does not perform a real scan."""
     factory = MagicMock()
     scanner_instance = MagicMock(spec=ScannerBase)
     factory.return_value = scanner_instance
@@ -62,7 +62,7 @@ def orchestrator(
 
 
 # =====================================================================
-# Başarı yolları
+# Success paths
 # =====================================================================
 class TestPrepareSuccess:
     def test_localhost_prepare_returns_prepared_scan(
@@ -102,7 +102,7 @@ class TestPrepareSuccess:
 
 
 # =====================================================================
-# Reddedilen yollar
+# Denied paths
 # =====================================================================
 class TestPrepareDenied:
     def test_unchecked_terms_raises(self, orchestrator: ScanOrchestrator) -> None:
@@ -117,7 +117,7 @@ class TestPrepareDenied:
         target = Target(TargetType.IP_SINGLE, "224.0.0.1")
         request = ScanRequest(target, ScanDepth.QUICK, user_accepted_terms=True)
 
-        with pytest.raises(AuthorizationDenied, match="Kapsam"):
+        with pytest.raises(AuthorizationDenied, match="Scope"):
             orchestrator.prepare(request)
 
     def test_scope_denied_logs_reason(
@@ -132,7 +132,7 @@ class TestPrepareDenied:
         types = [e.event_type for e in events]
         assert "scope_evaluated" in types
         assert "scope_denied" in types
-        # auth_granted hiç çıkmamalı
+        # auth_granted must not appear
         assert "auth_granted" not in types
 
     def test_public_without_external_confirmation_raises(

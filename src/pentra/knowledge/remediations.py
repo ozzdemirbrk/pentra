@@ -1,10 +1,10 @@
-"""Onarım rehberi dispatcher — aktif dile göre doğru rehberi döndürür.
+"""Remediation-guide dispatcher — returns the right guide for the active language.
 
-`remediations_tr.py` → Türkçe rehberler
-`remediations_en.py` → İngilizce rehberler
+`remediations_tr.py` -> Turkish guides
+`remediations_en.py` -> English guides
 
-Her ikisi de aynı `get_guide(finding) -> RemediationGuide | None` API'sını
-sunar; bu modül aktif dile göre birini çağırır.
+Both expose the same `get_guide(finding) -> RemediationGuide | None` API;
+this module picks one based on the active language.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ __all__ = ["RemediationGuide", "get_guide"]
 
 
 def get_guide(finding: Finding) -> RemediationGuide | None:
-    """Aktif dile göre onarım rehberini döndürür (yoksa None)."""
+    """Return the remediation guide for the active language (None if missing)."""
     lang = Translator.instance().current_language
     if lang == "en":
         return remediations_en.get_guide(finding)

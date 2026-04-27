@@ -1,1 +1,1 @@
-"""Rapor üretimi — Jinja2 şablonları ve PDF/HTML/MD export."""
+"""Report generation — Jinja2 templates and PDF/HTML/MD export."""

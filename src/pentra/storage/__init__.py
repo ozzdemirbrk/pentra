@@ -1,1 +1,1 @@
-"""Yerel depolama: SQLite veritabanı, denetim izi, repository'ler."""
+"""Local storage: SQLite database, audit log, repositories."""

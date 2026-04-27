@@ -1,7 +1,7 @@
-"""Ekran 5 — Rapor Önizleme + Kaydet.
+"""Screen 5 — Report preview + Save.
 
-Bulguları severity'ye göre listeler, özet sayaçları gösterir ve
-kullanıcının raporu masaüstüne kaydetmesine izin verir.
+Lists findings by severity, shows summary counters, and lets the user save
+the report to the desktop.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from pentra.reporting.exporters.html_exporter import HtmlExporter
 from pentra.reporting.report_builder import Report, ReportBuilder, ReportSummary
 
 
-#: Severity → çeviri anahtarı eşleştirmesi
+#: Severity -> translation key mapping
 _SEVERITY_KEY = {
     Severity.CRITICAL: "severity.critical",
     Severity.HIGH: "severity.high",
@@ -43,7 +43,7 @@ _SEVERITY_KEY = {
 
 
 class ReportPage(QWizardPage):
-    """Rapor önizlemesi + HTML olarak masaüstüne kaydet butonu."""
+    """Report preview + a button to save it to the desktop as HTML."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -55,7 +55,7 @@ class ReportPage(QWizardPage):
 
         layout = QVBoxLayout(self)
 
-        # Risk skoru + karşılaştırma banner
+        # Risk score + comparison banner
         self._risk_banner = QFrame()
         self._risk_banner.setStyleSheet(
             "QFrame { background: #f5f7fa; border-radius: 8px; padding: 12px; }",
@@ -64,7 +64,7 @@ class ReportPage(QWizardPage):
         self._risk_banner_layout.setContentsMargins(12, 10, 12, 10)
         layout.addWidget(self._risk_banner)
 
-        # Özet alanı
+        # Summary area
         self._summary_area = QFrame()
         self._summary_area.setStyleSheet(
             "QFrame { background: #f5f7fa; border-radius: 8px; padding: 12px; }",
@@ -72,7 +72,7 @@ class ReportPage(QWizardPage):
         self._summary_layout = QHBoxLayout(self._summary_area)
         layout.addWidget(self._summary_area)
 
-        # Bulgu listesi (scroll)
+        # Findings list (scrollable)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         self._findings_container = QWidget()
@@ -81,7 +81,7 @@ class ReportPage(QWizardPage):
         scroll.setWidget(self._findings_container)
         layout.addWidget(scroll, stretch=1)
 
-        # Aksiyon butonları
+        # Action buttons
         buttons = QHBoxLayout()
 
         self._btn_save = QPushButton()
@@ -108,7 +108,7 @@ class ReportPage(QWizardPage):
         Translator.instance().languageChanged.connect(lambda _l: self.retranslate_ui())
 
     # -----------------------------------------------------------------
-    # Çeviri
+    # Translation
     # -----------------------------------------------------------------
     def retranslate_ui(self) -> None:
         self.setTitle(t("report.title"))
@@ -116,14 +116,14 @@ class ReportPage(QWizardPage):
         self._btn_save.setText(t("report.btn_save"))
         self._btn_save_as.setText(t("report.btn_save_as"))
 
-        # Rapor zaten oluşturulmuşsa tüm içeriği yeniden çiz
+        # Redraw everything if the report was already built
         if self._report is not None:
             self._populate_risk_banner(self._report)
             self._populate_summary(self._report.summary)
             self._populate_findings(self._report.findings)
 
     # -----------------------------------------------------------------
-    # QWizardPage entegrasyonu
+    # QWizardPage integration
     # -----------------------------------------------------------------
     def initializePage(self) -> None:  # noqa: N802
         wizard = self.wizard()
@@ -135,7 +135,7 @@ class ReportPage(QWizardPage):
             self._show_error_state(t("report.error_missing"))
             return
 
-        # 1) Önce risk skoru için bir kez build et
+        # 1) First build once to compute the risk score
         preliminary = self._builder.build(
             target=ctx.target,
             depth=ctx.depth,
@@ -144,7 +144,7 @@ class ReportPage(QWizardPage):
             ended_at=ctx.scan_ended_at,
         )
 
-        # 2) Geçmişte aynı hedef için tarama var mı bak
+        # 2) Check whether history has a prior scan for the same target
         comparison = None
         history = wizard.scan_history
         if history is not None:
@@ -159,7 +159,7 @@ class ReportPage(QWizardPage):
             except Exception:  # noqa: BLE001
                 pass
 
-        # 3) Nihai Report
+        # 3) Final Report
         self._report = self._builder.build(
             target=ctx.target,
             depth=ctx.depth,
@@ -169,7 +169,7 @@ class ReportPage(QWizardPage):
             comparison=comparison,
         )
 
-        # 4) Geçmişe kaydet
+        # 4) Record to history
         if history is not None:
             try:
                 history.record(self._report)
@@ -187,10 +187,10 @@ class ReportPage(QWizardPage):
         return True
 
     # -----------------------------------------------------------------
-    # UI doldurma
+    # UI population
     # -----------------------------------------------------------------
     def _populate_risk_banner(self, report: Report) -> None:
-        """Risk skoru + karşılaştırma bilgisi — GUI üst banner."""
+        """Risk score + comparison info — the top banner in the UI."""
         while self._risk_banner_layout.count():
             item = self._risk_banner_layout.takeAt(0)
             w = item.widget() if item else None
@@ -240,7 +240,7 @@ class ReportPage(QWizardPage):
 
         self._risk_banner_layout.addLayout(risk_row)
 
-        # Yönetici özeti satırı — şu an Türkçe (Batch 4'te çevirilecek)
+        # Executive summary row — currently Turkish (to be translated in Batch 4)
         summary_label = QLabel(report.risk.summary_tr)
         summary_label.setTextFormat(Qt.TextFormat.RichText)
         summary_label.setWordWrap(True)
@@ -249,7 +249,7 @@ class ReportPage(QWizardPage):
         )
         self._risk_banner_layout.addWidget(summary_label)
 
-        # Karşılaştırma kartları
+        # Comparison cards
         if report.comparison is not None:
             cmp = report.comparison
             cmp_row = QHBoxLayout()
@@ -330,7 +330,7 @@ class ReportPage(QWizardPage):
         self._findings_layout.addWidget(lbl)
 
     # -----------------------------------------------------------------
-    # Kaydet aksiyonları
+    # Save actions
     # -----------------------------------------------------------------
     def _timestamped_path(self) -> Path:
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
@@ -376,7 +376,7 @@ class ReportPage(QWizardPage):
 
 
 # ---------------------------------------------------------------------
-# Bulgu kartı widget'ı
+# Finding card widget
 # ---------------------------------------------------------------------
 def _build_finding_card(finding: Finding) -> QWidget:
     color = {
@@ -396,7 +396,7 @@ def _build_finding_card(finding: Finding) -> QWidget:
     )
     cl = QVBoxLayout(card)
 
-    # Başlık satırı
+    # Header row
     header = QHBoxLayout()
     badge = QLabel(badge_label)
     badge.setStyleSheet(
@@ -413,13 +413,13 @@ def _build_finding_card(finding: Finding) -> QWidget:
     header.addWidget(target)
     cl.addLayout(header)
 
-    # Açıklama
+    # Description
     desc = QLabel(finding.description)
     desc.setWordWrap(True)
     desc.setStyleSheet("QLabel { color: #444; padding: 4px 0; }")
     cl.addWidget(desc)
 
-    # Onarım
+    # Remediation
     if finding.remediation:
         rem = QLabel(
             t("report.finding.remediation_html", text=finding.remediation),

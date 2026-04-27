@@ -1,16 +1,16 @@
-"""Wi-Fi pasif tarayıcı — çevredeki kablosuz ağları listeler.
+"""Passive Wi-Fi scanner — lists wireless networks in the environment.
 
-Windows'ta `netsh wlan show networks mode=bssid` çıktısını parse eder.
-Hiç paket göndermez (pasif) — sadece Windows'un zaten topladığı liste.
+On Windows it parses the output of `netsh wlan show networks mode=bssid`.
+Sends no packets (passive) — just the list Windows already collected.
 
-Bulgular:
-    - **Şifresiz (Open)** ağ → HIGH (dinleme/MITM açık)
-    - **WEP** → HIGH (kırık şifreleme, dakikalarda kırılır)
-    - **WPA-Personal (eski WPA)** → MEDIUM (TKIP zayıf)
-    - **WPA2** → INFO (sağlıklı, sadece listeleme amaçlı)
-    - **WPA3** → INFO (en iyi, tercih edilen)
+Findings:
+    - **Open** network -> HIGH (eavesdropping/MITM exposed)
+    - **WEP** -> HIGH (broken encryption, crackable in minutes)
+    - **WPA-Personal (legacy WPA)** -> MEDIUM (TKIP is weak)
+    - **WPA2** -> INFO (healthy, listed for information only)
+    - **WPA3** -> INFO (best, preferred)
 
-WPS durumu netsh'ta güvenilir raporlanmaz → manuel kontrol için not eklenir.
+WPS state is not reliably reported by netsh -> a manual-check note is added.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from pentra.models import Finding, ScanDepth, Severity, Target
 
 @dataclass(frozen=True)
 class WifiNetwork:
-    """Parse edilmiş bir Wi-Fi ağı kaydı."""
+    """Parsed record for a single Wi-Fi network."""
 
     ssid: str
     authentication: str
@@ -36,7 +36,7 @@ class WifiNetwork:
     max_signal_percent: int = 0
 
 
-# netsh etiketleri — Türkçe/İngilizce Windows yerelleştirmesi destekli
+# netsh labels — supports Turkish/English Windows localization
 _SSID_RE = re.compile(r"^SSID\s+\d+\s*:\s*(?P<ssid>.*?)\s*$", re.I)
 _AUTH_RE = re.compile(
     r"^\s*(?:Authentication|Kimlik\s*[Dd]o[ğg]rulama)\s*:\s*(?P<val>.+?)\s*$", re.I,
@@ -53,14 +53,14 @@ _SIGNAL_RE = re.compile(
 
 
 class WifiScanner(ScannerBase):
-    """Çevredeki Wi-Fi ağlarını pasif olarak listeler (Windows)."""
+    """Passively lists nearby Wi-Fi networks (Windows)."""
 
     @property
     def scanner_name(self) -> str:
         return "wifi_scanner"
 
     def _do_scan(self, target: Target, depth: ScanDepth) -> None:
-        del target, depth  # Wi-Fi taraması hedef-bağımsız
+        del target, depth  # Wi-Fi scan is target-independent
 
         if platform.system() != "Windows":
             self._emit_error(t("error.wifi.platform_not_supported"))
@@ -104,10 +104,10 @@ class WifiScanner(ScannerBase):
 
 
 # ---------------------------------------------------------------------
-# netsh çalıştırma
+# Run netsh
 # ---------------------------------------------------------------------
 def _run_netsh_wlan() -> str | None:
-    """`netsh wlan show networks mode=bssid` çalıştır, çıktıyı döndür."""
+    """Run `netsh wlan show networks mode=bssid` and return the output."""
     try:
         result = subprocess.run(
             ["netsh", "wlan", "show", "networks", "mode=bssid"],
@@ -133,7 +133,7 @@ def _run_netsh_wlan() -> str | None:
 # Parser
 # ---------------------------------------------------------------------
 def _parse_netsh_output(output: str) -> list[WifiNetwork]:
-    """netsh çıktısından WifiNetwork listesi çıkar."""
+    """Extract a list of WifiNetwork entries from the netsh output."""
     networks: list[WifiNetwork] = []
 
     current_ssid: str | None = None
@@ -201,10 +201,10 @@ def _parse_netsh_output(output: str) -> list[WifiNetwork]:
 
 
 # ---------------------------------------------------------------------
-# Finding üretimi
+# Finding generation
 # ---------------------------------------------------------------------
 def _evaluate_network(net: WifiNetwork) -> Finding | None:
-    """Bir ağın güvenlik durumuna göre Finding döndür (yoksa None)."""
+    """Return a Finding based on the network's security state (None if clean)."""
     ssid_display = net.ssid if net.ssid else t("label.wifi.hidden_ssid")
     auth_lower = net.authentication.lower()
     encr_lower = net.encryption.lower()
@@ -218,7 +218,7 @@ def _evaluate_network(net: WifiNetwork) -> Finding | None:
         "signal_percent": net.max_signal_percent,
     }
 
-    # --- Açık (şifresiz) ağ ---
+    # --- Open (unencrypted) network ---
     if (
         auth_lower in ("open", "ak", "açık")
         or "open" in auth_lower
@@ -234,7 +234,7 @@ def _evaluate_network(net: WifiNetwork) -> Finding | None:
             evidence=base_evidence,
         )
 
-    # --- WEP ağ (kırık şifreleme) ---
+    # --- WEP network (broken encryption) ---
     if "wep" in auth_lower or "wep" in encr_lower:
         return Finding(
             scanner_name="wifi_scanner",
@@ -246,7 +246,7 @@ def _evaluate_network(net: WifiNetwork) -> Finding | None:
             evidence=base_evidence,
         )
 
-    # --- Eski WPA (TKIP) ---
+    # --- Legacy WPA (TKIP) ---
     if "wpa-" in auth_lower or ("wpa" in auth_lower and "wpa2" not in auth_lower and "wpa3" not in auth_lower):
         return Finding(
             scanner_name="wifi_scanner",
@@ -258,7 +258,7 @@ def _evaluate_network(net: WifiNetwork) -> Finding | None:
             evidence=base_evidence,
         )
 
-    # WPA2 / WPA3 — sağlıklı, sadece bilgi
+    # WPA2 / WPA3 — healthy, informational only
     if net.authentication:
         return Finding(
             scanner_name="wifi_scanner",

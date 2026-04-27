@@ -1,13 +1,13 @@
-"""Kapsam doğrulayıcı — bir hedefin taranabilir olup olmadığını karar verir.
+"""Scope validator — decides whether a target may be scanned.
 
-Kurallar (CLAUDE.md § 2'den):
-    - Loopback (127.0.0.0/8) → ALLOWED_PRIVATE
-    - RFC1918 (10/8, 172.16/12, 192.168/16) → ALLOWED_PRIVATE
-    - Multicast, link-local, rezerve, unspecified → DENIED (tarama yasak)
-    - Dış (public) unicast → REQUIRES_CONFIRMATION (ek onay şart)
-    - IPv6 → DENIED (v2'de desteklenecek)
+Rules (from CLAUDE.md section 2):
+    - Loopback (127.0.0.0/8) -> ALLOWED_PRIVATE
+    - RFC1918 (10/8, 172.16/12, 192.168/16) -> ALLOWED_PRIVATE
+    - Multicast, link-local, reserved, unspecified -> DENIED (scanning forbidden)
+    - External (public) unicast -> REQUIRES_CONFIRMATION (extra consent required)
+    - IPv6 -> DENIED (will arrive in v2)
 
-URL hedeflerinde hostname DNS ile çözülür ve **en katı** kategori uygulanır.
+For URL targets the hostname is resolved via DNS and the **strictest** category wins.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 from pentra.models import ScopeDecision, ScopeDecisionType, Target, TargetType
 
 # ---------------------------------------------------------------------
-# Sabitler
+# Constants
 # ---------------------------------------------------------------------
 _RFC1918_NETS: tuple[ipaddress.IPv4Network, ...] = (
     ipaddress.IPv4Network("10.0.0.0/8"),
@@ -30,49 +30,49 @@ _RFC1918_NETS: tuple[ipaddress.IPv4Network, ...] = (
 )
 _LOOPBACK_NET: ipaddress.IPv4Network = ipaddress.IPv4Network("127.0.0.0/8")
 
-# Çok büyük ağlar taranmaya izin verilmez (DoS + zaman kısıtı)
+# Very large networks are not allowed (DoS risk + time constraints)
 _MIN_PUBLIC_PREFIX: int = 24
 
-# DNS çözümleme zaman aşımı (saniye)
+# DNS resolution timeout (seconds)
 _DNS_TIMEOUT_SEC: float = 5.0
 
 DnsResolver: TypeAlias = Callable[[str], list[str]]
 
 
 # ---------------------------------------------------------------------
-# Varsayılan DNS çözümleyici
+# Default DNS resolver
 # ---------------------------------------------------------------------
 def _default_dns_resolver(hostname: str) -> list[str]:
-    """socket.getaddrinfo ile hostname → IP listesi (yalnızca IPv4)."""
+    """Resolve hostname to IP list via socket.getaddrinfo (IPv4 only)."""
     old_timeout = socket.getdefaulttimeout()
     socket.setdefaulttimeout(_DNS_TIMEOUT_SEC)
     try:
         infos = socket.getaddrinfo(hostname, None, family=socket.AF_INET)
-        # Eşsiz IP'leri koru
+        # Keep unique IPs only
         return sorted({info[4][0] for info in infos})
     finally:
         socket.setdefaulttimeout(old_timeout)
 
 
 # ---------------------------------------------------------------------
-# Asıl sınıf
+# Main class
 # ---------------------------------------------------------------------
 class ScopeValidator:
-    """Hedef kapsam doğrulayıcı.
+    """Target scope validator.
 
-    Testte DNS'i mock'lamak için `dns_resolver` parametresi enjekte edilebilir.
+    A `dns_resolver` parameter can be injected to mock DNS in tests.
     """
 
     def __init__(self, dns_resolver: DnsResolver | None = None) -> None:
         self._resolve = dns_resolver if dns_resolver is not None else _default_dns_resolver
 
     # -----------------------------------------------------------------
-    # Ana giriş noktası
+    # Main entry point
     # -----------------------------------------------------------------
     def validate(self, target: Target) -> ScopeDecision:
-        """Hedefi sınıflandır ve karar döndür.
+        """Classify the target and return a decision.
 
-        Karar zinciri: geçerli format? → hedef tipine göre sınıflandır.
+        Decision chain: valid format? -> classify by target type.
         """
         match target.target_type:
             case TargetType.LOCALHOST:
@@ -87,41 +87,41 @@ class ScopeValidator:
                 return self._validate_url(target)
 
     # -----------------------------------------------------------------
-    # Tek tek doğrulayıcılar
+    # Per-type validators
     # -----------------------------------------------------------------
     def _validate_localhost(self, target: Target) -> ScopeDecision:
-        # Localhost tipi için değerin 127.0.0.0/8 içinde olması şart;
-        # RFC1918 veya dış IP geçirilmişse DENIED.
+        # For the localhost type the value must lie inside 127.0.0.0/8;
+        # passing an RFC1918 or external IP yields DENIED.
         try:
             ip = ipaddress.ip_address(target.value)
         except ValueError:
             return ScopeDecision(
                 ScopeDecisionType.DENIED,
                 target,
-                f"Localhost hedefi için geçersiz IP: {target.value}",
+                f"Invalid IP for localhost target: {target.value}",
                 (target.value,),
             )
         if not isinstance(ip, ipaddress.IPv4Address) or ip not in _LOOPBACK_NET:
             return ScopeDecision(
                 ScopeDecisionType.DENIED,
                 target,
-                "Localhost hedefi 127.0.0.0/8 aralığında olmalı",
+                "Localhost target must be within 127.0.0.0/8",
                 (target.value,),
             )
         return ScopeDecision(
             ScopeDecisionType.ALLOWED_PRIVATE,
             target,
-            "Loopback (bu bilgisayar)",
+            "Loopback (this computer)",
             (target.value,),
         )
 
     def _validate_wifi(self, target: Target) -> ScopeDecision:
-        # Wi-Fi pasif listeleme — paket gönderilmez, sadece çevre dinlenir.
-        # Her durumda izinli; ek onay gerekmez.
+        # Passive Wi-Fi listing — no packets are sent, only the environment is observed.
+        # Always allowed; no extra consent needed.
         return ScopeDecision(
             ScopeDecisionType.ALLOWED_PRIVATE,
             target,
-            "Wi-Fi pasif taraması — dışarıya paket gönderilmez",
+            "Passive Wi-Fi scan — no packets are transmitted",
         )
 
     def _validate_single_ip(self, target: Target) -> ScopeDecision:
@@ -135,60 +135,60 @@ class ScopeValidator:
             return ScopeDecision(
                 ScopeDecisionType.DENIED,
                 target,
-                f"Geçersiz CIDR formatı: {e}",
+                f"Invalid CIDR format: {e}",
             )
 
         if isinstance(net, ipaddress.IPv6Network):
             return ScopeDecision(
                 ScopeDecisionType.DENIED,
                 target,
-                "IPv6 ağları henüz desteklenmiyor (v2'de gelecek)",
+                "IPv6 networks are not yet supported (planned for v2)",
             )
 
-        # Tamamen RFC1918 veya loopback içinde mi?
+        # Is the whole network inside RFC1918 or loopback?
         if _is_entirely_private(net):
             return ScopeDecision(
                 ScopeDecisionType.ALLOWED_PRIVATE,
                 target,
-                f"Özel ağ aralığı ({net})",
+                f"Private network range ({net})",
                 (str(net.network_address),),
             )
 
-        # Çok büyük dış ağlara izin yok (ör. /8 public → milyonlarca IP)
+        # No very large external networks allowed (e.g. /8 public -> millions of IPs)
         if net.prefixlen < _MIN_PUBLIC_PREFIX:
             return ScopeDecision(
                 ScopeDecisionType.DENIED,
                 target,
-                f"Ağ çok büyük (/{net.prefixlen}) — dış hedef için en fazla /{_MIN_PUBLIC_PREFIX}",
+                f"Network too large (/{net.prefixlen}) — external targets are capped at /{_MIN_PUBLIC_PREFIX}",
                 (str(net.network_address),),
             )
 
-        # Ağ rezerve/multicast aralıklarına değiyor mu? → DENIED
+        # Does the network touch reserved/multicast ranges? -> DENIED
         first_decision, first_reason = _classify_ipv4(str(net.network_address))
         if first_decision == ScopeDecisionType.DENIED:
             return ScopeDecision(
                 ScopeDecisionType.DENIED,
                 target,
-                f"Ağ rezerve/multicast alanına düşüyor: {first_reason}",
+                f"Network falls into a reserved/multicast range: {first_reason}",
                 (str(net.network_address),),
             )
 
         return ScopeDecision(
             ScopeDecisionType.REQUIRES_CONFIRMATION,
             target,
-            "Dış (public) IP aralığı — sahiplik veya yazılı yetki gerekir",
+            "External (public) IP range — ownership or written authorization required",
             (str(net.network_address),),
         )
 
     def _validate_url(self, target: Target) -> ScopeDecision:
         parsed = urlparse(target.value)
 
-        # Şema zorunlu + sadece http/https kabul ediliyor
+        # Scheme is required and only http/https are accepted
         if parsed.scheme not in ("http", "https"):
             return ScopeDecision(
                 ScopeDecisionType.DENIED,
                 target,
-                "URL şeması http veya https olmalı",
+                "URL scheme must be http or https",
             )
 
         hostname = parsed.hostname
@@ -196,10 +196,10 @@ class ScopeValidator:
             return ScopeDecision(
                 ScopeDecisionType.DENIED,
                 target,
-                "URL'den hostname çıkarılamadı",
+                "Could not extract hostname from URL",
             )
 
-        # Hostname zaten IP olabilir
+        # Hostname may already be an IP
         try:
             ipaddress.ip_address(hostname)
             resolved: list[str] = [hostname]
@@ -210,17 +210,17 @@ class ScopeValidator:
                 return ScopeDecision(
                     ScopeDecisionType.DENIED,
                     target,
-                    f"Hostname çözümlenemedi ({hostname}): {e}",
+                    f"Hostname could not be resolved ({hostname}): {e}",
                 )
 
         if not resolved:
             return ScopeDecision(
                 ScopeDecisionType.DENIED,
                 target,
-                f"Hostname hiçbir IP'ye çözümlenmedi: {hostname}",
+                f"Hostname did not resolve to any IP: {hostname}",
             )
 
-        # Tüm çözülen IP'leri sınıflandır, en katı kategoriyi uygula
+        # Classify every resolved IP and apply the strictest category
         decisions = [_classify_ipv4(ip) for ip in resolved]
         any_denied = any(d == ScopeDecisionType.DENIED for d, _ in decisions)
         any_external = any(d == ScopeDecisionType.REQUIRES_CONFIRMATION for d, _ in decisions)
@@ -230,7 +230,7 @@ class ScopeValidator:
             return ScopeDecision(
                 ScopeDecisionType.DENIED,
                 target,
-                f"Çözülen IP'lerden en az biri yasak aralıkta: {denied_reason}",
+                f"At least one resolved IP is in a forbidden range: {denied_reason}",
                 tuple(resolved),
             )
 
@@ -238,61 +238,61 @@ class ScopeValidator:
             return ScopeDecision(
                 ScopeDecisionType.REQUIRES_CONFIRMATION,
                 target,
-                f"URL dış (public) IP'ye çözümleniyor ({', '.join(resolved)}) — yetki gerekir",
+                f"URL resolves to an external (public) IP ({', '.join(resolved)}) — authorization required",
                 tuple(resolved),
             )
 
         return ScopeDecision(
             ScopeDecisionType.ALLOWED_PRIVATE,
             target,
-            f"URL özel ağdaki IP'ye çözümleniyor ({', '.join(resolved)})",
+            f"URL resolves to a private-network IP ({', '.join(resolved)})",
             tuple(resolved),
         )
 
 
 # ---------------------------------------------------------------------
-# Yardımcı: IPv4 sınıflandırma
+# Helper: IPv4 classification
 # ---------------------------------------------------------------------
 def _classify_ipv4(ip_str: str) -> tuple[ScopeDecisionType, str]:
-    """Tek bir IP'yi (string) kategoriye ayırır."""
+    """Classify a single IP (string) into a category."""
     try:
         ip = ipaddress.ip_address(ip_str)
     except ValueError:
-        return (ScopeDecisionType.DENIED, f"Geçersiz IP adresi: {ip_str}")
+        return (ScopeDecisionType.DENIED, f"Invalid IP address: {ip_str}")
 
     if isinstance(ip, ipaddress.IPv6Address):
-        return (ScopeDecisionType.DENIED, "IPv6 henüz desteklenmiyor (v2'de gelecek)")
+        return (ScopeDecisionType.DENIED, "IPv6 not yet supported (planned for v2)")
 
     if ip in _LOOPBACK_NET:
-        return (ScopeDecisionType.ALLOWED_PRIVATE, "Loopback (bu bilgisayar)")
+        return (ScopeDecisionType.ALLOWED_PRIVATE, "Loopback (this computer)")
 
     if any(ip in net for net in _RFC1918_NETS):
-        return (ScopeDecisionType.ALLOWED_PRIVATE, "Özel ağ (RFC1918)")
+        return (ScopeDecisionType.ALLOWED_PRIVATE, "Private network (RFC1918)")
 
     if ip.is_multicast:
-        return (ScopeDecisionType.DENIED, "Multicast adresi — tarama yapılamaz")
+        return (ScopeDecisionType.DENIED, "Multicast address — scanning forbidden")
 
     if ip.is_link_local:
-        return (ScopeDecisionType.DENIED, "Link-local adresi (169.254/16)")
+        return (ScopeDecisionType.DENIED, "Link-local address (169.254/16)")
 
     if ip.is_unspecified:
-        return (ScopeDecisionType.DENIED, "0.0.0.0 geçerli bir hedef değil")
+        return (ScopeDecisionType.DENIED, "0.0.0.0 is not a valid target")
 
-    # Limited broadcast — is_reserved'den ÖNCE kontrol et (255.255.255.255 is_reserved=True)
+    # Limited broadcast — check this BEFORE is_reserved (255.255.255.255 is_reserved=True)
     if str(ip) == "255.255.255.255":
-        return (ScopeDecisionType.DENIED, "Sınırlı broadcast adresi")
+        return (ScopeDecisionType.DENIED, "Limited broadcast address")
 
     if ip.is_reserved:
-        return (ScopeDecisionType.DENIED, "Rezerve IP aralığı")
+        return (ScopeDecisionType.DENIED, "Reserved IP range")
 
     return (
         ScopeDecisionType.REQUIRES_CONFIRMATION,
-        "Dış (public) IP — sahiplik/yetki onayı gerekir",
+        "External (public) IP — ownership/authorization required",
     )
 
 
 def _is_entirely_private(net: ipaddress.IPv4Network) -> bool:
-    """Bir IPv4 ağının tamamı RFC1918 veya loopback içinde mi."""
+    """Check whether an IPv4 network is entirely inside RFC1918 or loopback."""
     if net.subnet_of(_LOOPBACK_NET):
         return True
     return any(net.subnet_of(private) for private in _RFC1918_NETS)

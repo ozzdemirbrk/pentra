@@ -1,1 +1,1 @@
-"""Genel yardımcılar: loglama yapılandırması, ağ yardımcı fonksiyonları."""
+"""General utilities: logging configuration and network helper functions."""

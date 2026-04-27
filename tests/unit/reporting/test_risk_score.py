@@ -1,4 +1,4 @@
-"""risk_score.py — skor hesaplama + etiket + özet testleri."""
+"""risk_score.py — score computation + label + summary tests."""
 
 from __future__ import annotations
 
@@ -52,12 +52,12 @@ class TestComputeScore:
         assert score < 1.0
 
     def test_cvss_overrides_severity(self) -> None:
-        """CVSS 10.0 içeren finding severity LOW olsa bile skor yüksek olmalı."""
+        """A finding with CVSS 10.0 should yield a high score even if severity is LOW."""
         score = compute_risk_score([_finding(Severity.LOW, cvss=10.0)])
         assert score >= 9.0
 
     def test_multiple_findings_bonus(self) -> None:
-        """Çok sayıda önemli bulgu skoru biraz artırır (diminishing)."""
+        """A large number of significant findings raises the score slightly (diminishing)."""
         single_high = compute_risk_score([_finding(Severity.HIGH)])
         many_highs = compute_risk_score([_finding(Severity.HIGH) for _ in range(10)])
         assert many_highs > single_high
@@ -94,7 +94,7 @@ class TestAssessRisk:
         r = assess_risk([_finding(Severity.CRITICAL, "Redis açık")])
         assert r.score >= 9.0
         assert r.label in ("Yüksek", "Kritik")
-        assert "<b>" in r.summary_tr  # HTML formatlama (kritik sayısı bold)
+        assert "<b>" in r.summary_tr  # HTML formatting (critical count is bold)
 
     def test_summary_counts_severities(self) -> None:
         findings = [
@@ -122,10 +122,10 @@ class TestTopActions:
         titles = [f.title for f in top]
         assert titles[0] == "crit1"
         assert "high1" in titles
-        assert "low1" not in titles  # 3 en kritik arasında olmamalı
+        assert "low1" not in titles  # should not be among the 3 most critical
 
     def test_cvss_weights_within_same_severity(self) -> None:
-        """Aynı severity içinde CVSS'i yüksek olan önce gelsin."""
+        """Within the same severity, the higher CVSS should rank first."""
         low_cvss = _finding(Severity.HIGH, "low_cvss", cvss=7.0)
         high_cvss = _finding(Severity.HIGH, "high_cvss", cvss=9.8)
         top = top_actions([low_cvss, high_cvss], max_count=2)

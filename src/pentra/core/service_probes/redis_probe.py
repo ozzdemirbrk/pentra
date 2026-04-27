@@ -1,12 +1,12 @@
-"""Redis auth check — port 6379'da parolasız erişim kontrolü.
+"""Redis auth check — tests for no-password access on port 6379.
 
-Redis RESP protokolüyle basit `PING` komutu gönderir. Yanıt `+PONG` ise
-bağlantı auth gerektirmiyor demektir — **CRITICAL** bulgu.
+Sends a simple `PING` over the Redis RESP protocol. If the response is
+`+PONG`, the connection doesn't require auth — a **CRITICAL** finding.
 
-Seviye 2 kuralları:
-    - Tek PING, tek bağlantı
-    - Veri okuma/yazma YOK (`KEYS *`, `CONFIG GET`, `GET` komutları YASAK)
-    - Bağlantı hemen kopartılır
+Level 2 rules:
+    - Single PING, single connection
+    - NO data read/write (`KEYS *`, `CONFIG GET`, `GET` are forbidden)
+    - Connection is closed immediately afterwards
 """
 
 from __future__ import annotations
@@ -17,13 +17,13 @@ from pentra.core.service_probes.base import ServiceProbeBase
 from pentra.i18n import t
 from pentra.models import Finding, Severity
 
-# RESP protokolü: *1\r\n$4\r\nPING\r\n  (tek elemanlı array)
+# RESP protocol: *1\r\n$4\r\nPING\r\n  (single-element array)
 _PING_COMMAND: bytes = b"*1\r\n$4\r\nPING\r\n"
 
-# Parolasız Redis'in vereceği yanıt
+# Response from a Redis that requires no password
 _EXPECTED_OPEN: bytes = b"+PONG"
 
-# Parola gerektirdiğinde veya korumada dönen hata işaretleri
+# Error markers returned when a password is required or protected-mode is on
 _AUTH_REQUIRED_MARKERS: tuple[bytes, ...] = (
     b"NOAUTH Authentication required",
     b"DENIED Redis is running in protected mode",

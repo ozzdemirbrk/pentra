@@ -1,11 +1,11 @@
-"""Dict tabanlı i18n çevirmeni — Qt sinyalleri ile dinamik dil değişimi destekler.
+"""Dict-based i18n translator — supports dynamic language switching via Qt signals.
 
-Tasarım:
-- Singleton (`Translator.instance()`) — tüm widget'lar aynı objeye bağlanır.
-- JSON locale dosyaları `locales/<lang>.json` yolunda tutulur.
-- Dil değiştiğinde `languageChanged` sinyali yayılır; widget'lar
-  `retranslate_ui()` çağırır.
-- Anahtar bulunmazsa önce İngilizceye, ardından anahtarın kendisine düşer.
+Design:
+- Singleton (`Translator.instance()`) — every widget binds to the same object.
+- JSON locale files live at `locales/<lang>.json`.
+- When the language changes the `languageChanged` signal is emitted;
+  widgets then call their own `retranslate_ui()`.
+- If a key is missing, it falls back to English and then to the raw key.
 """
 
 from __future__ import annotations
@@ -19,9 +19,9 @@ from PySide6.QtCore import QObject, QSettings, Signal
 
 
 class Translator(QObject):
-    """Pentra'nın tüm metin çevirilerini yöneten singleton."""
+    """Singleton that manages every text translation in Pentra."""
 
-    #: Dil değiştiğinde yayınlanır; yeni dil kodunu taşır ("en" / "tr").
+    #: Emitted when the language changes; carries the new language code ("en" / "tr").
     languageChanged = Signal(str)
 
     SUPPORTED_LANGUAGES: ClassVar[tuple[str, ...]] = ("en", "tr")
@@ -31,7 +31,7 @@ class Translator(QObject):
     _instance: ClassVar["Translator | None"] = None
 
     # -----------------------------------------------------------------
-    # Singleton erişimi
+    # Singleton access
     # -----------------------------------------------------------------
     def __init__(self) -> None:
         super().__init__()
@@ -47,16 +47,16 @@ class Translator(QObject):
         return cls._instance
 
     # -----------------------------------------------------------------
-    # Dil yönetimi
+    # Language management
     # -----------------------------------------------------------------
     @property
     def current_language(self) -> str:
         return self._current_language
 
     def set_language(self, lang: str) -> None:
-        """Aktif dili değiştirir ve tercih olarak kaydeder."""
+        """Change the active language and persist it as a preference."""
         if lang not in self.SUPPORTED_LANGUAGES:
-            raise ValueError(f"Desteklenmeyen dil: {lang}")
+            raise ValueError(f"Unsupported language: {lang}")
         if lang == self._current_language:
             return
         self._current_language = lang
@@ -66,20 +66,20 @@ class Translator(QObject):
         self.languageChanged.emit(lang)
 
     # -----------------------------------------------------------------
-    # Çeviri
+    # Translation
     # -----------------------------------------------------------------
     def t(self, key: str, **kwargs: Any) -> str:
-        """Anahtarı aktif dile çevirir.
+        """Translate a key into the active language.
 
-        - Aktif dilde anahtar yoksa fallback (İngilizce) dene
-        - O da yoksa anahtarın kendisini döndür (debug için görünür kalır)
-        - `kwargs` verilmişse `str.format(**kwargs)` ile şablon doldurulur
+        - If the key is missing in the active language, try the fallback (English)
+        - If that's also missing, return the key itself (stays visible for debugging)
+        - When `kwargs` is provided, the template is filled via `str.format(**kwargs)`
         """
         value = self._translations.get(self._current_language, {}).get(key)
         if value is None and self._current_language != self.FALLBACK_LANGUAGE:
             value = self._translations.get(self.FALLBACK_LANGUAGE, {}).get(key)
         if value is None:
-            # Anahtar tamamen eksik — geliştirici görmesi için ham anahtarı döndür
+            # Key missing entirely — return the raw key so the developer spots it
             return key
         if kwargs:
             try:
@@ -89,7 +89,7 @@ class Translator(QObject):
         return value
 
     # -----------------------------------------------------------------
-    # İç yardımcılar
+    # Internal helpers
     # -----------------------------------------------------------------
     def _load_translations(self) -> None:
         locales_dir = Path(__file__).parent / "locales"
@@ -102,12 +102,12 @@ class Translator(QObject):
                 self._translations[lang] = {}
 
     def _resolve_initial_language(self) -> str:
-        """Önce QSettings'teki tercihi, yoksa OS locale'ini, yoksa default döner."""
+        """Prefer the QSettings value, then the OS locale, then the default."""
         saved = QSettings().value("language", None)
         if isinstance(saved, str) and saved in self.SUPPORTED_LANGUAGES:
             return saved
 
-        # OS locale — Türkçe ise tr, değilse default
+        # OS locale — Turkish -> tr, otherwise default
         try:
             sys_locale = _locale.getdefaultlocale()[0] or ""
             if sys_locale.lower().startswith("tr"):
@@ -119,5 +119,5 @@ class Translator(QObject):
 
 
 def t(key: str, **kwargs: Any) -> str:
-    """`Translator.instance().t(...)` için kısayol."""
+    """Shortcut for `Translator.instance().t(...)`."""
     return Translator.instance().t(key, **kwargs)

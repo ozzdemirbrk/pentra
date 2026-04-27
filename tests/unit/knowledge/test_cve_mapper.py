@@ -1,4 +1,4 @@
-"""cve_mapper.py — servis normalleştirme + lookup testleri."""
+"""cve_mapper.py — service normalization + lookup tests."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def _fake_client_returning(
     cves: list[Cve] | None = None,
     cpe_cves: list[Cve] | None = None,
 ) -> MagicMock:
-    """Keyword araması için `cves`, CPE araması için `cpe_cves` döndürür."""
+    """Return `cves` from keyword search and `cpe_cves` from CPE search."""
     client = MagicMock()
     client.search_cves.return_value = cves or []
     client.search_by_cpe.return_value = cpe_cves if cpe_cves is not None else []
@@ -52,10 +52,10 @@ class TestServiceNormalization:
 class TestVersionShortening:
     @pytest.mark.parametrize("raw,shortened", [
         ("10.0", "10.0"),
-        ("10.0.17763.1", "10.0.17763"),  # ilk 3 parça
+        ("10.0.17763.1", "10.0.17763"),  # first 3 segments
         ("2.4.41", "2.4.41"),
         ("1.18.0", "1.18.0"),
-        ("8", "8"),  # tek sayı varsa aynısı
+        ("8", "8"),  # single number stays as-is
     ])
     def test_versions(self, raw: str, shortened: str) -> None:
         client = _fake_client_returning([])
@@ -71,13 +71,13 @@ class TestLookup:
         assert mapper.lookup("", "") == []
 
     def test_cpe_search_used_for_known_service(self) -> None:
-        """Tanınmış servis için ÖNCE CPE ile arama yapılır."""
+        """Known services use CPE search FIRST."""
         client = _fake_client_returning()
         mapper = CveMapper(client)
 
         mapper.lookup("microsoft-iis", "10.0")
 
-        # CPE araması çağrıldı mı
+        # Was CPE search invoked
         client.search_by_cpe.assert_called_once()
         cpe_call = client.search_by_cpe.call_args
         cpe_arg = cpe_call.args[0] if cpe_call.args else cpe_call.kwargs.get("cpe_name", "")
@@ -85,7 +85,7 @@ class TestLookup:
         assert ":10.0:" in cpe_arg
 
     def test_cpe_result_returned_without_keyword_fallback(self) -> None:
-        """CPE sonuç veriyorsa keyword araması tetiklenmez."""
+        """If CPE returns results, keyword search is not triggered."""
         cpe_results = [Cve("CVE-2024-IIS", 9.8, "CRITICAL", "IIS bug")]
         client = _fake_client_returning(cpe_cves=cpe_results)
         mapper = CveMapper(client)
@@ -96,11 +96,11 @@ class TestLookup:
         client.search_cves.assert_not_called()
 
     def test_no_keyword_fallback_when_cpe_empty(self) -> None:
-        """Tanınmış servis + CPE 0 → [] döner (keyword fallback YASAK).
+        """Known service + 0 CPE results -> returns [] (keyword fallback is FORBIDDEN).
 
-        Sebep: IIS 10.0 gibi kesin bir sorgu için CPE 0 dönüşü 'o versiyonda
-        kayıt yok' demektir. Keyword fallback eski sürüm CVE'lerini çeker
-        (false positive).
+        Rationale: for an exact query like IIS 10.0, a 0-result CPE means
+        'no record for that version'. A keyword fallback would pull in
+        older-version CVEs (false positive).
         """
         client = _fake_client_returning(cves=[Cve("CVE-X", 5.0, "MEDIUM", "x")], cpe_cves=[])
         mapper = CveMapper(client)
@@ -112,7 +112,7 @@ class TestLookup:
         client.search_cves.assert_not_called()
 
     def test_unknown_service_only_keyword_search(self) -> None:
-        """CPE haritasında olmayan servis için doğrudan keyword kullanılır."""
+        """For services not in the CPE map, keyword search is used directly."""
         client = _fake_client_returning()
         mapper = CveMapper(client)
 
@@ -128,7 +128,7 @@ class TestServerHeaderParsing:
         ("Apache/2.4.41", ("Apache", "2.4.41")),
         ("Apache/2.4.41 (Ubuntu)", ("Apache", "2.4.41")),
         ("nginx/1.18.0", ("nginx", "1.18.0")),
-        ("nginx", ("", "")),  # versiyon yok
+        ("nginx", ("", "")),  # no version
         ("", ("", "")),
     ])
     def test_parse(self, header: str, expected: tuple[str, str]) -> None:
@@ -137,7 +137,7 @@ class TestServerHeaderParsing:
 
 class TestLookupFromServerHeader:
     def test_calls_cpe_search_for_known_service(self) -> None:
-        """Microsoft IIS haritada var → CPE araması yapılır."""
+        """Microsoft IIS is in the map -> CPE search is performed."""
         client = _fake_client_returning()
         mapper = CveMapper(client)
 
@@ -147,7 +147,7 @@ class TestLookupFromServerHeader:
         cpe_arg = client.search_by_cpe.call_args.args[0]
         assert "microsoft:internet_information_services" in cpe_arg
         assert ":10.0:" in cpe_arg
-        # Tanınmış servis — keyword fallback YASAK
+        # Known service — keyword fallback is FORBIDDEN
         client.search_cves.assert_not_called()
 
     def test_unparseable_header_returns_empty_without_network(self) -> None:

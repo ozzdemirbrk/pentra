@@ -1,4 +1,4 @@
-"""models.py — enum + dataclass sağlık testleri."""
+"""models.py — enum + dataclass sanity tests."""
 
 from __future__ import annotations
 
@@ -51,8 +51,8 @@ class TestTarget:
 class TestScopeDecision:
     def test_is_allowed_true_only_for_private(self) -> None:
         target = Target(TargetType.LOCALHOST, "127.0.0.1")
-        allowed = ScopeDecision(ScopeDecisionType.ALLOWED_PRIVATE, target, "özel ağ")
-        needs = ScopeDecision(ScopeDecisionType.REQUIRES_CONFIRMATION, target, "dış")
+        allowed = ScopeDecision(ScopeDecisionType.ALLOWED_PRIVATE, target, "private network")
+        needs = ScopeDecision(ScopeDecisionType.REQUIRES_CONFIRMATION, target, "external")
         denied = ScopeDecision(ScopeDecisionType.DENIED, target, "multicast")
 
         assert allowed.is_allowed
@@ -61,7 +61,7 @@ class TestScopeDecision:
 
     def test_needs_confirmation_flag(self) -> None:
         target = Target(TargetType.URL, "https://example.com")
-        needs = ScopeDecision(ScopeDecisionType.REQUIRES_CONFIRMATION, target, "dış hedef")
+        needs = ScopeDecision(ScopeDecisionType.REQUIRES_CONFIRMATION, target, "external target")
         assert needs.needs_confirmation
         assert not needs.is_denied
         assert not needs.is_allowed

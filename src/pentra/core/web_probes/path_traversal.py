@@ -1,4 +1,4 @@
-"""Path Traversal probe — yaygın parametrelerde `../../etc/passwd` tarzı sızıntı testi."""
+"""Path Traversal probe — tests for `../../etc/passwd`-style leaks on common parameters."""
 
 from __future__ import annotations
 
@@ -95,10 +95,10 @@ class PathTraversalProbe(WebProbeBase):
     # -----------------------------------------------------------------
     @staticmethod
     def _match_leak(body: str) -> tuple[str | None, str]:
-        """Yanıt gövdesinde sızıntı kanıtı var mı bak.
+        """Check the response body for evidence of a leak.
 
         Returns:
-            (eşleşen_needle, i18n_çevrilmiş_açıklama) ya da (None, "")
+            (matched_needle, i18n_translated_description) or (None, "")
         """
         snippet = body[:4096]
         for needle, desc_key in _LEAK_SIGNATURES:
@@ -108,7 +108,7 @@ class PathTraversalProbe(WebProbeBase):
 
     @staticmethod
     def _build_url_with_param(base_url: str, param: str, payload: str) -> str:
-        """base_url'e ?param=payload ekler (mevcut query varsa korur)."""
+        """Append ?param=payload to base_url (keeping any existing query)."""
         separator = "&" if "?" in base_url else "?"
         encoded = urlencode({param: payload}, safe="%")
         return f"{base_url}{separator}{encoded}"

@@ -1,1 +1,1 @@
-"""Güvenlik bilgi tabanı: CVE eşleştirme, Türkçe onarım önerileri."""
+"""Security knowledge base: CVE mapping and Turkish remediation suggestions."""

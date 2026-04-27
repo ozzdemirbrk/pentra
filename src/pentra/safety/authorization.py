@@ -1,17 +1,17 @@
-"""Yetki yöneticisi — tarama başlamadan önceki son bariyer.
+"""Authorization manager — the last barrier before a scan starts.
 
-Kullanıcı sihirbazda onay verdikten sonra `AuthorizationRequest` oluşturulur.
-`AuthorizationManager.grant()` bu isteği doğrulayıp HMAC imzalı bir
-`AuthorizationToken` döndürür. Her `Scanner` paket göndermeden önce
-bu token'ın `verify()` kontrolünden geçmesini sağlar.
+After the user consents in the wizard, an `AuthorizationRequest` is created.
+`AuthorizationManager.grant()` validates the request and returns an
+HMAC-signed `AuthorizationToken`. Every `Scanner` must pass the token
+through `verify()` before sending any packet.
 
-Token özellikleri:
-    - HMAC-SHA256 imzalı (sahtecilik koruması)
-    - Hedefe bağlı (hash eşleşmesi zorunlu — A token'ı B hedefine geçmez)
-    - TTL'li (varsayılan 30 dk)
-    - Tek oturumluk session secret ile imzalı (uygulama yeniden başlarsa
-      eski token'lar otomatik geçersiz)
-    - İptal edilebilir (scan bitince revoke edilir)
+Token properties:
+    - HMAC-SHA256 signed (forgery protection)
+    - Bound to a target (hash must match — A's token won't work for B)
+    - Has a TTL (default 30 minutes)
+    - Signed with a per-session secret (previous session tokens become
+      invalid automatically after a restart)
+    - Revocable (revoked after the scan finishes)
 """
 
 from __future__ import annotations
@@ -36,26 +36,26 @@ from pentra.models import (
 
 
 # ---------------------------------------------------------------------
-# Hata sınıfları
+# Error classes
 # ---------------------------------------------------------------------
 class AuthorizationError(Exception):
-    """Yetkilendirme sürecindeki genel hata sınıfı."""
+    """Generic error class for the authorization flow."""
 
 
 class AuthorizationDenied(AuthorizationError):
-    """Kullanıcı onayı veya kapsam kontrolü reddedildi."""
+    """User consent or scope check was rejected."""
 
 
 class InvalidToken(AuthorizationError):
-    """Token sahte, bozuk veya süresi dolmuş."""
+    """Token is forged, corrupted, or expired."""
 
 
 # ---------------------------------------------------------------------
-# Dahili meta
+# Internal metadata
 # ---------------------------------------------------------------------
 @dataclasses.dataclass
 class _IssuedTokenInfo:
-    """Verilmiş token için tutulan bilgiler (iptal + inceleme için)."""
+    """Information retained for an issued token (for revocation + audit)."""
 
     target_hash: str
     granted_at: int
@@ -66,10 +66,11 @@ class _IssuedTokenInfo:
 # AuthorizationManager
 # ---------------------------------------------------------------------
 class AuthorizationManager:
-    """Tarama yetki belgeleri (token) üreten ve doğrulayan merkezi sınıf.
+    """Central class that issues and verifies scan authorization tokens.
 
-    Secret parametresi `None` ise her uygulama başlangıcında rastgele üretilir
-    (os.urandom). Böylece önceki oturumun token'ları tekrar kullanılamaz.
+    If the `secret` parameter is `None`, a random one is generated at every
+    application start (os.urandom). This makes previous-session tokens
+    unusable.
     """
 
     def __init__(
@@ -79,9 +80,9 @@ class AuthorizationManager:
         time_func: Callable[[], float] | None = None,
     ) -> None:
         if secret is not None and len(secret) < 16:
-            raise ValueError("secret en az 16 bayt olmalı")
+            raise ValueError("secret must be at least 16 bytes")
         if ttl_sec <= 0:
-            raise ValueError(f"ttl_sec pozitif olmalı, verilen: {ttl_sec}")
+            raise ValueError(f"ttl_sec must be positive, got: {ttl_sec}")
 
         self._secret: bytes = secret if secret is not None else os.urandom(32)
         self._ttl: int = ttl_sec
@@ -92,52 +93,52 @@ class AuthorizationManager:
         self._lock = threading.Lock()
 
     # -----------------------------------------------------------------
-    # Ana API
+    # Main API
     # -----------------------------------------------------------------
     def grant(
         self,
         request: AuthorizationRequest,
         scope_decision: ScopeDecision,
     ) -> AuthorizationToken:
-        """İstek geçerliyse yetki token'ı döndürür; aksi halde hata atar.
+        """Return an authorization token if the request is valid; otherwise raise.
 
-        Kontroller:
-            1. Kullanıcı ana onay kutusunu işaretledi mi
-            2. ScopeValidator hedefi reddetmedi mi
-            3. Ek onay gereken hedefte kullanıcı ekstra onay verdi mi
-            4. Hedef eşleşiyor mu (istek hedefi = scope kararının hedefi)
+        Checks:
+            1. User has ticked the main consent checkbox
+            2. ScopeValidator has not denied the target
+            3. For targets requiring extra consent, user provided it
+            4. Targets match (request target == scope decision target)
         """
         if not request.user_accepted_terms:
             raise AuthorizationDenied(
-                "Kullanıcı yetki onay ekranını doğrulamadı — tarama başlatılamaz",
+                "User has not confirmed the consent screen — scan cannot start",
             )
 
         if scope_decision.target != request.target:
             raise AuthorizationDenied(
-                "Scope kararı ile yetki isteği farklı hedeflere işaret ediyor",
+                "Scope decision and authorization request point to different targets",
             )
 
         if scope_decision.is_denied:
             raise AuthorizationDenied(
-                f"Hedef tarama için uygun değil: {scope_decision.reason}",
+                f"Target is not eligible for scanning: {scope_decision.reason}",
             )
 
         if scope_decision.needs_confirmation and not request.external_target_confirmed:
             raise AuthorizationDenied(
-                "Dış (public) hedef için ek kullanıcı onayı gereklidir",
+                "External (public) target requires additional user confirmation",
             )
 
-        # Geçerli istek — token üret
+        # Valid request — issue a token
         return self._issue_token(request.target)
 
     def verify(self, token: AuthorizationToken, target: Target) -> bool:
-        """Token geçerli ve belirtilen hedefe ait mi."""
+        """Return whether the token is valid and belongs to the given target."""
         try:
             payload = self._decode_payload(token)
         except (InvalidToken, ValueError):
             return False
 
-        # İmza kontrol (constant-time)
+        # Signature check (constant-time)
         expected_sig = self._sign(self._payload_bytes(token))
         if not hmac.compare_digest(expected_sig, token.signature):
             return False
@@ -147,11 +148,11 @@ class AuthorizationManager:
         if now > payload["granted_at"] + payload["ttl_sec"]:
             return False
 
-        # Hedef hash eşleşmesi
+        # Target hash match
         if payload["target_hash"] != hash_target(target):
             return False
 
-        # İptal kontrolü
+        # Revocation check
         with self._lock:
             if payload["token_id"] in self._revoked:
                 return False
@@ -159,13 +160,13 @@ class AuthorizationManager:
         return True
 
     def revoke(self, token: AuthorizationToken | str) -> None:
-        """Token'ı iptal et. Parametre ya AuthorizationToken ya token_id string."""
+        """Revoke a token. Parameter is an AuthorizationToken or a token_id string."""
         token_id = token.token_id if isinstance(token, AuthorizationToken) else token
         with self._lock:
             self._revoked.add(token_id)
 
     # -----------------------------------------------------------------
-    # İç
+    # Internal
     # -----------------------------------------------------------------
     def _issue_token(self, target: Target) -> AuthorizationToken:
         token_id = str(uuid.uuid4())
@@ -203,30 +204,30 @@ class AuthorizationManager:
         try:
             return base64.urlsafe_b64decode(token.payload.encode("ascii"))
         except (ValueError, UnicodeEncodeError) as e:
-            raise InvalidToken(f"Token payload çözümlenemedi: {e}") from e
+            raise InvalidToken(f"Token payload could not be decoded: {e}") from e
 
     def _decode_payload(self, token: AuthorizationToken) -> dict[str, object]:
         raw = self._payload_bytes(token)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as e:
-            raise InvalidToken(f"Token JSON geçersiz: {e}") from e
+            raise InvalidToken(f"Token JSON is invalid: {e}") from e
 
         required_keys = {"token_id", "target_hash", "granted_at", "ttl_sec"}
         if not required_keys.issubset(data.keys()):
-            raise InvalidToken("Token payload eksik alanlar içeriyor")
+            raise InvalidToken("Token payload is missing required fields")
 
         return data
 
 
 # ---------------------------------------------------------------------
-# Yardımcı: Target hash
+# Helper: Target hash
 # ---------------------------------------------------------------------
 def hash_target(target: Target) -> str:
-    """Bir Target'ın kanonik SHA256 kısa özeti.
+    """Canonical short SHA256 digest of a Target.
 
-    Token payload'unda tam IP/URL saklamak yerine hash tutarız — denetim
-    logları insan gözüyle okunurken rastgele veriler görünmez.
+    Instead of storing the full IP/URL in a token payload we keep its hash —
+    that way audit logs don't reveal arbitrary data to a human reader.
     """
     data = f"{target.target_type.value}|{target.value}".encode("utf-8")
     return hashlib.sha256(data).hexdigest()[:32]

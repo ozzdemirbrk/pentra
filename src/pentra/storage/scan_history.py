@@ -1,15 +1,14 @@
-"""SQLite tabanlı tarama geçmişi — "geçen taramadan beri ne değişti" için.
+"""SQLite-backed scan history — for "what changed since the last scan".
 
-SQLite Python stdlib'inde (`sqlite3`) geldiği için kullanıcı hiçbir şey
-kurmuyor. Dosya: `%APPDATA%/Pentra/history.db` — ilk kullanımda otomatik
-oluşturulur.
+SQLite ships with the Python stdlib (`sqlite3`), so the user doesn't install
+anything. File: `%APPDATA%/Pentra/history.db` — created on first use.
 
-Şema:
+Schema:
     scans: id, target_key, target_type, target_value, depth, started_at,
            ended_at, risk_score, finding_count
     findings: id, scan_id, severity, title, target
-        (sadece eşleştirme için gerekli alanlar — description/remediation
-        kaydedilmiyor çünkü deterministik olarak tekrar üretilebilir)
+        (only fields needed for matching — description/remediation aren't
+        stored because they can be deterministically regenerated)
 """
 
 from __future__ import annotations
@@ -24,16 +23,16 @@ from pentra.reporting.report_builder import Report
 
 
 def _target_key(target: Target) -> str:
-    """Aynı hedefi (farklı scan'lerde) tanımak için stabil anahtar."""
+    """Stable key used to recognise the same target across scans."""
     return f"{target.target_type.value}:{target.value}"
 
 
 # ---------------------------------------------------------------------
-# Snapshot tipleri (geçmişten okunan hafif veriler)
+# Snapshot types (lightweight structures read from history)
 # ---------------------------------------------------------------------
 @dataclasses.dataclass(frozen=True)
 class FindingSnapshot:
-    """Geçmiş bir bulgu — diff için minimum alan seti."""
+    """Historical finding — the minimum field set needed for a diff."""
 
     severity: str  # "critical" / "high" / "medium" / "low" / "info"
     title: str
@@ -42,7 +41,7 @@ class FindingSnapshot:
 
 @dataclasses.dataclass(frozen=True)
 class ReportSnapshot:
-    """Geçmiş bir tarama — listeler ve karşılaştırma için."""
+    """A historical scan — for listings and comparison."""
 
     scan_id: int
     target_key: str
@@ -56,7 +55,7 @@ class ReportSnapshot:
 
 @dataclasses.dataclass(frozen=True)
 class ScanSummary:
-    """Geçmiş listesi için özet."""
+    """Summary used in the history listing."""
 
     scan_id: int
     target_value: str
@@ -67,10 +66,10 @@ class ScanSummary:
 
 
 # ---------------------------------------------------------------------
-# Ana sınıf
+# Main class
 # ---------------------------------------------------------------------
 class ScanHistory:
-    """SQLite ile tarama geçmişi yönetimi."""
+    """SQLite-based scan history manager."""
 
     _SCHEMA: str = """
     CREATE TABLE IF NOT EXISTS scans (
@@ -102,10 +101,10 @@ class ScanHistory:
         self._ensure_schema()
 
     # -----------------------------------------------------------------
-    # Kayıt
+    # Insert
     # -----------------------------------------------------------------
     def record(self, report: Report) -> int:
-        """Bir tarama raporunu DB'ye yaz, scan_id döner."""
+        """Write a scan report to the DB; returns scan_id."""
         with self._connect() as conn:
             cursor = conn.execute(
                 """
@@ -127,7 +126,7 @@ class ScanHistory:
             )
             scan_id = cursor.lastrowid
             if scan_id is None:
-                raise RuntimeError("scan_id alınamadı")
+                raise RuntimeError("Could not obtain scan_id")
 
             if report.findings:
                 conn.executemany(
@@ -140,10 +139,10 @@ class ScanHistory:
             return scan_id
 
     # -----------------------------------------------------------------
-    # Sorgu
+    # Query
     # -----------------------------------------------------------------
     def find_previous(self, target: Target) -> ReportSnapshot | None:
-        """Aynı hedef için son tarama (varsa) döner."""
+        """Return the last scan for the same target (if any)."""
         key = _target_key(target)
         with self._connect() as conn:
             scan_row = conn.execute(
@@ -184,7 +183,7 @@ class ScanHistory:
             )
 
     def list_recent(self, limit: int = 20) -> list[ScanSummary]:
-        """Son N taramanın özeti (hedef, tarih, skor)."""
+        """Summary of the last N scans (target, date, score)."""
         with self._connect() as conn:
             rows = conn.execute(
                 """
@@ -206,19 +205,19 @@ class ScanHistory:
         ]
 
     def delete_all(self) -> int:
-        """Tüm geçmişi sil — "geçmişi temizle" butonu için. Silinen kayıt sayısı döner."""
+        """Delete all history — for the "clear history" button. Returns count."""
         with self._connect() as conn:
             cursor = conn.execute("DELETE FROM scans")
-            # findings CASCADE ile otomatik silinir
+            # findings are deleted by CASCADE
             return cursor.rowcount
 
     # -----------------------------------------------------------------
-    # İç
+    # Internal
     # -----------------------------------------------------------------
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self._db_path))
         conn.row_factory = sqlite3.Row
-        # Yabancı anahtar desteği (CASCADE için)
+        # Enable foreign keys (required for CASCADE)
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 

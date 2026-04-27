@@ -1,4 +1,4 @@
-"""MySQL default credentials probe — port 3306'da varsayılan parola testi."""
+"""MySQL default credentials probe — tests default passwords on port 3306."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pentra.core.service_probes.base import ServiceProbeBase
 from pentra.i18n import t
 from pentra.models import Finding, Severity
 
-# (user, password) — en bilinen iki default
+# (user, password) — the two most common defaults
 _DEFAULT_CREDS: tuple[tuple[str, str], ...] = (
     ("root", ""),
     ("root", "root"),

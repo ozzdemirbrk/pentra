@@ -1,18 +1,18 @@
-"""Pentra dev ortamı kurulum otomasyonu.
+"""Pentra dev environment setup automation.
 
-Kullanım (proje kök dizininden):
+Usage (from the project root):
     python scripts/setup_dev.py
 
-Yaptıkları (sırasıyla):
-    1. Python sürüm kontrolü (>= 3.11 olmalı)
-    2. .venv sanal ortamını oluşturur (yoksa)
-    3. pip'i günceller
-    4. requirements-dev.txt kurulumunu yapar (üretim + geliştirme)
-    5. pre-commit hook'larını kurar
-    6. Sistem bağımlılıklarını (Nmap, Npcap) kontrol eder
-    7. Bir sonraki adımları ekrana yazdırır
+What it does (in order):
+    1. Python version check (must be >= 3.11)
+    2. Creates the .venv virtual environment (if missing)
+    3. Upgrades pip
+    4. Installs requirements-dev.txt (production + development)
+    5. Installs pre-commit hooks
+    6. Checks system dependencies (Nmap, Npcap)
+    7. Prints next steps to the screen
 
-Not: Script yönetici yetkisi istemez; Npcap kurulumu elle yapılır.
+Note: the script does not require admin rights; Npcap must be installed manually.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 VENV_DIR = PROJECT_ROOT / ".venv"
 REQS_DEV = PROJECT_ROOT / "requirements-dev.txt"
 
-# ANSI renkler (Windows Terminal ve modern cmd destekler)
+# ANSI colours (Windows Terminal and modern cmd support these)
 GREEN = "\033[92m"
 YELLOW = "\033[93m"
 RED = "\033[91m"
@@ -37,92 +37,92 @@ RESET = "\033[0m"
 
 
 def ok(msg: str) -> None:
-    print(f"{GREEN}✔{RESET} {msg}")
+    print(f"{GREEN}\u2714{RESET} {msg}")
 
 
 def warn(msg: str) -> None:
-    print(f"{YELLOW}⚠{RESET} {msg}")
+    print(f"{YELLOW}\u26a0{RESET} {msg}")
 
 
 def fail(msg: str) -> None:
-    print(f"{RED}✘{RESET} {msg}")
+    print(f"{RED}\u2718{RESET} {msg}")
 
 
 def header(msg: str) -> None:
-    print(f"\n{BOLD}── {msg} ──{RESET}")
+    print(f"\n{BOLD}\u2500\u2500 {msg} \u2500\u2500{RESET}")
 
 
 def check_python_version() -> None:
-    """Python >= 3.11 kontrolü."""
-    header("1/6 Python sürümü kontrol ediliyor")
+    """Check Python >= 3.11."""
+    header("1/6 Checking Python version")
     if sys.version_info < MIN_PYTHON:
         fail(
-            f"Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]}+ gerekli, "
-            f"bulunan: {sys.version_info.major}.{sys.version_info.minor}",
+            f"Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]}+ required, "
+            f"found: {sys.version_info.major}.{sys.version_info.minor}",
         )
-        fail("Lütfen python.org'dan güncel sürümü kurun.")
+        fail("Please install a current version from python.org.")
         sys.exit(1)
     ok(f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
 
 
 def create_venv() -> None:
-    """Sanal ortam oluştur (yoksa)."""
-    header("2/6 Sanal ortam (.venv)")
+    """Create the virtual environment (if missing)."""
+    header("2/6 Virtual environment (.venv)")
     if VENV_DIR.exists():
-        ok(f".venv mevcut: {VENV_DIR}")
+        ok(f".venv already exists: {VENV_DIR}")
         return
     try:
         subprocess.run([sys.executable, "-m", "venv", str(VENV_DIR)], check=True)
-        ok(f".venv oluşturuldu: {VENV_DIR}")
+        ok(f".venv created: {VENV_DIR}")
     except subprocess.CalledProcessError as e:
-        fail(f"venv oluşturma başarısız: {e}")
+        fail(f"venv creation failed: {e}")
         sys.exit(1)
 
 
 def venv_python() -> Path:
-    """Venv içindeki python executable yolu."""
+    """Path to the python executable inside the venv."""
     if platform.system() == "Windows":
         return VENV_DIR / "Scripts" / "python.exe"
     return VENV_DIR / "bin" / "python"
 
 
 def upgrade_pip() -> None:
-    """Venv içindeki pip'i günceller."""
-    header("3/6 pip güncelleniyor")
+    """Upgrade pip inside the venv."""
+    header("3/6 Upgrading pip")
     try:
         subprocess.run(
             [str(venv_python()), "-m", "pip", "install", "--upgrade", "pip"],
             check=True,
         )
-        ok("pip güncel")
+        ok("pip is up to date")
     except subprocess.CalledProcessError as e:
-        fail(f"pip güncelleme başarısız: {e}")
+        fail(f"pip upgrade failed: {e}")
         sys.exit(1)
 
 
 def install_requirements() -> None:
-    """requirements-dev.txt kur."""
-    header("4/6 Bağımlılıklar kuruluyor (bu birkaç dakika sürebilir)")
+    """Install requirements-dev.txt."""
+    header("4/6 Installing dependencies (this may take a few minutes)")
     if not REQS_DEV.exists():
-        fail(f"requirements-dev.txt bulunamadı: {REQS_DEV}")
+        fail(f"requirements-dev.txt not found: {REQS_DEV}")
         sys.exit(1)
     try:
         subprocess.run(
             [str(venv_python()), "-m", "pip", "install", "-r", str(REQS_DEV)],
             check=True,
         )
-        ok("Tüm bağımlılıklar kuruldu")
+        ok("All dependencies installed")
     except subprocess.CalledProcessError as e:
-        fail(f"Bağımlılık kurulumu başarısız: {e}")
+        fail(f"Dependency installation failed: {e}")
         sys.exit(1)
 
 
 def install_precommit() -> None:
-    """pre-commit hook'larını kur."""
-    header("5/6 pre-commit hook'ları")
+    """Install pre-commit hooks."""
+    header("5/6 pre-commit hooks")
     if not (PROJECT_ROOT / ".git").exists():
-        warn("Git repo'su henüz başlatılmamış — pre-commit hook'ları atlanıyor.")
-        warn("Git init yaptıktan sonra bu adımı elle çalıştırın:")
+        warn("Git repository not yet initialized — skipping pre-commit hooks.")
+        warn("After running git init, run this step manually:")
         warn("    .venv\\Scripts\\pre-commit install")
         return
     try:
@@ -131,57 +131,57 @@ def install_precommit() -> None:
             check=True,
             cwd=PROJECT_ROOT,
         )
-        ok("pre-commit hook'ları kuruldu")
+        ok("pre-commit hooks installed")
     except subprocess.CalledProcessError as e:
-        warn(f"pre-commit kurulumu başarısız: {e}")
+        warn(f"pre-commit installation failed: {e}")
 
 
 def check_system_deps() -> None:
-    """Sistem bağımlılıklarını kontrol et (sadece uyarı)."""
-    header("6/6 Sistem bağımlılıkları kontrol ediliyor")
+    """Check system dependencies (warning only)."""
+    header("6/6 Checking system dependencies")
 
     if platform.system() != "Windows":
-        warn("Pentra v1 yalnızca Windows üzerinde desteklenir. Diğer OS'larda")
-        warn("geliştirme yapabilirsin ama kurulum-testler çalışmayabilir.")
+        warn("Pentra v1 only supports Windows. You can develop on other OSes")
+        warn("but installation tests may not work.")
 
     if shutil.which("nmap"):
-        ok("Nmap kurulu")
+        ok("Nmap is installed")
     else:
-        warn("Nmap bulunamadı. https://nmap.org/download.html adresinden kurun.")
-        warn("Kurulum sonrası PATH'e eklendiğinden emin olun.")
+        warn("Nmap not found. Install from https://nmap.org/download.html.")
+        warn("Make sure it is added to PATH after installation.")
 
     npcap_paths = [
         Path("C:/Windows/System32/Npcap"),
         Path("C:/Program Files/Npcap"),
     ]
     if any(p.exists() for p in npcap_paths):
-        ok("Npcap kurulu görünüyor")
+        ok("Npcap appears to be installed")
     else:
-        warn("Npcap tespit edilemedi. https://npcap.com/ adresinden kurun.")
-        warn("Scapy ham paket fonksiyonları Npcap olmadan çalışmaz.")
+        warn("Npcap not detected. Install from https://npcap.com/.")
+        warn("Scapy raw-packet features won't work without Npcap.")
 
 
 def print_next_steps() -> None:
-    """Kurulum sonrası kullanıcı yönergeleri."""
+    """Post-install user guidance."""
     print()
-    print(f"{BOLD}{'═' * 60}{RESET}")
-    print(f"{BOLD}Kurulum tamamlandı! Sonraki adımlar:{RESET}")
-    print(f"{BOLD}{'═' * 60}{RESET}")
+    print(f"{BOLD}{'=' * 60}{RESET}")
+    print(f"{BOLD}Setup complete! Next steps:{RESET}")
+    print(f"{BOLD}{'=' * 60}{RESET}")
     print()
-    print("1. Sanal ortamı aktifleştir:")
+    print("1. Activate the virtual environment:")
     print(f"   {GREEN}.venv\\Scripts\\activate{RESET}")
     print()
-    print("2. Smoke testi çalıştır (paket import edilebiliyor mu?):")
+    print("2. Run the smoke test (can the package be imported?):")
     print(f"   {GREEN}pytest tests/unit/test_smoke.py -v{RESET}")
     print()
-    print("3. Uygulamayı çalıştır (şu an placeholder):")
+    print("3. Run the application:")
     print(f"   {GREEN}python -m pentra{RESET}")
     print()
 
 
 def main() -> int:
-    print(f"{BOLD}Pentra — Geliştirme Ortamı Kurulumu{RESET}")
-    print(f"Proje dizini: {PROJECT_ROOT}")
+    print(f"{BOLD}Pentra \u2014 Development Environment Setup{RESET}")
+    print(f"Project directory: {PROJECT_ROOT}")
 
     check_python_version()
     create_venv()

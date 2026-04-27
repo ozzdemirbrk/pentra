@@ -1,17 +1,17 @@
-"""Pentra'yı PyInstaller ile tek dosyalık Windows .exe olarak paketler.
+"""Package Pentra as a single-file Windows .exe with PyInstaller.
 
-Kullanım:
+Usage:
     python scripts/build_exe.py              # Normal build
-    python scripts/build_exe.py --clean      # build/ + dist/ temizleyip başla
+    python scripts/build_exe.py --clean      # Clean build/ + dist/ first
 
-Çıktı:
-    dist/Pentra.exe   (~150-200 MB, tek dosya)
+Output:
+    dist/Pentra.exe   (~150-200 MB, single file)
 
-Bundle edilen datalar:
-    - src/pentra/i18n/locales/*.json       → pentra/i18n/locales/
-    - src/pentra/reporting/templates/*.j2  → pentra/reporting/templates/
-    - public/logo/Pentra.png (rapor logosu) → public/logo/
-    - resources/icons/pentra.ico           → .exe ikonu olarak
+Bundled data:
+    - src/pentra/i18n/locales/*.json       -> pentra/i18n/locales/
+    - src/pentra/reporting/templates/*.j2  -> pentra/reporting/templates/
+    - public/logo/Pentra.png (report logo) -> public/logo/
+    - resources/icons/pentra.ico           -> embedded as the .exe icon
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 # ---------------------------------------------------------------------
-# Yollar
+# Paths
 # ---------------------------------------------------------------------
 PROJECT_ROOT: Path = Path(__file__).parent.parent.resolve()
 ENTRY_POINT: Path = PROJECT_ROOT / "src" / "pentra" / "__main__.py"
@@ -35,10 +35,10 @@ APP_NAME: str = "Pentra"
 
 
 def _ensure_icon() -> None:
-    """Icon yoksa create_icon.py'yi çalıştır."""
+    """Run create_icon.py if the icon doesn't exist yet."""
     if ICON_PATH.exists():
         return
-    print(f"[INFO] {ICON_PATH} yok — create_icon.py çalıştırılıyor...")
+    print(f"[INFO] {ICON_PATH} missing — running create_icon.py...")
     subprocess.run(
         [sys.executable, str(PROJECT_ROOT / "scripts" / "create_icon.py")],
         check=True,
@@ -50,19 +50,19 @@ def _clean() -> None:
     for path in (BUILD_DIR, DIST_DIR, SPEC_FILE):
         if path.is_dir():
             shutil.rmtree(path)
-            print(f"[CLEAN] {path} silindi")
+            print(f"[CLEAN] {path} removed")
         elif path.is_file():
             path.unlink()
-            print(f"[CLEAN] {path} silindi")
+            print(f"[CLEAN] {path} removed")
 
 
 def _build_pyinstaller_args() -> list[str]:
-    """PyInstaller komut satırı argümanlarını hazırlar."""
-    sep = ";"  # Windows PyInstaller data ayracı (Linux/macOS ':')
+    """Build the PyInstaller command-line arguments."""
+    sep = ";"  # PyInstaller data separator on Windows (Linux/macOS uses ':')
     if sys.platform != "win32":
         sep = ":"
 
-    # --add-data "SRC<sep>DEST" — destination bundle içindeki göreceli yol
+    # --add-data "SRC<sep>DEST" — destination is the relative path inside the bundle
     data_pairs: list[tuple[Path, str]] = [
         (PROJECT_ROOT / "src" / "pentra" / "i18n" / "locales", "pentra/i18n/locales"),
         (PROJECT_ROOT / "src" / "pentra" / "reporting" / "templates", "pentra/reporting/templates"),
@@ -80,10 +80,10 @@ def _build_pyinstaller_args() -> list[str]:
         "--name", APP_NAME,
         "--icon", str(ICON_PATH),
         "--clean",
-        # Lazy import'larla bulunmayan modüller için explicit hint
+        # Explicit hints for lazily imported modules PyInstaller can miss
         "--hidden-import", "pentra.knowledge.remediations_tr",
         "--hidden-import", "pentra.knowledge.remediations_en",
-        # PySide6 SVG / image formatları için
+        # PySide6 SVG / image format plugins
         "--collect-submodules", "PySide6",
         *add_data_args,
         str(ENTRY_POINT),
@@ -100,24 +100,24 @@ def main() -> int:
     _ensure_icon()
 
     args = _build_pyinstaller_args()
-    print(f"[BUILD] PyInstaller çalıştırılıyor...")
+    print(f"[BUILD] Running PyInstaller...")
     print(f"        {' '.join(args)}")
     print()
 
     result = subprocess.run(args, cwd=PROJECT_ROOT, check=False)
     if result.returncode != 0:
-        print(f"[HATA] PyInstaller başarısız (exit code: {result.returncode})", file=sys.stderr)
+        print(f"[ERROR] PyInstaller failed (exit code: {result.returncode})", file=sys.stderr)
         return result.returncode
 
     exe_path = DIST_DIR / f"{APP_NAME}.exe"
     if not exe_path.exists():
-        print(f"[HATA] Beklenen .exe oluşmadı: {exe_path}", file=sys.stderr)
+        print(f"[ERROR] Expected .exe was not produced: {exe_path}", file=sys.stderr)
         return 1
 
     size_mb = exe_path.stat().st_size / 1024 / 1024
     print()
-    print(f"[OK] {exe_path} oluşturuldu ({size_mb:.1f} MB)")
-    print(f"     Çalıştırmak için: {exe_path}")
+    print(f"[OK] {exe_path} created ({size_mb:.1f} MB)")
+    print(f"     Run with: {exe_path}")
     return 0
 
 

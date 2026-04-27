@@ -1,8 +1,8 @@
-"""rate_limiter.py — TokenBucket testleri.
+"""rate_limiter.py — TokenBucket tests.
 
-Zaman-duyarlı testler deterministik olsun diye:
-    - Dolgu hızı ya hızlı seçilir (ör. 1000/sn) ya da
-    - `time.monotonic` monkeypatch'lenir.
+For deterministic time-sensitive tests:
+    - Either pick a fast refill rate (e.g. 1000/s), or
+    - Monkeypatch `time.monotonic`.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pentra.core.rate_limiter import TokenBucket
 
 
 # =====================================================================
-# Kurucu doğrulaması
+# Constructor validation
 # =====================================================================
 class TestInit:
     def test_valid_init(self) -> None:
@@ -26,7 +26,7 @@ class TestInit:
 
     @pytest.mark.parametrize("cap", [0, -1, -100])
     def test_non_positive_capacity_raises(self, cap: int) -> None:
-        with pytest.raises(ValueError, match="capacity pozitif"):
+        with pytest.raises(ValueError, match="capacity must be positive"):
             TokenBucket(capacity=cap, refill_rate_per_sec=1.0)
 
     @pytest.mark.parametrize("rate", [0.0, -0.5, -10.0])
@@ -55,42 +55,42 @@ class TestAcquire:
 
     def test_acquire_more_than_available_returns_false(self) -> None:
         b = TokenBucket(capacity=5, refill_rate_per_sec=0.001)
-        b.acquire(5)  # tamamen boşalt
+        b.acquire(5)  # drain completely
         assert b.acquire(1) is False
 
     def test_acquire_zero_raises(self) -> None:
         b = TokenBucket(capacity=5, refill_rate_per_sec=1.0)
-        with pytest.raises(ValueError, match="pozitif"):
+        with pytest.raises(ValueError, match="positive"):
             b.acquire(0)
 
     def test_acquire_negative_raises(self) -> None:
         b = TokenBucket(capacity=5, refill_rate_per_sec=1.0)
-        with pytest.raises(ValueError, match="pozitif"):
+        with pytest.raises(ValueError, match="positive"):
             b.acquire(-1)
 
     def test_acquire_more_than_capacity_raises(self) -> None:
         b = TokenBucket(capacity=5, refill_rate_per_sec=1.0)
-        with pytest.raises(ValueError, match="kapasiteden"):
+        with pytest.raises(ValueError, match="capacity"):
             b.acquire(10)
 
 
 # =====================================================================
-# refill davranışı
+# Refill behavior
 # =====================================================================
 class TestRefill:
     def test_refill_happens_over_time(self) -> None:
-        # Hızlı dolgu: 100/sn
+        # Fast refill: 100/s
         b = TokenBucket(capacity=10, refill_rate_per_sec=100.0)
-        b.acquire(10)  # boşalt
+        b.acquire(10)  # drain
         assert b.current_tokens == pytest.approx(0.0, abs=0.5)
-        time.sleep(0.05)  # ~5 token eklenmiş olmalı
-        assert b.current_tokens > 3  # en azından 3 token dolmuş
-        assert b.current_tokens <= 10  # kapasiteyi aşmaz
+        time.sleep(0.05)  # ~5 tokens should have been added
+        assert b.current_tokens > 3  # at least 3 tokens refilled
+        assert b.current_tokens <= 10  # never exceeds capacity
 
     def test_refill_caps_at_capacity(self) -> None:
         b = TokenBucket(capacity=5, refill_rate_per_sec=1000.0)
-        b.acquire(2)  # 3 kaldı
-        time.sleep(0.1)  # 100 token üretilecekti ama 5'te kapanır
+        b.acquire(2)  # 3 left
+        time.sleep(0.1)  # 100 tokens would be produced but it caps at 5
         assert b.current_tokens == pytest.approx(5.0, abs=0.01)
 
     def test_after_refill_acquire_succeeds(self) -> None:
@@ -109,24 +109,24 @@ class TestWaitFor:
         start = time.monotonic()
         assert b.wait_for(1) is True
         elapsed = time.monotonic() - start
-        assert elapsed < 0.05  # neredeyse anında
+        assert elapsed < 0.05  # essentially immediate
 
     def test_wait_for_blocks_until_refill(self) -> None:
         b = TokenBucket(capacity=2, refill_rate_per_sec=100.0)
-        b.acquire(2)  # boşalt
+        b.acquire(2)  # drain
         start = time.monotonic()
         assert b.wait_for(1) is True
         elapsed = time.monotonic() - start
-        # 1 token için ~10ms bekledi; makul aralık
+        # waited ~10ms for 1 token; reasonable range
         assert 0.005 < elapsed < 0.5
 
     def test_wait_for_timeout_returns_false(self) -> None:
-        b = TokenBucket(capacity=1, refill_rate_per_sec=0.1)  # çok yavaş dolum
-        b.acquire(1)  # boşalt
+        b = TokenBucket(capacity=1, refill_rate_per_sec=0.1)  # very slow refill
+        b.acquire(1)  # drain
         start = time.monotonic()
         assert b.wait_for(1, timeout=0.1) is False
         elapsed = time.monotonic() - start
-        assert 0.08 < elapsed < 0.3  # timeout'a yakın
+        assert 0.08 < elapsed < 0.3  # close to the timeout
 
     def test_wait_for_zero_tokens_raises(self) -> None:
         b = TokenBucket(capacity=5, refill_rate_per_sec=1.0)
@@ -149,8 +149,8 @@ class TestWaitFor:
 # =====================================================================
 class TestThreadSafety:
     def test_concurrent_acquires_total_not_exceeds_available(self) -> None:
-        """100 thread 1'er token istesin; toplam başarı kapasiteyi aşmamalı."""
-        b = TokenBucket(capacity=50, refill_rate_per_sec=0.001)  # dolum yok denecek kadar yavaş
+        """100 threads each request 1 token; total successes must not exceed capacity."""
+        b = TokenBucket(capacity=50, refill_rate_per_sec=0.001)  # refill effectively zero
         successes: list[bool] = []
         lock = threading.Lock()
 
@@ -165,5 +165,5 @@ class TestThreadSafety:
         for t in threads:
             t.join()
 
-        # En fazla kapasite kadar başarı olmalı (race condition yok)
+        # At most capacity-many successes (no race condition)
         assert sum(1 for ok in successes if ok) == 50

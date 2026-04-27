@@ -1,4 +1,4 @@
-"""xss.py — reflected XSS probe testleri (echo-fallback tespiti dahil)."""
+"""xss.py — reflected XSS probe tests (including echo-fallback detection)."""
 
 from __future__ import annotations
 
@@ -17,15 +17,15 @@ def _resp(text: str) -> MagicMock:
     return r
 
 
-# Echo-fallback tespit edilmeyecek sunucu: SADECE bilinen param'ları yansıtır
-# (q, search gibi) — rastgele `pentraXXX` param'ı yansımaz.
+# A server where echo-fallback would NOT trigger: only reflects known params
+# (q, search etc.) — a random `pentraXXX` param is not reflected.
 _KNOWN_PARAMS: set[str] = {
     "q", "query", "search", "s", "keyword", "term", "name",
 }
 
 
 def _selective_reflection_server() -> MagicMock:
-    """Tipik bir gerçek sunucu: sadece bilinen search/form param'larını yansıtır."""
+    """A typical real server: reflects only well-known search/form parameters."""
     from urllib.parse import urlparse, parse_qs
 
     session = MagicMock(spec=requests.Session)
@@ -38,7 +38,7 @@ def _selective_reflection_server() -> MagicMock:
         param_name = next(iter(qs.keys()))
         value = qs[param_name][0]
 
-        # Sadece bilinen param'lar yansıtılır
+        # Only well-known params are reflected
         if param_name in _KNOWN_PARAMS:
             return _resp(f"<html><body>Aradığınız: {value}</body></html>")
         return _resp("<html><body>Anasayfa</body></html>")
@@ -48,7 +48,7 @@ def _selective_reflection_server() -> MagicMock:
 
 
 def _echo_everything_server() -> MagicMock:
-    """Echo-fallback sunucu: HER param'ı (decoded) yansıtır (SPA, dev server, debug)."""
+    """Echo-fallback server: reflects EVERY param (decoded) (SPA, dev server, debug)."""
     from urllib.parse import urlparse, parse_qs
 
     session = MagicMock(spec=requests.Session)
@@ -57,7 +57,7 @@ def _echo_everything_server() -> MagicMock:
         qs = parse_qs(urlparse(url).query)
         if not qs:
             return _resp("home")
-        # Tüm decoded değerleri yanıta yansıt
+        # Reflect all decoded values back into the response
         values = [v[0] for v in qs.values()]
         return _resp(f"<html><body>echo: {' '.join(values)}</body></html>")
 
@@ -66,11 +66,11 @@ def _echo_everything_server() -> MagicMock:
 
 
 # =====================================================================
-# Echo-fallback tespiti (yeni)
+# Echo-fallback detection (new)
 # =====================================================================
 class TestEchoFallback:
     def test_echo_everything_server_yields_info_only(self) -> None:
-        """Site rastgele param'ı bile yansıtıyorsa tek bir INFO bulgu döner."""
+        """If the site reflects even random params, a single INFO finding is returned."""
         probe = XssProbe()
         session = _echo_everything_server()
 
@@ -78,36 +78,36 @@ class TestEchoFallback:
 
         assert len(findings) == 1
         assert findings[0].severity == Severity.INFO
-        assert "atland" in findings[0].title.lower()  # "XSS testi atlandı"
+        assert "atland" in findings[0].title.lower()  # "XSS test skipped"
 
     def test_echo_fallback_blocks_false_positives(self) -> None:
-        """Eskiden 20+ HIGH bulgu üretirdi — şimdi sadece 1 INFO."""
+        """Used to produce 20+ HIGH findings — now just 1 INFO."""
         probe = XssProbe()
         session = _echo_everything_server()
         findings = probe.probe("https://spa.example", session)
 
-        # HIGH severity XSS bulgusu OLMAMALI
+        # No HIGH severity XSS finding should appear
         assert not any(f.severity == Severity.HIGH for f in findings)
 
 
 # =====================================================================
-# Gerçek XSS tespiti (spesifik param'da reflection)
+# Real XSS detection (reflection on a specific param)
 # =====================================================================
 class TestRealXssDetection:
     def test_real_xss_on_q_parameter(self) -> None:
-        """q= gibi bilinen param yansıtılıyor, diğerleri yansıtılmıyor → gerçek XSS."""
+        """A known param like q= is reflected, others are not → real XSS."""
         probe = XssProbe()
         session = _selective_reflection_server()
 
         findings = probe.probe("https://realsite.example", session)
 
-        # En az bir HIGH XSS bulgusu olmalı (q param'ı yansıtılıyor)
+        # At least one HIGH XSS finding (q is reflected)
         high_findings = [f for f in findings if f.severity == Severity.HIGH]
         assert len(high_findings) >= 1
         assert any("q" in f.title or "query" in f.title for f in high_findings)
 
     def test_escaped_reflection_no_finding(self) -> None:
-        """Site HTML escape uyguluyor → XSS yok."""
+        """Site HTML-escapes input → no XSS."""
         from html import escape
         from urllib.parse import urlparse, parse_qs
 
@@ -120,7 +120,7 @@ class TestRealXssDetection:
                 return _resp("<html>Home</html>")
             param_name = next(iter(qs.keys()))
             value = qs[param_name][0]
-            # HTML escape uygulanıyor
+            # HTML escape applied
             if param_name in _KNOWN_PARAMS:
                 return _resp(f"<html>Aradığınız: {escape(value)}</html>")
             return _resp("<html>Home</html>")
@@ -128,11 +128,11 @@ class TestRealXssDetection:
         session.get.side_effect = fake_get
         findings = probe.probe("https://safesite.example", session)
 
-        # Ne echo-fallback INFO ne de HIGH XSS
+        # Neither echo-fallback INFO nor HIGH XSS
         assert findings == []
 
     def test_no_reflection_no_finding(self) -> None:
-        """Hiçbir param yansımıyor → bulgu yok."""
+        """No param is reflected → no finding."""
         probe = XssProbe()
         session = MagicMock(spec=requests.Session)
         session.get.return_value = _resp("<html>Sabit sayfa</html>")
@@ -142,7 +142,7 @@ class TestRealXssDetection:
 
 
 # =====================================================================
-# Canary davranışı
+# Canary behavior
 # =====================================================================
 class TestCanaryUniqueness:
     def test_canary_varies_between_requests(self) -> None:
@@ -163,7 +163,7 @@ class TestCanaryUniqueness:
 
 class TestParamDedup:
     def test_one_finding_per_param_on_real_xss(self) -> None:
-        """Gerçek XSS ortamında her param max 1 bulgu."""
+        """In a real XSS scenario, at most 1 finding per param."""
         probe = XssProbe()
         session = _selective_reflection_server()
 

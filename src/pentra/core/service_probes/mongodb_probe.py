@@ -1,4 +1,4 @@
-"""MongoDB auth check — port 27017'de parolasız erişim kontrolü."""
+"""MongoDB auth check — tests for no-password access on port 27017."""
 
 from __future__ import annotations
 

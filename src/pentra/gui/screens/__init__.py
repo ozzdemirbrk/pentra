@@ -1,1 +1,1 @@
-"""Sihirbaz ekranları (QWizardPage türevleri)."""
+"""Wizard screens (QWizardPage subclasses)."""

@@ -1,6 +1,6 @@
-"""Ekran 2 — Hedef Seçimi.
+"""Screen 2 — Target Selection.
 
-Tüm hedef tipleri aktif: localhost, URL, Wi-Fi, yerel ağ, IP aralığı.
+All target types are active: localhost, URL, Wi-Fi, local network, IP range.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from pentra.utils.network_utils import guess_local_cidr, is_valid_cidr
 
 
 class TargetSelectPage(QWizardPage):
-    """Kullanıcı neyi taramak istediğini seçer."""
+    """User picks what they want to scan."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -41,7 +41,7 @@ class TargetSelectPage(QWizardPage):
 
         self._group = QButtonGroup(self)
 
-        # --- 1) Bu bilgisayar ---
+        # --- 1) This computer ---
         self._rb_localhost = QRadioButton()
         self._rb_localhost.setChecked(True)
         self._rb_localhost.setStyleSheet("QRadioButton { font-size: 13px; padding: 6px; }")
@@ -54,7 +54,7 @@ class TargetSelectPage(QWizardPage):
         self._desc_local.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(self._desc_local)
 
-        # --- 2) Web sitesi ---
+        # --- 2) Web site ---
         self._rb_url = QRadioButton()
         self._rb_url.setStyleSheet("QRadioButton { font-size: 13px; padding: 6px; }")
         self._rb_url.toggled.connect(self._update_url_panel)
@@ -66,7 +66,7 @@ class TargetSelectPage(QWizardPage):
         self._desc_url.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(self._desc_url)
 
-        # URL alt paneli — sadece URL seçiliyken görünür
+        # URL sub-panel — visible only when URL is selected
         self._url_panel = QWidget()
         panel_layout = QVBoxLayout(self._url_panel)
         panel_layout.setContentsMargins(24, 4, 4, 4)
@@ -85,7 +85,7 @@ class TargetSelectPage(QWizardPage):
         self._url_panel.setVisible(False)
         layout.addWidget(self._url_panel)
 
-        # --- 3) Wi-Fi ağları ---
+        # --- 3) Wi-Fi networks ---
         self._rb_wifi = QRadioButton()
         self._rb_wifi.setStyleSheet("QRadioButton { font-size: 13px; padding: 6px; }")
         self._group.addButton(self._rb_wifi)
@@ -96,7 +96,7 @@ class TargetSelectPage(QWizardPage):
         self._desc_wifi.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(self._desc_wifi)
 
-        # --- 4) Yerel ağ ---
+        # --- 4) Local network ---
         self._rb_local_net = QRadioButton()
         self._rb_local_net.setStyleSheet("QRadioButton { font-size: 13px; padding: 6px; }")
         self._rb_local_net.toggled.connect(self._update_local_net_hint)
@@ -108,7 +108,7 @@ class TargetSelectPage(QWizardPage):
         self._local_net_hint.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(self._local_net_hint)
 
-        # --- 5) IP aralığı ---
+        # --- 5) IP range ---
         self._rb_ip_range = QRadioButton()
         self._rb_ip_range.setStyleSheet("QRadioButton { font-size: 13px; padding: 6px; }")
         self._rb_ip_range.toggled.connect(self._update_ip_range_panel)
@@ -137,12 +137,12 @@ class TargetSelectPage(QWizardPage):
 
         layout.addStretch()
 
-        # İlk çeviri + dil değişimine abone ol
+        # First translation pass + subscribe to language changes
         self.retranslate_ui()
         Translator.instance().languageChanged.connect(lambda _l: self.retranslate_ui())
 
     # -----------------------------------------------------------------
-    # Çeviri
+    # Translation
     # -----------------------------------------------------------------
     def retranslate_ui(self) -> None:
         self.setTitle(t("target.title"))
@@ -161,7 +161,7 @@ class TargetSelectPage(QWizardPage):
         self._desc_wifi.setText(t("target.wifi.desc_html"))
 
         self._rb_local_net.setText(t("target.local_net.label"))
-        # Hint — seçili değilse default açıklama; seçiliyse tespit sonucu
+        # Hint — default description when not selected; detection result when selected
         if self._rb_local_net.isChecked():
             self._update_local_net_hint()
         else:
@@ -172,7 +172,7 @@ class TargetSelectPage(QWizardPage):
         self._ip_range_external_chk.setText(t("target.ip_range.checkbox"))
 
     # -----------------------------------------------------------------
-    # Dinamik görünüm
+    # Dynamic visibility
     # -----------------------------------------------------------------
     def _update_url_panel(self) -> None:
         self._url_panel.setVisible(self._rb_url.isChecked())
@@ -183,7 +183,7 @@ class TargetSelectPage(QWizardPage):
         self.completeChanged.emit()
 
     def _update_local_net_hint(self) -> None:
-        """Yerel ağ seçiliyse tespit edilen CIDR'yi kullanıcıya göster."""
+        """Show the detected CIDR to the user when local network is selected."""
         if not self._rb_local_net.isChecked():
             self._local_net_hint.setText(t("target.local_net.desc_html"))
             self.completeChanged.emit()
@@ -198,10 +198,10 @@ class TargetSelectPage(QWizardPage):
         self.completeChanged.emit()
 
     # -----------------------------------------------------------------
-    # QWizardPage entegrasyonu
+    # QWizardPage integration
     # -----------------------------------------------------------------
     def isComplete(self) -> bool:  # noqa: N802
-        """İleri aktif kriterleri."""
+        """Criteria that enable the Next button."""
         if self._rb_localhost.isChecked():
             return True
         if self._rb_wifi.isChecked():
@@ -225,7 +225,7 @@ class TargetSelectPage(QWizardPage):
         return False
 
     def validatePage(self) -> bool:  # noqa: N802
-        """Seçime göre context.target ve external_confirmed ayarla."""
+        """Set context.target and external_confirmed based on the selection."""
         wizard = self.wizard()
         if not isinstance(wizard, PentraWizard):
             return True
@@ -306,7 +306,7 @@ class TargetSelectPage(QWizardPage):
     # -----------------------------------------------------------------
     @staticmethod
     def _is_url_valid(url_text: str) -> bool:
-        """http(s) şemalı, hostname içeren URL kontrolü."""
+        """Check for an http(s)-scheme URL that contains a hostname."""
         try:
             parsed = urlparse(url_text)
         except ValueError:
@@ -315,7 +315,7 @@ class TargetSelectPage(QWizardPage):
 
     @staticmethod
     def _is_bare_ip(text: str) -> bool:
-        """'192.168.1.1' gibi CIDR'siz tek IP kontrolü (/ yoksa)."""
+        """Detect a bare IP like '192.168.1.1' without a CIDR (no '/')."""
         if "/" in text:
             return False
         import ipaddress

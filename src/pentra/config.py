@@ -1,7 +1,7 @@
-"""Uygulama genelinde kullanılan sabitler ve varsayılan ayarlar.
+"""Constants and default settings used across the application.
 
-Kullanıcı tercihleri (tema, dil, son hedef) burada DEĞİL;
-%APPDATA%/Pentra/config.json içinde tutulur.
+User preferences (theme, language, last target) are NOT stored here;
+they live in %APPDATA%/Pentra/config.json.
 """
 
 from __future__ import annotations
@@ -10,16 +10,16 @@ from pathlib import Path
 from typing import Final
 
 # ---------------------------------------------------------------------
-# Uygulama meta
+# Application metadata
 # ---------------------------------------------------------------------
 APP_NAME: Final[str] = "Pentra"
 ORG_NAME: Final[str] = "Pentra"
 
 # ---------------------------------------------------------------------
-# Yol sabitleri (Windows)
+# Path constants (Windows)
 # ---------------------------------------------------------------------
 def get_appdata_dir() -> Path:
-    """%APPDATA%/Pentra dizinini döndürür, yoksa oluşturur."""
+    """Return the %APPDATA%/Pentra directory, creating it if missing."""
     import os
 
     base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
@@ -29,24 +29,24 @@ def get_appdata_dir() -> Path:
 
 
 def get_desktop_dir() -> Path:
-    """Kullanıcı masaüstü dizinini döndürür. Rapor çıktıları buraya yazılır."""
+    """Return the user's desktop directory. Report output is written here."""
     return Path.home() / "Desktop"
 
 
 # ---------------------------------------------------------------------
-# Tarama sabitleri
+# Scan constants
 # ---------------------------------------------------------------------
-# Rate limit — paket/saniye. Kullanıcı ağında DoS etkisi yaratmamak için.
+# Rate limit — packets/second. Prevents unintended DoS on the user's network.
 DEFAULT_RATE_LIMIT_PPS: Final[int] = 500
 MAX_RATE_LIMIT_PPS: Final[int] = 2000
 
-# Zaman aşımları (saniye)
-DEFAULT_SCAN_TIMEOUT_SEC: Final[int] = 7200  # 2 saat (derin tarama)
+# Timeouts (seconds)
+DEFAULT_SCAN_TIMEOUT_SEC: Final[int] = 7200  # 2 hours (deep scan)
 DEFAULT_HOST_TIMEOUT_SEC: Final[int] = 30
 DEFAULT_CONNECT_TIMEOUT_SEC: Final[int] = 5
 
-# Özel ağ aralıkları (RFC1918 + loopback)
-# scope_validator.py bu listeye karşı doğrulama yapar.
+# Private network ranges (RFC1918 + loopback)
+# scope_validator.py validates targets against this list.
 PRIVATE_NETWORK_RANGES: Final[tuple[str, ...]] = (
     "10.0.0.0/8",
     "172.16.0.0/12",
@@ -55,7 +55,7 @@ PRIVATE_NETWORK_RANGES: Final[tuple[str, ...]] = (
 )
 
 # ---------------------------------------------------------------------
-# Loglama
+# Logging
 # ---------------------------------------------------------------------
 LOG_FILE_MAX_BYTES: Final[int] = 10 * 1024 * 1024  # 10 MB
 LOG_FILE_BACKUP_COUNT: Final[int] = 5

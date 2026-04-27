@@ -1,14 +1,14 @@
-"""Ağ tarayıcısı — python-nmap ile port ve servis tespiti.
+"""Network scanner — port and service detection via python-nmap.
 
-Faz 2 MVP: localhost'ta top 100 portu TCP connect tarama.
+Phase 2 MVP: top 100 TCP-connect port scan on localhost.
 
-Derinlikler:
-    QUICK    → top 100 port, servis adları (TCP connect, hızlı)
-    STANDARD → top 1000 port + servis versiyonu
-    DEEP     → tüm portlar + versiyon + OS + script varsayılanları
+Depths:
+    QUICK    -> top 100 ports, service names (TCP connect, fast)
+    STANDARD -> top 1000 ports + service version
+    DEEP     -> all ports + version + OS + default NSE scripts
 
-Windows'ta `-sT` (TCP connect) kullanılır — admin/Npcap gerekmez; localhost için
-yeterince hızlıdır. Diğer modlar Npcap + UAC gerektirebilir (Faz 3+ için).
+On Windows `-sT` (TCP connect) is used — it doesn't need admin/Npcap and is
+fast enough for localhost. Other modes may require Npcap + UAC (for Phase 3+).
 """
 
 from __future__ import annotations
@@ -26,16 +26,16 @@ from pentra.core.service_probes.ssh_probe import SshDefaultCredsProbe
 from pentra.i18n import t
 from pentra.models import Finding, ScanDepth, Severity, Target, TargetType
 
-# Port → Service probe eşlemesi. Açık port bulunduğunda ilgili probe çalışır.
+# Port -> Service probe mapping. When an open port is found, its probe runs.
 def _default_service_probes() -> dict[int, ServiceProbeBase]:
-    """Her port için kayıtlı probe (port numarası → probe örneği)."""
+    """Registered probe for each port (port number -> probe instance)."""
     registry: dict[int, ServiceProbeBase] = {}
     probe_classes: tuple[type[ServiceProbeBase], ...] = (
-        # Auth-open checks (parolasız erişim)
+        # Auth-open checks (no-password access)
         RedisAuthProbe,
         ElasticsearchAuthProbe,
         MongoDbAuthProbe,
-        # Default credentials checks (varsayılan parola — max 2-3 deneme)
+        # Default credentials checks (default password — max 2-3 attempts)
         MysqlDefaultCredsProbe,
         PostgresDefaultCredsProbe,
         SshDefaultCredsProbe,
@@ -46,7 +46,7 @@ def _default_service_probes() -> dict[int, ServiceProbeBase]:
             registry[port] = probe_instance
     return registry
 
-# python-nmap'in nmap.exe'yi arayacağı yollar — Windows + Unix.
+# Paths python-nmap searches for nmap.exe — Windows + Unix.
 _NMAP_SEARCH_PATHS: tuple[str, ...] = (
     "nmap",
     r"C:\Program Files (x86)\Nmap\nmap.exe",
@@ -56,7 +56,7 @@ _NMAP_SEARCH_PATHS: tuple[str, ...] = (
     "/opt/local/bin/nmap",
 )
 
-# Port → (severity, i18n anahtarı) — anahtar çalıştırma zamanında çevrilir
+# Port -> (severity, i18n key) — the key is translated at runtime
 _RISKY_PORTS: dict[int, tuple[Severity, str]] = {
     21: (Severity.LOW, "note.network.port.ftp"),
     23: (Severity.MEDIUM, "note.network.port.telnet"),
@@ -75,7 +75,7 @@ _RISKY_PORTS: dict[int, tuple[Severity, str]] = {
 
 
 class NetworkScanner(ScannerBase):
-    """python-nmap tabanlı port/servis tarayıcı."""
+    """python-nmap-based port/service scanner."""
 
     def __init__(self, *args, service_probes=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -88,7 +88,7 @@ class NetworkScanner(ScannerBase):
         return "network_scanner"
 
     # -----------------------------------------------------------------
-    # ScannerBase._do_scan implementasyonu
+    # ScannerBase._do_scan implementation
     # -----------------------------------------------------------------
     def _do_scan(self, target: Target, depth: ScanDepth) -> None:
         try:
@@ -107,7 +107,7 @@ class NetworkScanner(ScannerBase):
             return
 
         if not self._throttle(packets=1):
-            return  # iptal edildi
+            return  # cancelled
 
         network_warning = _estimate_scan_time(target, depth)
         if network_warning:
@@ -143,7 +143,7 @@ class NetworkScanner(ScannerBase):
 
     # -----------------------------------------------------------------
     def _run_service_probes(self, hosts: list[str], scanner: object) -> None:
-        """Açık portlardan kayıtlı probe'u olanlara auth kontrolü yap."""
+        """Run auth checks on open ports that have a registered probe."""
         if not self._service_probes:
             return
 
@@ -183,11 +183,11 @@ class NetworkScanner(ScannerBase):
                             return
 
     # -----------------------------------------------------------------
-    # Yardımcılar
+    # Helpers
     # -----------------------------------------------------------------
     @staticmethod
     def _build_nmap_args(depth: ScanDepth, target: Target | None = None) -> str:
-        """Derinliğe göre nmap argümanlarını oluşturur."""
+        """Build nmap arguments based on depth."""
         is_network_scan = (
             target is not None
             and target.target_type in (TargetType.LOCAL_NETWORK, TargetType.IP_RANGE)
@@ -200,9 +200,9 @@ class NetworkScanner(ScannerBase):
             case ScanDepth.STANDARD:
                 return f"-sT -sV --open -T4 {host_discovery}".strip()
             case ScanDepth.DEEP:
-                # Tüm portlar + versiyon + güvenli NSE script'leri + OS tespiti.
-                # -O yönetici/Npcap ister; haksa atlar, diğer sonuçlar çalışır.
-                # --script=safe destructive olmayan vuln/discovery script'leri içerir.
+                # All ports + version + safe NSE scripts + OS detection.
+                # -O requires admin/Npcap; it's skipped if missing and the rest still runs.
+                # --script=safe covers non-destructive vuln/discovery scripts.
                 return f"-sT -sV -O --script=safe --open -T4 -p- {host_discovery}".strip()
 
     def _extract_findings(
@@ -211,7 +211,7 @@ class NetworkScanner(ScannerBase):
         target: Target,
         hosts: list[str],
     ) -> list[Finding]:
-        """nmap sonuçlarını Finding nesnelerine çevirir."""
+        """Convert nmap results into Finding objects."""
         findings: list[Finding] = []
 
         for host in hosts:
@@ -316,7 +316,7 @@ class NetworkScanner(ScannerBase):
         base: Severity,
         cves: "list",
     ) -> Severity:
-        """CVE'lerin en kritik CVSS'i port base severity'sinden yüksekse yükselt."""
+        """Escalate severity if the highest CVSS among CVEs exceeds the port base."""
         if not cves:
             return base
         max_cvss = max((c.cvss_score or 0.0) for c in cves)
@@ -340,7 +340,7 @@ class NetworkScanner(ScannerBase):
 
 
 def _estimate_scan_time(target: Target, depth: ScanDepth) -> str:
-    """CIDR hedefler için kullanıcıya süre tahmini mesajı döndürür."""
+    """Return a time-estimate message for CIDR targets."""
     if target.target_type not in (TargetType.LOCAL_NETWORK, TargetType.IP_RANGE):
         return ""
 
@@ -376,8 +376,8 @@ def _estimate_scan_time(target: Target, depth: ScanDepth) -> str:
 
 
 def _build_remediation(port: int, service: str) -> str:
-    """Port için onarım önerisi — i18n üzerinden."""
-    del service  # şimdilik sadece port bazlı
+    """Remediation suggestion for a port — via i18n."""
+    del service  # port-based only for now
     if port in _RISKY_PORTS:
         return t("finding.network.open_port.remediation")
     return t("finding.network.generic_port.remediation")

@@ -1,4 +1,4 @@
-"""ssl_tls.py probe testleri — gerçek soket çağrıları mock'lanır."""
+"""ssl_tls.py probe tests — real socket calls are mocked."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ class TestHttpSkipped:
     def test_http_url_returns_empty(self) -> None:
         probe = SslTlsProbe()
         session = MagicMock()
-        # SSL probe HTTP için çalışmaz
+        # SSL probe does not run for HTTP
         assert probe.probe("http://example.com", session) == []
 
 
@@ -21,7 +21,7 @@ class TestWeakProtocolDetection:
     def test_tls10_supported_yields_high_finding(self) -> None:
         probe = SslTlsProbe()
 
-        # _try_handshake'i mock'la: TLSv1 destekleniyor, diğerleri değil
+        # Mock _try_handshake: TLSv1 is supported, others are not
         def fake_handshake(host, port, tls_version, timeout):
             if tls_version == ssl.TLSVersion.TLSv1:
                 return _HandshakeOutcome("TLSv1", supported=True)
@@ -59,7 +59,7 @@ class TestWeakProtocolDetection:
         probe = SslTlsProbe()
 
         def fake_handshake(host, port, tls_version, timeout):
-            # Hiçbir zayıf protokol desteklenmiyor
+            # No weak protocols are supported
             return _HandshakeOutcome(tls_version.name, supported=False)
 
         with (

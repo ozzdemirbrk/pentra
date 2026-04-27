@@ -1,7 +1,7 @@
-"""Pytest global yapılandırması.
+"""Global pytest configuration.
 
-- Ortak fixture'lar burada tanımlanır.
-- Tüm testler için path düzenlemeleri, geçici dizin kurulumu yapılır.
+- Shared fixtures are defined here.
+- Path adjustments and temporary-directory setup for all tests.
 """
 
 from __future__ import annotations
@@ -14,9 +14,9 @@ import pytest
 
 @pytest.fixture
 def tmp_appdata(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[Path, None, None]:
-    """%APPDATA% dizinini geçici bir klasöre yönlendirir.
+    """Redirect the %APPDATA% directory to a temporary folder.
 
-    config.get_appdata_dir() çağrıları test izolasyonunda bu yolu kullanır.
+    Calls to config.get_appdata_dir() use this path for test isolation.
     """
     monkeypatch.setenv("APPDATA", str(tmp_path))
     yield tmp_path

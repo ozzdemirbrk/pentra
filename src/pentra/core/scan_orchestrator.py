@@ -1,16 +1,16 @@
-"""Tarama orkestratörü — güvenlik zincirini tek bir yerde uygular.
+"""Scan orchestrator — applies the safety chain in a single place.
 
-Taramayı başlatmanın tek yasal yolu buradan geçmektir. Zincir:
+The only legitimate way to start a scan is through here. The chain:
 
-    Request → ScopeValidator → AuthorizationManager.grant → Scanner seçimi
-              ↓ reddedildi       ↓ reddedildi
-           AuthorizationDenied   AuthorizationDenied
+    Request -> ScopeValidator -> AuthorizationManager.grant -> Scanner selection
+               | denied           | denied
+            AuthorizationDenied   AuthorizationDenied
 
-Başarılı ise `PreparedScan` döner — GUI katmanı bunu bir QThread içinde
-`scanner.scan(...)` olarak başlatır.
+On success it returns a `PreparedScan` — the GUI layer runs this inside a
+QThread via `scanner.scan(...)`.
 
-NOT: Orchestrator **paket göndermez**. Gerçek tarama `Scanner.scan()` içinde
-ve GUI'nin yönettiği worker thread'de olur.
+NOTE: the Orchestrator **does not send packets**. The actual scan happens
+inside `Scanner.scan()` on a worker thread managed by the GUI.
 """
 
 from __future__ import annotations
@@ -35,13 +35,13 @@ from pentra.safety.authorization import (
 from pentra.safety.scope_validator import ScopeValidator
 from pentra.storage.audit_log import AuditLog, make_event
 
-# Scanner factory — TargetType'a göre doğru scanner'ı üretir.
+# Scanner factory — returns the correct scanner based on TargetType.
 ScannerFactory = Callable[[TargetType], ScannerBase]
 
 
 @dataclasses.dataclass(frozen=True)
 class ScanRequest:
-    """GUI'den gelen tarama isteği — kullanıcının sihirbazdaki seçimleri."""
+    """Scan request coming from the GUI — the user's choices in the wizard."""
 
     target: Target
     depth: ScanDepth
@@ -51,7 +51,7 @@ class ScanRequest:
 
 @dataclasses.dataclass(frozen=True)
 class PreparedScan:
-    """Güvenlik zincirini geçmiş, çalıştırılmaya hazır tarama."""
+    """A scan that passed the safety chain and is ready to run."""
 
     scanner: ScannerBase
     token: AuthorizationToken
@@ -61,12 +61,12 @@ class PreparedScan:
 
 
 class ScanOrchestrator:
-    """Tarama yaşam döngüsünü yöneten merkezi sınıf.
+    """Central class that manages the scan lifecycle.
 
-    Tek sorumluluğu:
-        - Güvenlik kontrollerini sırayla uygulamak
-        - Uygun Scanner örneğini hazırlamak
-        - Tüm önemli olayları audit log'a yazmak
+    Sole responsibility:
+        - Apply the safety checks in order
+        - Prepare the appropriate Scanner instance
+        - Write every significant event to the audit log
     """
 
     def __init__(
@@ -82,17 +82,17 @@ class ScanOrchestrator:
         self._scanner_factory = scanner_factory
 
     # -----------------------------------------------------------------
-    # Ana API
+    # Main API
     # -----------------------------------------------------------------
     def prepare(self, request: ScanRequest) -> PreparedScan:
-        """Güvenlik zincirini çalıştır, hazır scanner + token döner.
+        """Run the safety chain and return a ready scanner + token.
 
         Raises:
-            AuthorizationDenied: zincirin herhangi bir halkası reddettiyse.
+            AuthorizationDenied: if any link in the chain denied the request.
         """
         target_fp = hash_target(request.target)
 
-        # --- 0) Talep loglanır (reddedilse bile iz kalsın) ---
+        # --- 0) Log the request (keep a trace even when denied) ---
         self._audit.log_event(
             make_event(
                 "scan_requested",
@@ -106,7 +106,7 @@ class ScanOrchestrator:
             ),
         )
 
-        # --- 1) Scope doğrulama ---
+        # --- 1) Scope validation ---
         scope_decision = self._scope.validate(request.target)
         self._audit.log_event(
             make_event(
@@ -123,10 +123,10 @@ class ScanOrchestrator:
         if scope_decision.is_denied:
             self._log_denied(target_fp, "scope_denied", scope_decision.reason)
             raise AuthorizationDenied(
-                f"Kapsam kontrolü başarısız: {scope_decision.reason}",
+                f"Scope check failed: {scope_decision.reason}",
             )
 
-        # --- 2) Yetki üretimi ---
+        # --- 2) Authorization token issue ---
         auth_request = AuthorizationRequest(
             target=request.target,
             depth=request.depth,
@@ -147,7 +147,7 @@ class ScanOrchestrator:
             ),
         )
 
-        # --- 3) Uygun Scanner seçimi ---
+        # --- 3) Pick the appropriate Scanner ---
         scanner = self._scanner_factory(request.target.target_type)
 
         return PreparedScan(
@@ -159,7 +159,7 @@ class ScanOrchestrator:
         )
 
     def cleanup(self, prepared: PreparedScan) -> None:
-        """Tarama bittiğinde token'ı iptal et ve kapanış logu yaz."""
+        """Revoke the token and write a closing log when the scan ends."""
         self._auth.revoke(prepared.token)
         self._audit.log_event(
             make_event(
@@ -170,7 +170,7 @@ class ScanOrchestrator:
         )
 
     # -----------------------------------------------------------------
-    # İç
+    # Internal
     # -----------------------------------------------------------------
     def _log_denied(self, target_fp: str, reason_type: str, reason: str) -> None:
         self._audit.log_event(

@@ -1,9 +1,9 @@
-"""Token bucket rate limiter — paket/saniye sınırlayıcı.
+"""Token bucket rate limiter — packets-per-second limiter.
 
-Her tarayıcı paket göndermeden önce bu sınırlayıcıdan izin alır.
-Amaç: kullanıcının ağında DoS etkisi yaratmamak.
+Every scanner asks this limiter for permission before sending a packet.
+Goal: avoid causing any DoS impact on the user's network.
 
-Thread-safe — birden fazla worker aynı anda acquire() çağırabilir.
+Thread-safe — multiple workers may call acquire() concurrently.
 """
 
 from __future__ import annotations
@@ -13,22 +13,23 @@ import time
 
 
 class TokenBucket:
-    """Klasik token bucket algoritması.
+    """Classic token bucket algorithm.
 
-    Kova başlangıçta dolu. Her saniyede `refill_rate_per_sec` token eklenir
-    (kapasiteyi aşmaz). `acquire()` ile token tüketilir; yoksa False döner.
+    The bucket starts full. Every second `refill_rate_per_sec` tokens are
+    added (without exceeding capacity). `acquire()` consumes tokens; if
+    none are available it returns False.
 
-    Parametreler:
-        capacity: Kovada en fazla tutulabilecek token sayısı (burst sınırı).
-        refill_rate_per_sec: Saniyede eklenen token sayısı (sürdürülebilir hız).
+    Parameters:
+        capacity: Maximum number of tokens the bucket can hold (burst limit).
+        refill_rate_per_sec: Tokens added per second (sustainable rate).
     """
 
     def __init__(self, capacity: int, refill_rate_per_sec: float) -> None:
         if capacity <= 0:
-            raise ValueError(f"capacity pozitif olmalı, verilen: {capacity}")
+            raise ValueError(f"capacity must be positive, got: {capacity}")
         if refill_rate_per_sec <= 0:
             raise ValueError(
-                f"refill_rate_per_sec pozitif olmalı, verilen: {refill_rate_per_sec}",
+                f"refill_rate_per_sec must be positive, got: {refill_rate_per_sec}",
             )
 
         self._capacity: int = capacity
@@ -38,7 +39,7 @@ class TokenBucket:
         self._lock = threading.Lock()
 
     # -----------------------------------------------------------------
-    # Read-only özellikler
+    # Read-only properties
     # -----------------------------------------------------------------
     @property
     def capacity(self) -> int:
@@ -50,24 +51,24 @@ class TokenBucket:
 
     @property
     def current_tokens(self) -> float:
-        """O anki token sayısını döner (yaklaşık, inceleme amaçlı)."""
+        """Return the current token count (approximate, for inspection)."""
         with self._lock:
             self._refill_locked()
             return self._tokens
 
     # -----------------------------------------------------------------
-    # Ana API
+    # Main API
     # -----------------------------------------------------------------
     def acquire(self, tokens: int = 1) -> bool:
-        """N token iste. Yeterli varsa çıkar ve True, yoksa False döner.
+        """Request N tokens. If enough are available, consume them and return True; otherwise False.
 
-        Bloklamaz — kullanıcı kodu isterse kendi döngüsünde bekleyebilir.
+        Non-blocking — user code may poll in its own loop if desired.
         """
         if tokens <= 0:
-            raise ValueError(f"tokens pozitif olmalı, verilen: {tokens}")
+            raise ValueError(f"tokens must be positive, got: {tokens}")
         if tokens > self._capacity:
             raise ValueError(
-                f"istenen token sayısı ({tokens}) kapasiteden ({self._capacity}) büyük",
+                f"requested tokens ({tokens}) exceed capacity ({self._capacity})",
             )
 
         with self._lock:
@@ -78,22 +79,22 @@ class TokenBucket:
             return False
 
     def wait_for(self, tokens: int = 1, timeout: float | None = None) -> bool:
-        """N token gelene kadar bekle. Acquire başarılıysa True.
+        """Wait until N tokens are available. True on successful acquire.
 
-        timeout None ise süresiz bekler. Aksi halde timeout süresi
-        bitince False döner.
+        If timeout is None this blocks indefinitely. Otherwise returns
+        False when the timeout elapses.
         """
         if tokens <= 0:
-            raise ValueError(f"tokens pozitif olmalı, verilen: {tokens}")
+            raise ValueError(f"tokens must be positive, got: {tokens}")
         if tokens > self._capacity:
             raise ValueError(
-                f"istenen token sayısı ({tokens}) kapasiteden ({self._capacity}) büyük",
+                f"requested tokens ({tokens}) exceed capacity ({self._capacity})",
             )
 
         deadline: float | None = None
         if timeout is not None:
             if timeout < 0:
-                raise ValueError("timeout negatif olamaz")
+                raise ValueError("timeout cannot be negative")
             deadline = time.monotonic() + timeout
 
         while True:
@@ -104,7 +105,7 @@ class TokenBucket:
                     return True
                 missing = tokens - self._tokens
 
-            # Eksik token'ın dolması için gereken tahmini süre
+            # Estimated time for the missing tokens to refill
             wait_sec = missing / self._refill_rate
 
             if deadline is not None:
@@ -113,14 +114,14 @@ class TokenBucket:
                     return False
                 wait_sec = min(wait_sec, remaining)
 
-            # Çok kısa sleep CPU döndürür; minimum 1 ms
+            # Very short sleeps spin the CPU; minimum 1 ms
             time.sleep(max(wait_sec, 0.001))
 
     # -----------------------------------------------------------------
-    # İç
+    # Internal
     # -----------------------------------------------------------------
     def _refill_locked(self) -> None:
-        """Son refill'dan bu yana geçen süreye göre token ekle. Lock tutulmuş olmalı."""
+        """Add tokens based on time elapsed since last refill. Lock must be held."""
         now = time.monotonic()
         elapsed = now - self._last_refill
         if elapsed <= 0:

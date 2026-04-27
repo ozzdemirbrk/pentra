@@ -1,14 +1,15 @@
-"""Tüm tarayıcıların ortak temel sınıfı.
+"""Common base class for all scanners.
 
-Her tarayıcı (network, host, web, wifi) `ScannerBase`'den türer ve
-`_do_scan()` metodunu implement eder.
+Every scanner (network, host, web, wifi) inherits from `ScannerBase` and
+implements `_do_scan()`.
 
-Güvenlik zinciri:
-    1. Scanner `__init__` rate_limiter + audit_log + auth_manager alır
-    2. `scan(target, depth, token)` çağrıldığında önce token doğrulanır
-       (defense in depth — Orchestrator zaten doğrulamış olsa da)
-    3. Token geçerliyse `_do_scan()` çağrılır
-    4. Her adım audit log'a yazılır
+Safety chain:
+    1. Scanner `__init__` receives rate_limiter + audit_log + auth_manager
+    2. When `scan(target, depth, token)` is called, the token is first
+       verified (defense in depth — even though the Orchestrator already
+       verified it)
+    3. If the token is valid `_do_scan()` is invoked
+    4. Every step is written to the audit log
 """
 
 from __future__ import annotations
@@ -27,28 +28,28 @@ from pentra.safety.authorization import (
 from pentra.storage.audit_log import AuditLog, make_event
 
 try:
-    # CveMapper opsiyonel bağımlılık — dışarıdan enjekte edilir.
+    # CveMapper is an optional dependency — injected from outside.
     from pentra.knowledge.cve_mapper import CveMapper
 except ImportError:  # pragma: no cover
     CveMapper = None  # type: ignore[assignment,misc]
 
 
 class ScannerBase(QObject):
-    """Tarayıcı soyut temeli — Qt sinyalleriyle ilerleme yayar.
+    """Abstract scanner base — emits progress via Qt signals.
 
-    Alt sınıflar `_do_scan()` + `scanner_name` implement eder.
+    Subclasses implement `_do_scan()` and `scanner_name`.
     """
 
     # -----------------------------------------------------------------
-    # Qt sinyalleri
+    # Qt signals
     # -----------------------------------------------------------------
-    # (yüzde 0-100, Türkçe açıklama)
+    # (percent 0-100, localized step description)
     progress_updated = Signal(int, str)
-    # Yeni bir Finding keşfedildi
+    # A new Finding was discovered
     finding_discovered = Signal(object)
-    # Tarama başarıyla bitti
+    # Scan finished successfully
     scan_completed = Signal()
-    # Hata — Türkçe mesaj
+    # Error — localized message
     error_occurred = Signal(str)
 
     def __init__(
@@ -63,28 +64,28 @@ class ScannerBase(QObject):
         self._rate_limiter = rate_limiter
         self._audit_log = audit_log
         self._auth_manager = auth_manager
-        self._cve_mapper = cve_mapper  # None ise CVE zenginleştirme yapılmaz
+        self._cve_mapper = cve_mapper  # No CVE enrichment when None
         self._cancelled: bool = False
 
     # -----------------------------------------------------------------
-    # Alt sınıfın implement edeceği
+    # To be implemented by subclasses
     # -----------------------------------------------------------------
     @property
     @abstractmethod
     def scanner_name(self) -> str:
-        """Audit log'da görünecek kısa ad (ör. 'network_scanner')."""
+        """Short name visible in the audit log (e.g. 'network_scanner')."""
 
     @abstractmethod
     def _do_scan(self, target: Target, depth: ScanDepth) -> None:
-        """Gerçek tarama mantığı. Alt sınıf sinyalleri emit eder.
+        """Actual scan logic. Subclass emits signals.
 
-        - `progress_updated.emit(yüzde, 'adım açıklaması')`
+        - `progress_updated.emit(percent, 'step description')`
         - `finding_discovered.emit(Finding(...))`
-        - Cancellation için `self.is_cancelled` kontrolü
+        - For cancellation, check `self.is_cancelled`
         """
 
     # -----------------------------------------------------------------
-    # Ortak giriş noktası
+    # Shared entry point
     # -----------------------------------------------------------------
     def scan(
         self,
@@ -92,18 +93,18 @@ class ScannerBase(QObject):
         depth: ScanDepth,
         token: AuthorizationToken,
     ) -> None:
-        """Tarama başlat. Token doğrulaması + audit log yazımı dahil.
+        """Start a scan. Includes token verification + audit log writes.
 
-        Hata durumunda `error_occurred` emit eder, exception yutar.
+        On error this emits `error_occurred` and swallows the exception.
         """
-        # 1. Son savunma hattı: token doğrulaması
+        # 1. Last line of defense: token verification
         if not self._auth_manager.verify(token, target):
-            self._emit_error("Yetki token'ı geçersiz veya süresi dolmuş")
+            self._emit_error("Authorization token is invalid or expired")
             return
 
         target_fp = hash_target(target)
 
-        # 2. Başlangıç log
+        # 2. Start log
         self._audit_log.log_event(
             make_event(
                 "scan_started",
@@ -116,10 +117,10 @@ class ScannerBase(QObject):
             ),
         )
 
-        # 3. Asıl tarama — hata yakalanır, sinyal olarak geri döner
+        # 3. Actual scan — errors are caught and reported back as a signal
         try:
             self._do_scan(target, depth)
-        except Exception as e:  # noqa: BLE001 — kullanıcı görmeli, yutmayalım
+        except Exception as e:  # noqa: BLE001 — user needs to see this; don't swallow
             self._audit_log.log_event(
                 make_event(
                     "scan_failed",
@@ -130,10 +131,10 @@ class ScannerBase(QObject):
                     },
                 ),
             )
-            self._emit_error(f"Tarama sırasında hata: {e}")
+            self._emit_error(f"Error during scan: {e}")
             return
 
-        # 4. Başarı log + sinyal
+        # 4. Success log + signal
         if self._cancelled:
             self._audit_log.log_event(
                 make_event(
@@ -153,10 +154,10 @@ class ScannerBase(QObject):
         self.scan_completed.emit()
 
     # -----------------------------------------------------------------
-    # Yardımcılar (alt sınıflar için)
+    # Helpers (for subclasses)
     # -----------------------------------------------------------------
     def cancel(self) -> None:
-        """Taramayı iptal et — `_do_scan` `is_cancelled`'ı kontrol etmeli."""
+        """Cancel the scan — `_do_scan` should check `is_cancelled`."""
         self._cancelled = True
 
     @property
@@ -164,7 +165,7 @@ class ScannerBase(QObject):
         return self._cancelled
 
     def _emit_progress(self, percent: int, message: str) -> None:
-        """Alt sınıflar bu yardımcıyla sinyal emit eder."""
+        """Subclasses use this helper to emit signals."""
         self.progress_updated.emit(max(0, min(100, percent)), message)
 
     def _emit_finding(self, finding: Finding) -> None:
@@ -174,9 +175,9 @@ class ScannerBase(QObject):
         self.error_occurred.emit(message)
 
     def _throttle(self, packets: int = 1) -> bool:
-        """Rate limiter'dan N token iste. Beklemek gerekirse bekler.
+        """Request N tokens from the rate limiter. Blocks if needed.
 
-        İptal edilmiş taramada False döner — kullanıcı kodu buna göre davranır.
+        Returns False when the scan is cancelled — user code should behave accordingly.
         """
         if self._cancelled:
             return False

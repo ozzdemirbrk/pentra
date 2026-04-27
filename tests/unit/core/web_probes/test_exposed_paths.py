@@ -1,4 +1,4 @@
-"""exposed_paths.py — probe testleri (soft-404 + content validator sonrası)."""
+"""exposed_paths.py — probe tests (after soft-404 + content validator)."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def _response(
 
 
 def _session_with_map(response_map: dict[str, MagicMock], default: MagicMock) -> MagicMock:
-    """URL kısmı eşleşen response döner, yoksa `default`."""
+    """Returns the response whose URL fragment matches, otherwise `default`."""
     session = MagicMock(spec=requests.Session)
 
     def fake_get(url, **_kwargs):
@@ -38,7 +38,7 @@ def _session_with_map(response_map: dict[str, MagicMock], default: MagicMock) ->
     return session
 
 
-# Ortak 404 default
+# Common 404 default
 _NOT_FOUND = _response(404, "", content_type="text/plain")
 
 
@@ -60,7 +60,7 @@ class TestEnvValidator:
         assert env[0].severity == Severity.CRITICAL
 
     def test_html_response_at_env_path_not_flagged(self) -> None:
-        """Soft 404: sunucu .env için HTML anasayfa dönerse → false positive ÖNLENMELİ."""
+        """Soft 404: if server returns HTML home page for .env → false positive MUST be prevented."""
         probe = ExposedPathsProbe()
         html = "<html><body>Hoş geldiniz! name=value etc.</body></html>"
         session = _session_with_map(
@@ -72,7 +72,7 @@ class TestEnvValidator:
 
     def test_plaintext_but_no_env_pattern_not_flagged(self) -> None:
         probe = ExposedPathsProbe()
-        # Content-Type plain ama içerik .env değil
+        # Content-Type plain but content is not .env
         session = _session_with_map(
             {"/.env": _response(200, "merhaba dünya", content_type="text/plain")},
             default=_NOT_FOUND,
@@ -120,7 +120,7 @@ class TestSqlDumpValidator:
         assert any("database.sql" in f.target for f in findings)
 
     def test_html_at_sql_path_not_flagged(self) -> None:
-        """Zonguldak gibi soft-404 senaryosu."""
+        """Soft-404 scenario."""
         probe = ExposedPathsProbe()
         html = "<html>CREATE TABLE mentioned in blog post</html>"
         session = _session_with_map(
@@ -136,7 +136,7 @@ class TestSqlDumpValidator:
 # =====================================================================
 class TestSoftFourOhFour:
     def test_catchall_site_no_false_positives(self) -> None:
-        """Sunucu her yola aynı HTML'i dönüyor — hiçbir bulgu olmamalı (sec_txt hariç)."""
+        """Server returns the same HTML for every path — there should be no findings (except sec_txt)."""
         probe = ExposedPathsProbe()
         catchall_html = "<html><body>Anasayfa</body></html>"
         catchall_response = _response(200, catchall_html, content_type="text/html")
@@ -146,12 +146,12 @@ class TestSoftFourOhFour:
 
         findings = probe.probe("https://example.com", session)
 
-        # Soft-404 baseline tetiklenmiş olmalı — hiçbir "exposed" bulgu olmamalı
+        # Soft-404 baseline must have been triggered — there must be no "exposed" findings
         exposed = [f for f in findings if f.severity != Severity.INFO]
         assert exposed == []
 
     def test_different_sized_response_not_filtered(self) -> None:
-        """Baseline'dan çok farklı boyutlu yanıt soft-404 sayılmaz."""
+        """Responses with size very different from baseline aren't treated as soft-404."""
         probe = ExposedPathsProbe()
 
         small_404 = _response(404, "Not Found", content_type="text/plain")
@@ -176,7 +176,7 @@ class TestSoftFourOhFour:
 
 
 # =====================================================================
-# security.txt ters mantık
+# security.txt inverse logic
 # =====================================================================
 class TestSecurityTxt:
     def test_missing_security_txt_info_finding(self) -> None:
@@ -198,7 +198,7 @@ class TestSecurityTxt:
         assert not any("security.txt yok" in f.title for f in findings)
 
     def test_soft_404_on_security_txt_reports_missing(self) -> None:
-        """Soft-404 baseline ile aynı boyutta security.txt yanıtı → dosya yok sayılır."""
+        """A security.txt response identical to the soft-404 baseline → file considered missing."""
         probe = ExposedPathsProbe()
         catchall = _response(200, "<html>anasayfa</html>", content_type="text/html")
         session = MagicMock(spec=requests.Session)
@@ -231,7 +231,7 @@ class TestAdminValidator:
         session = MagicMock(spec=requests.Session)
         session.get.return_value = catchall
         findings = probe.probe("https://example.com", session)
-        # /admin için bulgu olmamalı (soft-404 baseline ile aynı)
+        # No finding for /admin (matches the soft-404 baseline)
         assert not any(f.target.endswith("/admin") for f in findings)
 
 

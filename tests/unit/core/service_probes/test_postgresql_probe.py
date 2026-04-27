@@ -1,4 +1,4 @@
-"""postgresql_probe.py testleri — mocked psycopg2."""
+"""postgresql_probe.py tests — mocked psycopg2."""
 
 from __future__ import annotations
 

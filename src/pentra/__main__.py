@@ -1,4 +1,4 @@
-"""Pentra giriş noktası — `python -m pentra` komutuyla çalıştırılır."""
+"""Pentra entry point — run with `python -m pentra`."""
 
 from pentra.app import main
 
